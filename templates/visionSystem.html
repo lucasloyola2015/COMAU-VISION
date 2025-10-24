@@ -187,6 +187,56 @@
     </div>
   </div>
   
+  <!-- Card de Region de Interés (ROI) -->
+  <div class="card" style="margin-top: var(--space-lg);">
+    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
+      Region de Interés
+    </h2>
+    
+    <!-- Checkbox para habilitar ROI -->
+    <div style="margin-bottom: var(--space-md);">
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkEnableROI" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkEnableROI" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Habilitar ROI
+        </label>
+      </div>
+    </div>
+    
+    <!-- Controles ROI en grid 2 columnas -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm) var(--space-xl);">
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <label for="inputOffsetY" style="font-size: var(--font-size-sm); color: var(--text-primary); font-weight: 500;">
+          Distancia de offset Y (mm)
+        </label>
+        <input type="number" id="inputOffsetY" step="0.1" min="0" max="100" value="0.0" 
+               style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <label for="inputZoomX" style="font-size: var(--font-size-sm); color: var(--text-primary); font-weight: 500;">
+          Zoom X (%)
+        </label>
+        <input type="number" id="inputZoomX" step="1" min="10" max="500" value="150" 
+               style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+        <label for="inputZoomY" style="font-size: var(--font-size-sm); color: var(--text-primary); font-weight: 500;">
+          Zoom Y (%)
+        </label>
+        <input type="number" id="inputZoomY" step="1" min="10" max="500" value="150" 
+               style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+      </div>
+      
+      <div style="display: flex; align-items: end;">
+        <button id="btnSaveROI" class="btn btn-primary btn-sm">
+          Guardar ROI
+        </button>
+      </div>
+    </div>
+  </div>
+  
   <!-- Mensaje general (compartido por ambos cards) -->
   <div id="message" style="margin-top: var(--space-lg);"></div>
 
@@ -211,6 +261,13 @@
     const inputCentrosMm = document.getElementById('inputCentrosMm');
     const inputColinealidadMm = document.getElementById('inputColinealidadMm');
     const inputEspaciadoCV = document.getElementById('inputEspaciadoCV');
+    
+    // Elementos ROI
+    const chkEnableROI = document.getElementById('chkEnableROI');
+    const inputOffsetY = document.getElementById('inputOffsetY');
+    const inputZoomX = document.getElementById('inputZoomX');
+    const inputZoomY = document.getElementById('inputZoomY');
+    const btnSaveROI = document.getElementById('btnSaveROI');
     
     let currentDetectionPath = null;
     let currentHolesPath = null;
@@ -369,11 +426,69 @@
           inputCentrosMm.value = config.vision.umbral_centros_mm || 3.0;
           inputColinealidadMm.value = config.vision.umbral_colinealidad_mm || 2.0;
           inputEspaciadoCV.value = config.vision.umbral_espaciado_cv || 0.05;
+          
+          // Cargar configuración ROI
+          chkEnableROI.checked = config.vision.roi_enabled || false;
+          inputOffsetY.value = config.vision.roi_offset_y_mm || 0.0;
+          inputZoomX.value = config.vision.roi_zoom_x_percent || 150;
+          inputZoomY.value = config.vision.roi_zoom_y_percent || 150;
+          
+          console.log('[ROI] 📥 Configuración ROI cargada:', {
+            enabled: chkEnableROI.checked,
+            offset_y: inputOffsetY.value,
+            zoom_x: inputZoomX.value,
+            zoom_y: inputZoomY.value
+          });
         }
         
         console.log('[visionSystem] Configuración cargada:', config);
       } catch (e) {
         console.error('[visionSystem] Error cargando config:', e);
+      }
+    }
+    
+    // ============================================================
+    // FUNCIONES ROI
+    // ============================================================
+    async function saveROIConfig() {
+      try {
+        btnSaveROI.disabled = true;
+        showMessage('Guardando configuración ROI...', 'info');
+        
+        console.log('[ROI] 🚀 Guardando configuración ROI...');
+        console.log('[ROI] 📊 Datos ROI:', {
+          enabled: chkEnableROI.checked,
+          offset_y: parseFloat(inputOffsetY.value),
+          zoom_x: parseFloat(inputZoomX.value),
+          zoom_y: parseFloat(inputZoomY.value)
+        });
+        
+        const response = await Common.fetchWithTimeout('/api/vision/set_roi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roi_enabled: chkEnableROI.checked,
+            roi_offset_y_mm: parseFloat(inputOffsetY.value),
+            roi_zoom_x_percent: parseFloat(inputZoomX.value),
+            roi_zoom_y_percent: parseFloat(inputZoomY.value)
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          showMessage('Configuración ROI guardada correctamente', 'success');
+          console.log('[ROI] ✅ Configuración ROI guardada:', data);
+        } else {
+          showMessage(data.error || 'Error guardando configuración ROI', 'error');
+          console.error('[ROI] ❌ Error guardando ROI:', data);
+        }
+        
+      } catch (e) {
+        console.error('[ROI] ❌ Error en saveROIConfig:', e);
+        showMessage('Error de conexión guardando ROI', 'error');
+      } finally {
+        btnSaveROI.disabled = false;
       }
     }
     
@@ -387,6 +502,9 @@
     
     // Guardar umbrales (usa la misma función saveConfig)
     btnSaveThresholds.addEventListener('click', saveConfig);
+    
+    // Guardar ROI
+    btnSaveROI.addEventListener('click', saveROIConfig);
     
     // ============================================================
     // INICIALIZACIÓN

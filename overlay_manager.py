@@ -76,8 +76,19 @@ class OverlayManager:
         self.renderlists: Dict[str, List[str]] = {}
         self.backgrounds: Dict[str, np.ndarray] = {}
         
-        # Definir marco base por defecto
-        self.define_frame("Base", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+        # Definir marco world por defecto
+        self.define_frame("world", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+        
+        # Definir marcos base_frame, tool_frame y junta_frame por defecto
+        self.define_frame("base_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+        self.define_frame("tool_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+        self.define_frame("junta_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+        
+        print(f"[OverlayManager] ✓ Marcos inicializados al inicio del sistema:")
+        print(f"  - world: offset=(0, 0), px_per_mm=1.0")
+        print(f"  - base_frame: offset=(0, 0), px_per_mm=1.0")
+        print(f"  - tool_frame: offset=(0, 0), px_per_mm=1.0")
+        print(f"  - junta_frame: offset=(0, 0), px_per_mm=1.0")
         
         # Configuración por defecto
         self.default_properties = {
@@ -95,7 +106,7 @@ class OverlayManager:
     
     def define_frame(self, name: str, offset: Tuple[float, float], 
                     rotation: float, px_per_mm: float = 1.0, 
-                    parent_frame: str = "Base", is_temporary: bool = False) -> None:
+                    parent_frame: str = "world", is_temporary: bool = False) -> None:
         """
         Definir un nuevo marco de coordenadas.
         
@@ -104,7 +115,7 @@ class OverlayManager:
             offset: Desplazamiento (x, y) respecto al marco padre
             rotation: Rotación en radianes
             px_per_mm: Relación píxeles por milímetro
-            parent_frame: Marco padre (default: "Base")
+            parent_frame: Marco padre (default: "world")
             is_temporary: Si es marco temporal para calibración
         """
         if name in self.frames:
@@ -211,8 +222,8 @@ class OverlayManager:
         final_y = local_x * sin_rot_dest + local_y * cos_rot_dest
         
         # PASO 4: Convertir de píxeles a mm usando px_per_mm del marco destino
-        # Solo si el marco destino no es "Base" (que siempre está en píxeles)
-        if to_frame != "Base":
+        # Solo si el marco destino no es "world" (que siempre está en píxeles)
+        if to_frame != "world":
             final_x = final_x / to_frame_obj.px_per_mm
             final_y = final_y / to_frame_obj.px_per_mm
         
@@ -577,9 +588,9 @@ class OverlayManager:
             
             obj = self.objects[obj_name]
             
-            # Transformar al marco Base para renderizado
+            # Transformar al marco world para renderizado
             transformed_coords = self._transform_coordinates(
-                obj.coordinates, obj.original_frame, "Base"
+                obj.coordinates, obj.original_frame, "world"
             )
             
             # Dibujar según tipo
@@ -739,8 +750,22 @@ class OverlayManager:
         """Cargar configuración persistente al inicializar"""
         if os.path.exists('overlay_frames.json'):
             self.load_config('overlay_frames.json')
+            print(f"[OverlayManager] ✓ Configuración persistente cargada desde overlay_frames.json")
         else:
             print(f"[OverlayManager] ⚠️ No hay configuración persistente, usando valores por defecto")
+        
+        # Asegurar que base_frame y tool_frame existan con valores por defecto si no se cargaron
+        if 'base_frame' not in self.frames:
+            self.define_frame("base_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+            print(f"[OverlayManager] ✓ Marco base_frame inicializado con valores por defecto")
+        
+        if 'tool_frame' not in self.frames:
+            self.define_frame("tool_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+            print(f"[OverlayManager] ✓ Marco tool_frame inicializado con valores por defecto")
+        
+        if 'junta_frame' not in self.frames:
+            self.define_frame("junta_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
+            print(f"[OverlayManager] ✓ Marco junta_frame inicializado con valores por defecto")
     
     def detect_arucos_in_image(self, image: np.ndarray, frame_aruco_id: int, tool_aruco_id: int) -> Dict[str, Any]:
         """
@@ -893,7 +918,7 @@ class OverlayManager:
                 frame_name = "tool_frame_temp"
             else:
                 color = (255, 255, 0)  # Cian para otros
-                frame_name = "Base"  # Usar marco base para ArUcos no esperados
+                frame_name = "world"  # Usar marco world para ArUcos no esperados
             
             # Dibujar contorno del ArUco
             self.add_polygon(
@@ -1025,14 +1050,14 @@ if __name__ == "__main__":
     renderlist = overlay.create_renderlist("linea_tool_1", "circulo_frame_1")
     
     # Consultar coordenadas
-    coords = overlay.get_object("Base", name="linea_tool_1")
+    coords = overlay.get_object("world", name="linea_tool_1")
     print(f"Coordenadas en Base: {coords}")
     
     # Actualizar marco
-    overlay.update_frame("Base", offset=(200, 250), rotation=0.4)
+    overlay.update_frame("world", offset=(200, 250), rotation=0.4)
     
     # Consultar coordenadas después del cambio
-    coords2 = overlay.get_object("Base", name="linea_tool_1")
+    coords2 = overlay.get_object("world", name="linea_tool_1")
     print(f"Coordenadas después del cambio: {coords2}")
     
     print("=== Ejemplo completado ===")

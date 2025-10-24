@@ -56,12 +56,21 @@
       Análisis de Junta
     </h2>
        
-    <button id="btnAnalyze" class="btn btn-primary">
-      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-        <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
-      </svg>
-      Analizar Ahora
-    </button>
+    <div style="display: flex; gap: var(--space-md);">
+      <button id="btnAnalyze" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+        </svg>
+        Analizar Ahora
+      </button>
+      
+      <button id="btnAnalyzeNew" class="btn btn-secondary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+        </svg>
+        Analizar
+      </button>
+    </div>
     
     <div id="message" style="margin-top: var(--space-lg);"></div>
     
@@ -85,6 +94,7 @@
     const analyzedImage = document.getElementById('analyzedImage');
     const camError = document.getElementById('camError');
     const btnAnalyze = document.getElementById('btnAnalyze');
+    const btnAnalyzeNew = document.getElementById('btnAnalyzeNew');
     const messageDiv = document.getElementById('message');
     const resultsDiv = document.getElementById('results');
     const pxPerMmSpan = document.getElementById('pxPerMm');
@@ -102,15 +112,18 @@
         
         if (!juntaSeleccionada) {
           btnAnalyze.disabled = true;
+          btnAnalyzeNew.disabled = true;
           showMessage('⚠️ Selecciona una junta en el Panel de Control para analizar', 'error');
-          console.log('[dashboard] No hay junta seleccionada - botón deshabilitado');
+          console.log('[dashboard] No hay junta seleccionada - botones deshabilitados');
         } else {
           btnAnalyze.disabled = false;
+          btnAnalyzeNew.disabled = false;
           console.log('[dashboard] Junta seleccionada:', result.junta.nombre);
         }
       } catch (e) {
         console.error('[dashboard] Error verificando junta:', e);
         btnAnalyze.disabled = true;
+        btnAnalyzeNew.disabled = true;
       }
     }
     
@@ -254,7 +267,87 @@
       }
     }
     
-    // Botón de análisis
+    // Función para ejecutar análisis nuevo (con OverlayManager)
+    async function ejecutarAnalisisNuevo() {
+      console.log('[dashboard] 🔄 ejecutarAnalisisNuevo() iniciado');
+      showMessage('Analizando con nuevo sistema...', 'info');
+      
+      try {
+        // ═══════════════════════════════════════════════════════════════
+        // Llamar al nuevo endpoint
+        // ═══════════════════════════════════════════════════════════════
+        console.log('[dashboard] 📤 Enviando petición a /api/analyze_new...');
+        const response = await fetch('/api/analyze_new', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        console.log('[dashboard] 📥 Respuesta recibida:', response.status, response.statusText);
+        
+        const result = await response.json();
+        
+        if (!result.ok) {
+          // Error técnico (cámara no conectada, etc.)
+          showMessage('❌ Error técnico: ' + (result.error || 'Desconocido'), 'error');
+          return;
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // Enviar datos al control para actualizar tabla
+        // ═══════════════════════════════════════════════════════════════
+        console.log('[dashboard] 📤 Enviando datos al panel de control...');
+        console.log('[dashboard] 📊 Datos a enviar:', result.data);
+        
+        window.parent.postMessage({ 
+          type: 'ANALYSIS_READY',
+          data: result.data || {}
+        }, '*');
+        
+        if (result.analisis_exitoso) {
+          // ✅ Análisis exitoso - mostrar imagen y datos
+          showMessage('✅ Análisis completado exitosamente', 'success');
+          
+          // Mostrar imagen si está disponible
+          if (result.imagen_base64) {
+            analyzedImage.src = `data:image/jpeg;base64,${result.imagen_base64}`;
+            analyzedImage.style.display = 'block';
+            camStream.style.display = 'none';
+          }
+          
+          // Enviar mensaje de éxito al control panel
+          window.parent.postMessage({ 
+            type: 'ANALYSIS_SUCCESS'
+          }, '*');
+        } else {
+          // ⚠️ Análisis falló - pero SIEMPRE enviar datos al control panel
+          const errorMsg = result.error || 'Validaciones fallaron';
+          
+          // Mensaje diferente según si hay imagen o no
+          if (result.data && (result.data.validaciones_geometricas || result.data.holes)) {
+            // Hay datos parciales → mostrar lo que se detectó
+            const detalle = result.data.validacion_temprana 
+              ? `Falló en validación temprana: ${result.data.validacion_temprana}` 
+              : 'Ver tabla de resultados';
+            showMessage(`⚠️ ${errorMsg}. ${detalle}`, 'error');
+          } else {
+            showMessage(`❌ ${errorMsg}`, 'error');
+          }
+          
+          // ⚠️ IMPORTANTE: Enviar ANALYSIS_READY con datos incluso si falló
+          // Esto permite que el control panel muestre los datos parciales
+          window.parent.postMessage({ 
+            type: 'ANALYSIS_READY',
+            data: result.data || {}
+          }, '*');
+        }
+        
+      } catch (e) {
+        console.error('[dashboard] Error en análisis nuevo:', e);
+        showMessage('❌ Error en análisis: ' + e.message, 'error');
+      }
+    }
+    
+    // Botón de análisis (original)
     btnAnalyze.addEventListener('click', async () => {
       // Verificar nuevamente antes de analizar
       if (!juntaSeleccionada) {
@@ -270,6 +363,27 @@
         setTimeout(() => { 
           if (juntaSeleccionada) {
             btnAnalyze.disabled = false; 
+          }
+        }, 2500);
+      }
+    });
+    
+    // Botón de análisis nuevo
+    btnAnalyzeNew.addEventListener('click', async () => {
+      // Verificar nuevamente antes de analizar
+      if (!juntaSeleccionada) {
+        showMessage('⚠️ Selecciona una junta en el Panel de Control primero', 'error');
+        return;
+      }
+      
+      btnAnalyzeNew.disabled = true;
+      
+      try {
+        await ejecutarAnalisisNuevo();
+      } finally {
+        setTimeout(() => { 
+          if (juntaSeleccionada) {
+            btnAnalyzeNew.disabled = false; 
           }
         }, 2500);
       }

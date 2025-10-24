@@ -66,10 +66,22 @@ def load_model(model_type: str, model_path: str) -> bool:
             print(f"[yolo] ❌ Archivo no encontrado: {model_path}")
             return False
         
-        # Cargar modelo
+        # Cargar modelo con CUDA si está disponible
         _models[model_type] = YOLO(model_path)
+        
+        # Activar CUDA si está disponible
+        try:
+            import torch
+            if torch.cuda.is_available():
+                _models[model_type].to('cuda')
+                print(f"[yolo] ✓ Modelo {model_type} cargado en CUDA: {model_path}")
+            else:
+                print(f"[yolo] ✓ Modelo {model_type} cargado en CPU: {model_path}")
+        except Exception as cuda_error:
+            print(f"[yolo] ⚠️ Error activando CUDA: {cuda_error}")
+            print(f"[yolo] ✓ Modelo {model_type} cargado en CPU: {model_path}")
+        
         _model_paths[model_type] = model_path
-        print(f"[yolo] ✓ Modelo {model_type} cargado: {model_path}")
         return True
     except Exception as e:
         import traceback

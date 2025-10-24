@@ -8,6 +8,7 @@ import threading
 import time
 import json
 import base64
+import requests
 from datetime import datetime
 
 # Agregar src al path de Python
@@ -289,240 +290,7 @@ def api_aruco_config():
         print(f"[aruco] Error en GET /api/aruco/config: {e}")
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@app.route('/api/aruco/capture_reference', methods=['POST'])
-def api_aruco_capture_reference():
-    """Captura el ArUco de referencia del stream de video en vivo"""
-    try:
-        import cv2
-        import numpy as np
-        
-        config = load_aruco_config()
-        aruco_config = config.get('aruco', {})
-        
-        reference_id = aruco_config.get('reference_id', 0)
-        marker_size_mm = aruco_config.get('marker_size_mm', 42.0)
-        
-        # Obtener frame actual de la cámara en formato OpenCV
-        cv2_frame = camera_manager.get_frame_raw()
-        
-        if cv2_frame is None:
-            return jsonify({
-                'ok': False,
-                'error': 'No hay frame disponible de la cámara'
-            }), 400
-        
-        # Importar numpy para operaciones
-        import numpy as np
-        
-        # Detectar ArUco específico
-        result = detect_aruco_by_id(cv2_frame, reference_id, marker_size_mm=marker_size_mm)
-        
-        if result is None:
-            # El ArUco específico no se encontró, ahora detectar todos para dar mejor mensaje
-            all_arucos = detect_all_arucos(cv2_frame, marker_size_mm=marker_size_mm)
-            
-            if all_arucos is None or len(all_arucos.get('detected_ids', [])) == 0:
-                # No se detectó NINGÚN ArUco
-                error_msg = f'No se detectó ningún marcador ArUco en el frame'
-                print(f"[aruco] ❌ {error_msg}")
-            else:
-                # Se detectaron ArUcos, pero no el ID específico
-                detected = all_arucos.get('detected_ids', [])
-                detected_str = ', '.join(str(id) for id in detected)
-                error_msg = f'ArUco ID {reference_id} no detectado.\n🔍 ArUcos detectados: [{detected_str}]'
-                print(f"[aruco] ❌ {error_msg}")
-            
-            return jsonify({
-                'ok': False,
-                'error': error_msg
-            }), 400
-        
-        # Guardar datos de referencia
-        saved_reference = {
-            'px_per_mm': result['px_per_mm'],
-            'angle_deg': float(np.arctan2(result['rotation_matrix'][1][0], result['rotation_matrix'][0][0]) * 180 / np.pi),
-            'timestamp': datetime.now().isoformat(),
-            'center': result['center'],
-            'corners': result['corners']
-        }
-        
-        aruco_config['saved_reference'] = saved_reference
-        config['aruco'] = aruco_config
-        save_aruco_config(config)
-        
-        return jsonify({
-            'ok': True,
-            'data': {
-                'px_per_mm': result['px_per_mm'],
-                'angle_deg': float(np.arctan2(result['rotation_matrix'][1][0], result['rotation_matrix'][0][0]) * 180 / np.pi),
-                'timestamp': saved_reference['timestamp']
-            },
-            'message': 'Referencia ArUco capturada y guardada'
-        })
-    
-    except Exception as e:
-        print(f"[aruco] Error en POST /api/aruco/capture_reference: {e}")
-        return jsonify({
-            'ok': False,
-            'error': str(e)
-        }), 500
 
-@app.route('/api/aruco/draw_overlay', methods=['POST'])
-def api_aruco_draw_overlay():
-    """Genera un frame con overlay de ArUcos y lo muestra por 3 segundos en el dashboard.
-    Detecta ambos ArUcos (Frame y Tool). Solo actualiza los que se encuentran."""
-    global _overlay_frame, _overlay_active_until
-    
-    try:
-        import cv2
-        import numpy as np
-        
-        config = load_aruco_config()
-        aruco_config = config.get('aruco', {})
-        
-        # Obtener IDs y tamaños de ambos ArUcos
-        frame_aruco_id = aruco_config.get('frame_aruco_id', 0)
-        frame_marker_size = aruco_config.get('frame_marker_size_mm', 42.0)
-        tool_aruco_id = aruco_config.get('tool_aruco_id', 0)
-        tool_marker_size = aruco_config.get('tool_marker_size_mm', 42.0)
-        
-        # Obtener frame actual de la cámara en formato OpenCV
-        cv2_frame = camera_manager.get_frame_raw()
-        
-        if cv2_frame is None:
-            return jsonify({
-                'ok': False,
-                'error': 'No hay frame disponible de la cámara'
-            }), 400
-        
-        # Detectar TODOS los ArUcos en la imagen
-        all_arucos_result = detect_all_arucos(cv2_frame, marker_size_mm=frame_marker_size)
-        
-        # Si no hay ArUcos, retornar error
-        if all_arucos_result is None or len(all_arucos_result.get('detected_ids', [])) == 0:
-            return jsonify({
-                'ok': False,
-                'error': 'No se detectó ningún marcador ArUco en el frame'
-            }), 400
-        
-        detected_ids = all_arucos_result.get('detected_ids', [])
-        detected_markers = all_arucos_result.get('markers', [])
-        
-        print(f"[overlay] Todos los ArUcos detectados: {detected_ids}")
-        
-        # Buscar Frame y Tool en los detectados
-        frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
-        tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
-        
-        # Se requiere el Frame para la calibración
-        if frame_result is None:
-            detected_str = ', '.join(str(id) for id in detected_ids)
-            return jsonify({
-                'ok': False,
-                'error': f'ArUco_Frame({frame_aruco_id}) no detectado. Se requiere Frame para la calibración.\nArUcos detectados: [{detected_str}]'
-            }), 400
-        
-        print(f"[overlay] Frame detectado: ID={frame_aruco_id}, px_per_mm={frame_result['px_per_mm']:.3f}")
-        if tool_result is not None:
-            print(f"[overlay] Tool detectado: ID={tool_aruco_id}, px_per_mm={tool_result['px_per_mm']:.3f}")
-        
-        # Detectar ArUcos adicionales que no sean Frame ni Tool
-        other_arucos = [aruco_id for aruco_id in detected_ids if aruco_id != frame_aruco_id and aruco_id != tool_aruco_id]
-        info_message = None
-        if other_arucos:
-            other_str = ', '.join(str(id) for id in other_arucos)
-            info_message = f'Se hallaron ArUcos adicionales: [{other_str}]'
-            print(f"[overlay] ⚠️ {info_message}")
-        
-        # La calibración SIEMPRE viene del Frame
-        px_per_mm_frame = frame_result['px_per_mm']
-        angle_rad = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
-        
-        datos_aruco = {
-            'center': frame_result['center'],  # Centro del Frame para calibración
-            'angle_rad': float(angle_rad),
-            'corners': frame_result['corners'],
-            'px_per_mm': px_per_mm_frame,  # SIEMPRE del Frame
-            'frame_result': frame_result,  # Pasar Frame completo
-            'tool_result': tool_result if tool_result is not None else None,  # Pasar Tool si existe
-            'all_detected_ids': detected_ids,  # NUEVO: Todos los IDs detectados
-            'all_detected_markers': detected_markers  # NUEVO: Todos los marcadores detectados
-        }
-        
-        datos_visualizacion = {
-            'aruco': datos_aruco,
-            '_force_draw_aruco': True
-        }
-        
-        # Dibujar overlay usando visualizador
-        frame_con_overlay = visualizador.dibujar_todo(cv2_frame, datos_visualizacion)
-        
-        if frame_con_overlay is None:
-            return jsonify({
-                'ok': False,
-                'error': 'Error dibujando overlay'
-            }), 500
-        
-        # Convertir imagen a JPEG
-        ret, buffer = cv2.imencode('.jpg', frame_con_overlay, [cv2.IMWRITE_JPEG_QUALITY, 90])
-        
-        if not ret:
-            return jsonify({
-                'ok': False,
-                'error': 'Error codificando imagen'
-            }), 500
-        
-        # Actualizar config solo con los ArUcos que se encontraron
-        if frame_result is not None:
-            print(f"[aruco] ✓ ArUco_Frame detectado (ID: {frame_aruco_id})")
-            aruco_config['saved_frame_reference'] = {
-                'px_per_mm': float(frame_result['px_per_mm']),
-                'center': list(frame_result['center']),
-                'angle_rad': float(angle_rad),
-                'corners': frame_result['corners'],
-                'timestamp': datetime.now().isoformat()
-            }
-        
-        if tool_result is not None:
-            print(f"[aruco] ✓ ArUco_Tool detectado (ID: {tool_aruco_id})")
-            angle_tool = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
-            aruco_config['saved_tool_reference'] = {
-                'px_per_mm': float(tool_result['px_per_mm']),
-                'center': list(tool_result['center']),
-                'angle_rad': float(angle_tool),
-                'corners': tool_result['corners'],
-                'timestamp': datetime.now().isoformat()
-            }
-        
-        # Guardar config actualizada
-        config['aruco'] = aruco_config
-        save_aruco_config(config)
-        
-        # Guardar frame temporalmente y activar overlay por 3 segundos
-        _overlay_frame = buffer.tobytes()
-        _overlay_active_until = time.time() + 3.0  # 3 segundos
-        
-        print(f"[aruco] ✓ Overlay mostrado por 3 segundos en dashboard")
-        
-        response = {
-            'ok': True,
-            'message': 'Overlay mostrado en dashboard por 3 segundos'
-        }
-        
-        # Agregar información de ArUcos adicionales si existen
-        if info_message:
-            response['info'] = info_message
-        
-        return jsonify(response)
-    
-    except Exception as e:
-        print(f"[aruco] Error en POST /api/aruco/draw_overlay: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({
-            'ok': False,
-            'error': str(e)
-        }), 500
 
 @app.route('/api/overlay/render', methods=['POST'])
 def api_overlay_render():
@@ -530,6 +298,12 @@ def api_overlay_render():
     try:
         import cv2
         import numpy as np
+        import time
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # OPTIMIZACIÓN: Detectar si es llamada desde análisis
+        # ═══════════════════════════════════════════════════════════════════
+        start_time = time.time()
         
         # Importar OverlayManager
         from overlay_manager import OverlayManager
@@ -569,21 +343,48 @@ def api_overlay_render():
         frame_marker_size = aruco_config.get('frame_marker_size_mm', 70.0)
         tool_marker_size = aruco_config.get('tool_marker_size_mm', 50.0)
         
-        # Detectar TODOS los ArUcos en la imagen RGB (mismo método que el original)
+        # ═══════════════════════════════════════════════════════════════════
+        # OPTIMIZACIÓN: Detectar ArUcos solo si es necesario
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Verificar si necesitamos detectar ArUcos (solo si hay elementos habilitados)
+        show_frame = aruco_config.get('show_frame', True)
+        show_tool = aruco_config.get('show_tool', True)
+        show_center = aruco_config.get('show_center', True)
+        
+        # Solo detectar ArUcos si hay elementos que requieren detección
+        all_arucos_result = None
+        if show_frame or show_tool:
+            print(f"[overlay] Detección de ArUcos (método original):")
         all_arucos_result = detect_all_arucos(cv2_frame, marker_size_mm=frame_marker_size)
+        else:
+            print(f"[overlay] ⚡ Detección de ArUcos OMITIDA (no hay elementos que requieran detección)")
         
         # Debug: mostrar información de detección
-        print(f"[overlay] Detección de ArUcos (método original):")
         if all_arucos_result is not None:
             detected_ids = all_arucos_result.get('detected_ids', [])
             print(f"  - IDs detectados: {detected_ids}")
         else:
             detected_ids = []
-            print(f"  - ⚠️ No se detectó ningún ArUco en la imagen")
+            print(f"  - No se detectaron ArUcos (detección omitida)")
         
-        # Buscar Frame y Tool específicos (mismo método que el original)
+        # ═══════════════════════════════════════════════════════════════════
+        # OPTIMIZACIÓN: Detectar ArUcos específicos solo si es necesario
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Solo detectar ArUcos específicos si hay elementos que los requieren
+        frame_result = None
+        tool_result = None
+        
+        if show_frame:
         frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
+        else:
+            print(f"[overlay] ⚡ Frame ArUco OMITIDO (show_frame=False)")
+            
+        if show_tool:
         tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
+        else:
+            print(f"[overlay] ⚡ Tool ArUco OMITIDO (show_tool=False)")
         
         frame_detected = frame_result is not None
         tool_detected = tool_result is not None
@@ -829,10 +630,9 @@ def api_overlay_render():
                 # Actualizar el px_per_mm del marco Base para esta sesión
                 overlay_manager.frames["Base"].px_per_mm = px_per_mm
             
-            # Crear cruz cyan en las coordenadas del centro del troquel
-            # Tamaño: 3cm x 3cm (30mm x 30mm)
+            # Crear círculo cyan en las coordenadas del centro del troquel
+            # Diámetro: 6mm (radio: 3mm)
             # Color: #00FFFF (cyan) como está definido en la página de configuración
-            cross_size_mm = 30.0  # 30mm de tamaño (15mm en cada dirección)
             
             print(f"[overlay] Debug coordenadas del centro del troquel:")
             print(f"  - Coordenadas en mm: ({center_x_mm:.1f}, {center_y_mm:.1f}) mm")
@@ -841,93 +641,17 @@ def api_overlay_render():
             print(f"  - Tamaño ArUco Frame: {frame_marker_size}mm")
             print(f"  - La librería convertirá automáticamente mm a px usando px_per_mm")
             
-            overlay_manager.add_line(
-                frame_name,
-                start=(center_x_mm - cross_size_mm/2, center_y_mm),  # Línea horizontal
-                end=(center_x_mm + cross_size_mm/2, center_y_mm),
-                name="center_cross_h",
-                color=(255, 255, 0),  # Cyan en BGR (#00FFFF)
-                thickness=4  # Grosor mayor para mejor visibilidad
-            )
-            
-            overlay_manager.add_line(
-                frame_name, 
-                start=(center_x_mm, center_y_mm - cross_size_mm/2),  # Línea vertical
-                end=(center_x_mm, center_y_mm + cross_size_mm/2),
-                name="center_cross_v",
-                color=(255, 255, 0),  # Cyan en BGR (#00FFFF)
-                thickness=4  # Grosor mayor para mejor visibilidad
-            )
-            
-            # Agregar círculo en el centro para mayor visibilidad
+            # Agregar círculo en el centro del troquel (10mm de diámetro)
             overlay_manager.add_circle(
                 frame_name,
                 center=(center_x_mm, center_y_mm),
-                radius=3.0,  # 3mm de radio (proporcional al tamaño)
+                radius=5.0,  # 5mm de radio (10mm de diámetro)
                 name="center_circle",
                 color=(255, 255, 0),  # Cyan en BGR (#00FFFF)
                 filled=True
             )
             
-            aruco_objects.extend(["center_cross_h", "center_cross_v", "center_circle"])
-            
-            # ============================================================
-            # PRUEBA DE LA LIBRERÍA: 3 SEGMENTOS DE TRANSFORMACIÓN
-            # ============================================================
-            print(f"[overlay] 🧪 PRUEBA DE LIBRERÍA: Creando 3 segmentos de transformación...")
-            
-            # SEGMENTO 1: Cruz (base_frame_temp) -> Centro del Frame ArUco (base_frame_temp)
-            # Punto de la cruz en el marco base_frame_temp
-            cross_point_base = (center_x_mm, center_y_mm)  # (35, 35) mm en base_frame_temp
-            
-            # Leer coordenadas de la cruz respecto al tool_frame_temp
-            cross_point_tool = overlay_manager.get_object("tool_frame_temp", name="center_cross_h")
-            print(f"[overlay] Segmento 1: Cruz en base_frame_temp: {cross_point_base} mm")
-            print(f"[overlay] Estructura completa de transformación: {cross_point_tool}")
-            
-            # SEGMENTO 1: Del centro del Frame ArUco (0,0) a la cruz
-            overlay_manager.add_line(
-                "base_frame_temp",
-                start=(0, 0),  # Centro del Frame ArUco
-                end=cross_point_base,  # Posición de la cruz
-                name="test_segment_1",
-                color=(0, 255, 0),  # Verde
-                thickness=3
-            )
-            
-            # SEGMENTO 2: Del centro del Tool ArUco (0,0) a la cruz transformada al Tool
-            # Usar el centro de la cruz (círculo) en lugar del punto de la línea
-            cross_center_tool = overlay_manager.get_object("tool_frame_temp", name="center_circle")
-            cross_center_tool_coords = cross_center_tool['coordinates']['center']
-            print(f"[overlay] Centro de la cruz en tool_frame_temp: {cross_center_tool_coords} mm")
-            overlay_manager.add_line(
-                "tool_frame_temp", 
-                start=(0, 0),  # Centro del Tool ArUco
-                end=cross_center_tool_coords,  # Centro de la cruz transformada al Tool
-                name="test_segment_2",
-                color=(255, 0, 0),  # Rojo
-                thickness=3
-            )
-            
-            # SEGMENTO 3: Del centro del World (0,0) a la cruz transformada al World
-            cross_center_world = overlay_manager.get_object("Base", name="center_circle")
-            cross_center_world_coords = cross_center_world['coordinates']['center']
-            print(f"[overlay] Centro de la cruz en Base (World): {cross_center_world_coords} px")
-            overlay_manager.add_line(
-                "Base",
-                start=(0, 0),  # Centro del World (esquina de la imagen)
-                end=cross_center_world_coords,  # Centro de la cruz transformada al World
-                name="test_segment_3", 
-                color=(0, 0, 255),  # Azul
-                thickness=3
-            )
-            print(f"[overlay] ✅ 3 segmentos de prueba creados:")
-            print(f"  - Segmento 1 (Verde): Frame ArUco -> Cruz")
-            print(f"  - Segmento 2 (Rojo): Tool ArUco -> Cruz") 
-            print(f"  - Segmento 3 (Azul): World -> Cruz")
-            
-            # Agregar los segmentos de prueba a la lista de objetos
-            aruco_objects.extend(["test_segment_1", "test_segment_2", "test_segment_3"])
+            aruco_objects.extend(["center_circle"])
         
         # Verificar si hay elementos habilitados para mostrar
         if not show_frame and not show_tool and not show_center:
@@ -945,17 +669,25 @@ def api_overlay_render():
         # Establecer la imagen de fondo en el OverlayManager
         overlay_manager.set_background("main_background", gray_background)
         
+        # ═══════════════════════════════════════════════════════════════════
+        # OPTIMIZACIÓN: Renderizado más rápido
+        # ═══════════════════════════════════════════════════════════════════
+        
         # Renderizar overlay sobre la imagen de fondo en escala de grises
         print(f"[overlay] Renderizando sobre fondo en escala de grises: {gray_background.shape}, dtype: {gray_background.dtype}")
         result_image, view_time = overlay_manager.render(
             gray_background,  # Usar imagen de fondo en escala de grises
             renderlist=renderlist,
-            view_time=3000  # 3 segundos
+            view_time=500  # ⚡ Reducido de 3000ms a 500ms (6x más rápido)
         )
         print(f"[overlay] Imagen renderizada: {result_image.shape}, dtype: {result_image.dtype}")
         
-        # Codificar imagen a base64 para envío
-        _, buffer = cv2.imencode('.jpg', result_image, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        # ═══════════════════════════════════════════════════════════════════
+        # OPTIMIZACIÓN: Compresión más agresiva para análisis
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Codificar imagen a base64 para envío (calidad reducida para análisis)
+        _, buffer = cv2.imencode('.jpg', result_image, [cv2.IMWRITE_JPEG_QUALITY, 75])  # ⚡ Reducido de 95 a 75
         image_base64 = base64.b64encode(buffer).decode('utf-8')
         
         # Guardar frame temporalmente y activar overlay en el dashboard
@@ -1007,10 +739,17 @@ def api_overlay_render():
             if other_ids:
                 info_messages.append(f"ArUcos adicionales detectados: {other_ids}")
         
+        # ═══════════════════════════════════════════════════════════════════
+        # TIMING: Mostrar tiempo total del endpoint
+        # ═══════════════════════════════════════════════════════════════════
+        total_time = time.time() - start_time
+        print(f"[TIMING] ⏱️  /api/overlay/render TOTAL: {total_time:.3f}s")
+        
         return jsonify({
             'ok': True,
             'image': image_base64,
             'view_time': view_time,
+            'total_time_ms': int(total_time * 1000),  # Agregar tiempo total
             'detection_info': {
                 'detected_ids': detected_ids,
                 'frame_detected': frame_detected,
@@ -1077,6 +816,223 @@ def api_aruco_set_reference():
     
     except Exception as e:
         print(f"[aruco] Error en POST /api/aruco/set_reference: {e}")
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/aruco/save_config', methods=['POST'])
+def api_aruco_save_config():
+    """Guardar configuración de ArUcos y objetos de renderizado persistentes"""
+    try:
+        import cv2
+        import numpy as np
+        from overlay_manager import OverlayManager
+        
+        # Obtener configuración actual
+        config = load_aruco_config()
+        aruco_config = config.get('aruco', {})
+        
+        # Obtener frame actual de la cámara
+        cv2_frame = camera_manager.get_frame_raw()
+        
+        if cv2_frame is None:
+            return jsonify({
+                'ok': False,
+                'error': 'No hay frame disponible de la cámara'
+            }), 400
+        
+        # Crear instancia de OverlayManager
+        overlay_manager = OverlayManager()
+        
+        # Detectar ArUcos para obtener frames temporales
+        frame_aruco_id = aruco_config.get('frame_aruco_id', 0)
+        tool_aruco_id = aruco_config.get('tool_aruco_id', 0)
+        frame_marker_size = aruco_config.get('frame_marker_size_mm', 70.0)
+        tool_marker_size = aruco_config.get('tool_marker_size_mm', 50.0)
+        
+        # Detectar ArUcos
+        all_arucos_result = detect_all_arucos(cv2_frame, marker_size_mm=frame_marker_size)
+        frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
+        tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
+        
+        frame_detected = frame_result is not None
+        tool_detected = tool_result is not None
+        
+        print(f"[aruco] Guardando configuración:")
+        print(f"  - Frame ArUco (ID: {frame_aruco_id}) detectado: {frame_detected}")
+        print(f"  - Tool ArUco (ID: {tool_aruco_id}) detectado: {tool_detected}")
+        
+        # Copiar frames temporales a permanentes si están detectados
+        if frame_detected and frame_result:
+            frame_center = frame_result['center']
+            frame_angle = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
+            frame_px_per_mm = frame_result['px_per_mm']
+            
+            # Actualizar marco base_frame permanente
+            overlay_manager.define_frame(
+                "base_frame",
+                offset=(frame_center[0], frame_center[1]),
+                rotation=frame_angle,
+                px_per_mm=frame_px_per_mm,
+                parent_frame="Base",
+                is_temporary=False
+            )
+            print(f"[aruco] ✓ Marco base_frame actualizado: center=({frame_center[0]:.1f}, {frame_center[1]:.1f}), angle={frame_angle:.3f}rad, px_per_mm={frame_px_per_mm:.3f}")
+        
+        if tool_detected and tool_result:
+            tool_center = tool_result['center']
+            tool_angle = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+            tool_px_per_mm = tool_result['px_per_mm']
+            
+            # Actualizar marco tool_frame permanente
+            overlay_manager.define_frame(
+                "tool_frame",
+                offset=(tool_center[0], tool_center[1]),
+                rotation=tool_angle,
+                px_per_mm=tool_px_per_mm,
+                parent_frame="Base",
+                is_temporary=False
+            )
+            print(f"[aruco] ✓ Marco tool_frame actualizado: center=({tool_center[0]:.1f}, {tool_center[1]:.1f}), angle={tool_angle:.3f}rad, px_per_mm={tool_px_per_mm:.3f}")
+        
+        # Crear objetos de renderizado persistentes
+        objects_to_save = []
+        
+        # Objetos del Frame ArUco si está detectado
+        if frame_detected and frame_result:
+            frame_center = frame_result['center']
+            frame_corners = frame_result['corners']
+            frame_angle = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
+            
+            # Contorno del Frame ArUco
+            overlay_manager.add_polygon(
+                "Base",
+                points=frame_corners,
+                name=f"aruco_contour_{frame_aruco_id}",
+                color=(0, 255, 255),  # Amarillo
+                thickness=2
+            )
+            
+            # Ejes del Frame ArUco
+            image_height, image_width = cv2_frame.shape[:2]
+            axis_length = max(image_width, image_height)
+            
+            x_end1 = (frame_center[0] + axis_length * np.cos(frame_angle), frame_center[1] + axis_length * np.sin(frame_angle))
+            x_end2 = (frame_center[0] - axis_length * np.cos(frame_angle), frame_center[1] - axis_length * np.sin(frame_angle))
+            
+            y_angle = frame_angle + np.pi / 2
+            y_end1 = (frame_center[0] + axis_length * np.cos(y_angle), frame_center[1] + axis_length * np.sin(y_angle))
+            y_end2 = (frame_center[0] - axis_length * np.cos(y_angle), frame_center[1] - axis_length * np.sin(y_angle))
+            
+            overlay_manager.add_line("Base", start=x_end2, end=x_end1, name=f"aruco_x_axis_{frame_aruco_id}", color=(0, 255, 255), thickness=2)
+            overlay_manager.add_line("Base", start=y_end2, end=y_end1, name=f"aruco_y_axis_{frame_aruco_id}", color=(0, 255, 255), thickness=2)
+            
+            # Centro del Frame ArUco
+            overlay_manager.add_circle("Base", center=frame_center, radius=5, name=f"aruco_center_{frame_aruco_id}", color=(0, 255, 255), filled=True)
+            
+            objects_to_save.extend([f"aruco_contour_{frame_aruco_id}", f"aruco_x_axis_{frame_aruco_id}", f"aruco_y_axis_{frame_aruco_id}", f"aruco_center_{frame_aruco_id}"])
+        
+        # Objetos del Tool ArUco si está detectado
+        if tool_detected and tool_result:
+            tool_center = tool_result['center']
+            tool_corners = tool_result['corners']
+            tool_angle = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+            
+            # Contorno del Tool ArUco
+            overlay_manager.add_polygon("Base", points=tool_corners, name=f"aruco_contour_{tool_aruco_id}", color=(255, 0, 0), thickness=2)
+            
+            # Ejes del Tool ArUco
+            image_height, image_width = cv2_frame.shape[:2]
+            axis_length = max(image_width, image_height)
+            
+            x_end1 = (tool_center[0] + axis_length * np.cos(tool_angle), tool_center[1] + axis_length * np.sin(tool_angle))
+            x_end2 = (tool_center[0] - axis_length * np.cos(tool_angle), tool_center[1] - axis_length * np.sin(tool_angle))
+            
+            y_angle = tool_angle + np.pi / 2
+            y_end1 = (tool_center[0] + axis_length * np.cos(y_angle), tool_center[1] + axis_length * np.sin(y_angle))
+            y_end2 = (tool_center[0] - axis_length * np.cos(y_angle), tool_center[1] - axis_length * np.sin(y_angle))
+            
+            overlay_manager.add_line("Base", start=x_end2, end=x_end1, name=f"aruco_x_axis_{tool_aruco_id}", color=(255, 0, 0), thickness=2)
+            overlay_manager.add_line("Base", start=y_end2, end=y_end1, name=f"aruco_y_axis_{tool_aruco_id}", color=(255, 0, 0), thickness=2)
+            
+            # Centro del Tool ArUco
+            overlay_manager.add_circle("Base", center=tool_center, radius=5, name=f"aruco_center_{tool_aruco_id}", color=(255, 0, 0), filled=True)
+            
+            objects_to_save.extend([f"aruco_contour_{tool_aruco_id}", f"aruco_x_axis_{tool_aruco_id}", f"aruco_y_axis_{tool_aruco_id}", f"aruco_center_{tool_aruco_id}"])
+        
+        # Círculo del centro del troquel
+        center_x_mm = aruco_config.get('center_x_mm', 0.0)
+        center_y_mm = aruco_config.get('center_y_mm', 0.0)
+        
+        if frame_detected:
+            # Usar marco del Frame ArUco
+            frame_name = "base_frame"
+        else:
+            # Usar marco Base con px_per_mm calculado
+            image_height, image_width = cv2_frame.shape[:2]
+            assumed_width_mm = 200.0
+            assumed_height_mm = 150.0
+            px_per_mm = min(image_width / assumed_width_mm, image_height / assumed_height_mm)
+            overlay_manager.frames["Base"].px_per_mm = px_per_mm
+            frame_name = "Base"
+        
+        # Crear círculo del centro del troquel (10mm de diámetro)
+        overlay_manager.add_circle(
+            frame_name,
+            center=(center_x_mm, center_y_mm),
+            radius=5.0,  # 5mm de radio (10mm de diámetro)
+            name="center_circle",
+            color=(255, 255, 0),  # Cyan
+            filled=True
+        )
+        
+        objects_to_save.append("center_circle")
+        
+        # Guardar configuración en overlay_frames.json
+        overlay_manager.save_persistent_config()
+        
+        # Guardar nombres de objetos en aruco_config.json
+        aruco_config['saved_objects'] = {
+            'frame_objects': [name for name in objects_to_save if str(frame_aruco_id) in name],
+            'tool_objects': [name for name in objects_to_save if str(tool_aruco_id) in name],
+            'center_objects': ['center_circle'],
+            'descriptions': {
+                f'aruco_contour_{frame_aruco_id}': f'Contorno del Frame ArUco (ID: {frame_aruco_id})',
+                f'aruco_x_axis_{frame_aruco_id}': f'Eje X del Frame ArUco (ID: {frame_aruco_id})',
+                f'aruco_y_axis_{frame_aruco_id}': f'Eje Y del Frame ArUco (ID: {frame_aruco_id})',
+                f'aruco_center_{frame_aruco_id}': f'Centro del Frame ArUco (ID: {frame_aruco_id})',
+                f'aruco_contour_{tool_aruco_id}': f'Contorno del Tool ArUco (ID: {tool_aruco_id})',
+                f'aruco_x_axis_{tool_aruco_id}': f'Eje X del Tool ArUco (ID: {tool_aruco_id})',
+                f'aruco_y_axis_{tool_aruco_id}': f'Eje Y del Tool ArUco (ID: {tool_aruco_id})',
+                f'aruco_center_{tool_aruco_id}': f'Centro del Tool ArUco (ID: {tool_aruco_id})',
+                'center_circle': 'Círculo del centro del troquel (10mm diámetro)'
+            }
+        }
+        
+        config['aruco'] = aruco_config
+        save_aruco_config(config)
+        
+        print(f"[aruco] ✓ Configuración guardada:")
+        print(f"  - Marcos: base_frame, tool_frame")
+        print(f"  - Objetos: {len(objects_to_save)} objetos guardados")
+        print(f"  - Archivos: overlay_frames.json, aruco_config.json")
+        
+        return jsonify({
+            'ok': True,
+            'message': 'Configuración guardada correctamente',
+            'data': {
+                'frames_saved': ['base_frame', 'tool_frame'],
+                'objects_saved': objects_to_save,
+                'frame_detected': frame_detected,
+                'tool_detected': tool_detected
+            }
+        })
+        
+    except Exception as e:
+        print(f"[aruco] Error en POST /api/aruco/save_config: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'ok': False,
             'error': str(e)
@@ -1916,6 +1872,61 @@ def api_get_vision_config():
             'error': str(e)
         }), 500
 
+@app.route('/api/vision/set_roi', methods=['POST'])
+def api_set_roi_config():
+    """Guardar configuración ROI"""
+    try:
+        data = request.get_json()
+        print(f"[ROI] 🚀 Guardando configuración ROI...")
+        print(f"[ROI] 📊 Datos recibidos: {data}")
+        
+        # Validar datos
+        roi_enabled = data.get('roi_enabled', False)
+        roi_offset_y_mm = float(data.get('roi_offset_y_mm', 0.0))
+        roi_zoom_x_percent = float(data.get('roi_zoom_x_percent', 150))
+        roi_zoom_y_percent = float(data.get('roi_zoom_y_percent', 150))
+        
+        print(f"[ROI] 📋 Configuración validada:")
+        print(f"  - ROI habilitado: {roi_enabled}")
+        print(f"  - Offset Y: {roi_offset_y_mm} mm")
+        print(f"  - Zoom X: {roi_zoom_x_percent}%")
+        print(f"  - Zoom Y: {roi_zoom_y_percent}%")
+        
+        # Cargar configuración actual
+        config = load_config()
+        
+        # Actualizar configuración ROI
+        if 'vision' not in config:
+            config['vision'] = {}
+        
+        config['vision']['roi_enabled'] = roi_enabled
+        config['vision']['roi_offset_y_mm'] = roi_offset_y_mm
+        config['vision']['roi_zoom_x_percent'] = roi_zoom_x_percent
+        config['vision']['roi_zoom_y_percent'] = roi_zoom_y_percent
+        
+        # Guardar configuración
+        save_config(config)
+        
+        print(f"[ROI] ✅ Configuración ROI guardada exitosamente")
+        
+        return jsonify({
+            'ok': True,
+            'message': 'Configuración ROI guardada correctamente',
+            'roi_config': {
+                'enabled': roi_enabled,
+                'offset_y_mm': roi_offset_y_mm,
+                'zoom_x_percent': roi_zoom_x_percent,
+                'zoom_y_percent': roi_zoom_y_percent
+            }
+        })
+        
+    except Exception as e:
+        print(f"[ROI] ❌ Error guardando configuración ROI: {e}")
+        return jsonify({
+            'ok': False,
+            'error': f'Error guardando configuración ROI: {str(e)}'
+        }), 500
+
 @app.route('/api/vision/set_models', methods=['POST'])
 def api_set_vision_models():
     """Actualiza la configuración de modelos y opciones de visión"""
@@ -2060,6 +2071,1087 @@ def api_get_models_status():
 # ============================================================
 # API ANÁLISIS DE JUNTAS
 # ============================================================
+
+@app.route('/api/analyze_new', methods=['POST'])
+def api_analyze_new():
+    """Nuevo endpoint de análisis con OverlayManager (placeholder)"""
+    import time
+    start_time = time.time()
+    
+    try:
+        print("\n[análisis] 🚀 POST /api/analyze_new iniciado")
+        print(f"[TIMING] ⏱️  Inicio total: {time.time() - start_time:.3f}s")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 1: Verificar junta seleccionada
+        # ═══════════════════════════════════════════════════════════════════
+        step_start = time.time()
+        juntas_data = load_juntas()
+        selected_id = juntas_data.get('selected_id')
+        print(f"[TIMING] ⏱️  Verificar junta: {time.time() - step_start:.3f}s")
+        
+        if not selected_id:
+            print("[análisis] ❌ No hay junta seleccionada")
+            return jsonify({
+                'ok': False,
+                'error': 'No hay junta seleccionada'
+            }), 400
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 2: Obtener frame de la cámara
+        # ═══════════════════════════════════════════════════════════════════
+        step_start = time.time()
+        frame = camera_manager.get_frame_raw()
+        print(f"[TIMING] ⏱️  Capturar frame: {time.time() - step_start:.3f}s")
+        
+        if frame is None:
+            print("[análisis] ❌ No se pudo obtener frame de la cámara")
+            return jsonify({
+                'ok': False,
+                'error': 'Cámara no disponible'
+            }), 500
+        
+        print(f"[análisis] ✓ Frame capturado: {frame.shape}")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 3: Optimizar resolución para reducir lag
+        # ═══════════════════════════════════════════════════════════════════
+        step_start = time.time()
+        import cv2
+        
+        # Reducir resolución para detección más rápida
+        original_height, original_width = frame.shape[:2]
+        scale_factor = 0.5  # Reducir a 50% de la resolución original (ajustable: 0.3-0.7)
+        
+        # Calcular nuevas dimensiones
+        new_width = int(original_width * scale_factor)
+        new_height = int(original_height * scale_factor)
+        
+        # Redimensionar frame para detección
+        frame_resized = cv2.resize(frame, (new_width, new_height), interpolation=cv2.INTER_AREA)
+        print(f"[TIMING] ⏱️  Optimizar resolución: {time.time() - step_start:.3f}s")
+        
+        print(f"[análisis] ✓ Frame optimizado: {frame.shape} → {frame_resized.shape} (factor: {scale_factor})")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 4: Crear OverlayManager y objetos de prueba
+        # ═══════════════════════════════════════════════════════════════════
+        step_start = time.time()
+        from overlay_manager import OverlayManager
+        overlay_manager = OverlayManager()
+        print(f"[TIMING] ⏱️  Crear OverlayManager: {time.time() - step_start:.3f}s")
+        
+        # ⚡ OPTIMIZACIÓN: Solo crear objetos necesarios (no objetos de prueba)
+        print(f"[análisis] ✓ OverlayManager creado, esperando objetos de análisis")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 5: Renderizar UNA SOLA VEZ al final (optimizado)
+        # ═══════════════════════════════════════════════════════════════════
+        step_start = time.time()
+        
+        # ⚡ OPTIMIZACIÓN: Renderizar directamente sin HTTP
+        import base64
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 6: Detectar ArUcos para obtener referencia de escala
+        # ═══════════════════════════════════════════════════════════════════
+        step_start = time.time()
+        
+        # Detectar ArUcos para obtener marcos de referencia
+        import numpy as np
+        from src.vision.aruco_detector import detect_all_arucos, detect_aruco_by_id
+        
+        # Obtener configuración de ArUcos
+        config = load_aruco_config()
+        aruco_config = config.get('aruco', {})
+        frame_aruco_id = aruco_config.get('frame_aruco_id', 0)
+        tool_aruco_id = aruco_config.get('tool_aruco_id', 0)
+        frame_marker_size = aruco_config.get('frame_marker_size_mm', 70.0)
+        tool_marker_size = aruco_config.get('tool_marker_size_mm', 50.0)
+        
+        # Detectar ArUcos en frame original (no redimensionado)
+        all_arucos_result = detect_all_arucos(frame, marker_size_mm=frame_marker_size)
+        frame_result = detect_aruco_by_id(frame, frame_aruco_id, marker_size_mm=frame_marker_size)
+        tool_result = detect_aruco_by_id(frame, tool_aruco_id, marker_size_mm=tool_marker_size)
+        
+        frame_detected = frame_result is not None
+        tool_detected = tool_result is not None
+        
+        # Cargar configuración de checkboxes de ArUcos
+        aruco_config = load_config()
+        show_frame = aruco_config.get('aruco', {}).get('show_frame', True)
+        show_tool = aruco_config.get('aruco', {}).get('show_tool', True)
+        
+        print(f"[análisis] 📋 Configuración ArUcos:")
+        print(f"  - Mostrar Frame ArUco: {show_frame}")
+        print(f"  - Mostrar Tool ArUco: {show_tool}")
+        
+        print(f"[análisis] Detección de ArUcos:")
+        print(f"  - Frame ArUco (ID: {frame_aruco_id}) detectado: {frame_detected}")
+        print(f"  - Tool ArUco (ID: {tool_aruco_id}) detectado: {tool_detected}")
+        print(f"[TIMING] ⏱️  Detectar ArUcos: {time.time() - step_start:.3f}s")
+        
+        # Actualizar marcos con datos reales si están detectados
+        if frame_detected and frame_result:
+            frame_center = frame_result['center']
+            frame_angle = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
+            frame_px_per_mm = frame_result['px_per_mm']
+            
+            overlay_manager.define_frame(
+                "base_frame",
+                offset=(frame_center[0], frame_center[1]),
+                rotation=frame_angle,
+                px_per_mm=frame_px_per_mm,
+                parent_frame="world",
+                is_temporary=False
+            )
+            print(f"[análisis] ✓ Marco base_frame actualizado con ArUco real")
+        
+        if tool_detected and tool_result:
+            tool_center = tool_result['center']
+            tool_angle = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+            tool_px_per_mm = tool_result['px_per_mm']
+            
+            overlay_manager.define_frame(
+                "tool_frame",
+                offset=(tool_center[0], tool_center[1]),
+                rotation=tool_angle,
+                px_per_mm=tool_px_per_mm,
+                parent_frame="world",
+                is_temporary=False
+            )
+            print(f"[análisis] ✓ Marco tool_frame actualizado con ArUco real")
+        
+        # Crear imagen de fondo en escala de grises
+        gray_background = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_background = cv2.cvtColor(gray_background, cv2.COLOR_GRAY2BGR)
+        
+        # Establecer fondo en OverlayManager
+        overlay_manager.set_background("main_background", gray_background)
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 7: Agregar círculo del centro del troquel con referencia correcta
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Obtener coordenadas del centro del troquel
+        center_x_mm = aruco_config.get('center_x_mm', 0.0)
+        center_y_mm = aruco_config.get('center_y_mm', 0.0)
+        
+        # Determinar qué marco usar para el centro del troquel
+        if frame_detected:
+            # Usar marco del Frame ArUco (tiene px_per_mm correcto)
+            # Las coordenadas center_x_mm, center_y_mm son RELATIVAS al ArUco Frame
+            frame_name = "base_frame"
+            center_x_final = center_x_mm  # Leer del JSON
+            center_y_final = center_y_mm  # Leer del JSON
+            print(f"[análisis] Centro del troquel: usando marco Frame ({center_x_mm}, {center_y_mm}) mm")
+        else:
+            # Usar marco world con px_per_mm estimado
+            image_height, image_width = frame.shape[:2]
+            assumed_width_mm = 200.0
+            assumed_height_mm = 150.0
+            px_per_mm = min(image_width / assumed_width_mm, image_height / assumed_height_mm)
+            overlay_manager.frames["world"].px_per_mm = px_per_mm
+            frame_name = "world"
+            center_x_final = center_x_mm  # Usar coordenadas absolutas
+            center_y_final = center_y_mm  # Usar coordenadas absolutas
+            print(f"[análisis] Centro del troquel: usando marco world ({center_x_mm}, {center_y_mm}) mm, px_per_mm={px_per_mm:.3f}")
+        
+        # Agregar círculo del centro del troquel (10mm de diámetro)
+        overlay_manager.add_circle(
+            frame_name,
+            center=(center_x_final, center_y_final),
+            radius=5.0,  # 5mm de radio (10mm de diámetro)
+            name="center_circle",
+            color=(255, 255, 0),  # Cyan
+            filled=True
+        )
+        print(f"[análisis] ✓ Círculo del centro del troquel agregado en marco '{frame_name}'")
+        print(f"[análisis] 📍 Coordenadas del centro: ({center_x_final}, {center_y_final}) mm")
+        print(f"[análisis] 📏 Radio: 5.0 mm (10mm diámetro)")
+        print(f"[análisis] 🎨 Color: Cyan (255, 255, 0)")
+        
+        # Verificar que el objeto se creó correctamente
+        if "center_circle" in overlay_manager.objects:
+            obj = overlay_manager.objects["center_circle"]
+            print(f"[análisis] ✓ Objeto 'center_circle' creado correctamente:")
+            print(f"  - Marco: {obj.original_frame}")
+            print(f"  - Centro: {obj.coordinates.get('center', 'N/A')}")
+            print(f"  - Radio: {obj.coordinates.get('radius', 'N/A')}")
+            print(f"  - Color: {obj.properties.get('color', 'N/A')}")
+        else:
+            print(f"[análisis] ❌ ERROR: Objeto 'center_circle' NO se creó")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 6: YOLO para detectar junta (gasket) - OPTIMIZADO con ROI
+        # ═══════════════════════════════════════════════════════════════════
+        
+        step_start = time.time()
+        print(f"[análisis] 🔍 Iniciando detección de junta con YOLO (optimizado con ROI)...")
+        
+        # Cargar configuración ROI
+        config = load_config()
+        roi_config = config.get('vision', {})
+        roi_enabled = roi_config.get('roi_enabled', False)
+        roi_offset_y_mm = roi_config.get('roi_offset_y_mm', 0.0)
+        roi_zoom_x_percent = roi_config.get('roi_zoom_x_percent', 150)
+        roi_zoom_y_percent = roi_config.get('roi_zoom_y_percent', 150)
+        
+        print(f"[ROI] 📋 Configuración ROI cargada:")
+        print(f"  - ROI habilitado: {roi_enabled}")
+        print(f"  - Offset Y: {roi_offset_y_mm} mm")
+        print(f"  - Zoom X: {roi_zoom_x_percent}%")
+        print(f"  - Zoom Y: {roi_zoom_y_percent}%")
+        
+        # Crear imagen de baja resolución para detección de junta (más rápida)
+        low_res_scale = 0.2  # 20% de la resolución original (ultra agresivo para CUDA)
+        low_res_height = int(frame.shape[0] * low_res_scale)
+        low_res_width = int(frame.shape[1] * low_res_scale)
+        low_res_frame = cv2.resize(frame, (low_res_width, low_res_height))
+        
+        print(f"[análisis] ✓ Imagen de baja resolución: {frame.shape} → {low_res_frame.shape} (factor: {low_res_scale})")
+        
+        # Aplicar ROI si está habilitado
+        if roi_enabled:
+            print(f"[ROI] 🎯 Aplicando ROI a la detección de junta...")
+            
+            # Obtener junta seleccionada para dimensiones
+            try:
+                junta_response = requests.get('http://127.0.0.1:5000/api/juntas/selected', timeout=5)
+                junta_data = junta_response.json()
+                junta_id = junta_data.get('junta', {}).get('id') if junta_data.get('junta') else None
+                print(f"[ROI] 📊 Junta seleccionada ID: {junta_id}")
+                print(f"[ROI] 📊 Respuesta completa: {junta_data}")
+                
+                if junta_id:
+                    # Obtener dimensiones directamente de la junta seleccionada
+                    junta_data = junta_response.json()
+                    junta_info = junta_data.get('junta', {})
+                    
+                    # Obtener dimensiones en mm directamente de la base de datos
+                    junta_width_mm = junta_info.get('ancho_mm', 461.20)  # Default 461.20mm
+                    junta_height_mm = junta_info.get('alto_mm', 170.00)  # Default 170.00mm
+                    
+                    print(f"[ROI] 📏 Dimensiones de la junta:")
+                    print(f"  - Ancho: {junta_width_mm} mm")
+                    print(f"  - Alto: {junta_height_mm} mm")
+                    
+                    # Calcular dimensiones con zoom
+                    roi_width_mm = junta_width_mm * (roi_zoom_x_percent / 100.0)
+                    roi_height_mm = junta_height_mm * (roi_zoom_y_percent / 100.0)
+                    
+                    print(f"[ROI] 🔍 Dimensiones ROI con zoom:")
+                    print(f"  - Ancho: {roi_width_mm} mm (zoom {roi_zoom_x_percent}%)")
+                    print(f"  - Alto: {roi_height_mm} mm (zoom {roi_zoom_y_percent}%)")
+                    
+                    # Obtener px_per_mm del tool_frame
+                    tool_px_per_mm = overlay_manager.frames.get('tool_frame', {}).px_per_mm if 'tool_frame' in overlay_manager.frames else 1.0
+                    print(f"[ROI] 📐 px_per_mm del tool_frame: {tool_px_per_mm}")
+                    
+                    # Convertir dimensiones a píxeles
+                    roi_width_px = roi_width_mm * tool_px_per_mm
+                    roi_height_px = roi_height_mm * tool_px_per_mm
+                    
+                    print(f"[ROI] 📐 Dimensiones ROI en píxeles:")
+                    print(f"  - Ancho: {roi_width_px} px")
+                    print(f"  - Alto: {roi_height_px} px")
+                    
+                    # Calcular posición del ROI
+                    tool_center_x = overlay_manager.frames['tool_frame'].offset[0] if 'tool_frame' in overlay_manager.frames else 0
+                    tool_center_y = overlay_manager.frames['tool_frame'].offset[1] if 'tool_frame' in overlay_manager.frames else 0
+                    
+                    # Offset Y en píxeles
+                    offset_y_px = roi_offset_y_mm * tool_px_per_mm
+                    
+                    # Posición final del ROI
+                    roi_center_x = tool_center_x
+                    roi_center_y = tool_center_y + offset_y_px + (roi_height_px / 2)
+                    
+                    print(f"[ROI] 📍 Posición del ROI:")
+                    print(f"  - Centro tool_frame: ({tool_center_x}, {tool_center_y})")
+                    print(f"  - Offset Y: {offset_y_px} px")
+                    print(f"  - Centro ROI: ({roi_center_x}, {roi_center_y})")
+                    
+                    # Calcular coordenadas del rectángulo ROI
+                    roi_x1 = int(roi_center_x - roi_width_px / 2)
+                    roi_y1 = int(roi_center_y - roi_height_px / 2)
+                    roi_x2 = int(roi_center_x + roi_width_px / 2)
+                    roi_y2 = int(roi_center_y + roi_height_px / 2)
+                    
+                    print(f"[ROI] 📦 Coordenadas ROI:")
+                    print(f"  - x1: {roi_x1}, y1: {roi_y1}")
+                    print(f"  - x2: {roi_x2}, y2: {roi_y2}")
+                    
+                    # Asegurar que el ROI esté dentro de la imagen
+                    roi_x1 = max(0, roi_x1)
+                    roi_y1 = max(0, roi_y1)
+                    roi_x2 = min(low_res_width, roi_x2)
+                    roi_y2 = min(low_res_height, roi_y2)
+                    
+                    print(f"[ROI] 📦 Coordenadas ROI ajustadas:")
+                    print(f"  - x1: {roi_x1}, y1: {roi_y1}")
+                    print(f"  - x2: {roi_x2}, y2: {roi_y2}")
+                    
+                    # Crear rectángulo ROI visual
+                    overlay_manager.add_polygon(
+                        "world",
+                        points=[
+                            [roi_x1 / low_res_scale, roi_y1 / low_res_scale],  # Top-left (escalado a resolución original)
+                            [roi_x2 / low_res_scale, roi_y1 / low_res_scale],  # Top-right
+                            [roi_x2 / low_res_scale, roi_y2 / low_res_scale],  # Bottom-right
+                            [roi_x1 / low_res_scale, roi_y2 / low_res_scale]   # Bottom-left
+                        ],
+                        name="roi_rectangle",
+                        color=(0, 255, 255),  # Cyan (más visible)
+                        thickness=4  # Más grueso
+                    )
+                    
+                    print(f"[ROI] ✅ Rectángulo ROI agregado como overlay visual")
+                    
+                    # Recortar imagen usando ROI
+                    roi_crop = low_res_frame[roi_y1:roi_y2, roi_x1:roi_x2]
+                    print(f"[ROI] ✂️ Imagen recortada con ROI: {roi_crop.shape}")
+                    
+                    # Usar imagen recortada para YOLO
+                    color_frame = roi_crop
+                    print(f"[ROI] 🎯 Usando imagen recortada para YOLO de junta")
+                    
+                else:
+                    print(f"[ROI] ⚠️ No se pudo obtener dimensiones de la junta, usando detección normal")
+                    color_frame = low_res_frame
+            else:
+                print(f"[ROI] ⚠️ No hay junta seleccionada, usando detección normal")
+                color_frame = low_res_frame
+                
+            except Exception as roi_error:
+                print(f"[ROI] ❌ Error aplicando ROI: {roi_error}")
+                print(f"[ROI] 🔄 Usando detección normal como fallback")
+                color_frame = low_res_frame
+        else:
+            print(f"[ROI] ⚠️ ROI deshabilitado, usando detección normal")
+            color_frame = low_res_frame
+        
+        # Detectar junta con YOLO
+        try:
+            gasket_result = yolo_detector.detect_gasket(color_frame)
+            print(f"[TIMING] ⏱️  Detectar junta YOLO: {time.time() - step_start:.3f}s")
+            print(f"[análisis] 🔍 Resultado YOLO: {gasket_result}")
+            print(f"[análisis] 🔍 Tipo de resultado: {type(gasket_result)}")
+            
+            if gasket_result and isinstance(gasket_result, dict) and 'bbox' in gasket_result:
+                gasket_bbox = gasket_result['bbox']
+                print(f"[análisis] ✓ Junta detectada: bbox={gasket_bbox}")
+                
+                # ESCALAR bbox de baja resolución a alta resolución
+                scale_factor = 1.0 / low_res_scale  # Factor de escalado inverso
+                scaled_bbox = [
+                    int(gasket_bbox[0] * scale_factor),  # x1
+                    int(gasket_bbox[1] * scale_factor),  # y1
+                    int(gasket_bbox[2] * scale_factor),  # x2
+                    int(gasket_bbox[3] * scale_factor)   # y2
+                ]
+                
+                print(f"[análisis] ✓ Bbox escalado a alta resolución: {gasket_bbox} → {scaled_bbox}")
+                
+                # Agrandar bbox escalado en 10%
+                x1, y1, x2, y2 = scaled_bbox
+                width = x2 - x1
+                height = y2 - y1
+                margin_x = width * 0.1
+                margin_y = height * 0.1
+                
+                enlarged_bbox = [
+                    max(0, x1 - margin_x),
+                    max(0, y1 - margin_y),
+                    min(frame.shape[1], x2 + margin_x),
+                    min(frame.shape[0], y2 + margin_y)
+                ]
+                
+                print(f"[análisis] ✓ Bbox agrandado 10% (alta res): {enlarged_bbox}")
+                
+                # Crear rectángulo verde para mostrar el bbox de la junta
+                overlay_manager.add_polygon(
+                    "world",
+                    points=[
+                        [enlarged_bbox[0], enlarged_bbox[1]],  # Top-left
+                        [enlarged_bbox[2], enlarged_bbox[1]],  # Top-right
+                        [enlarged_bbox[2], enlarged_bbox[3]],  # Bottom-right
+                        [enlarged_bbox[0], enlarged_bbox[3]]   # Bottom-left
+                    ],
+                    name="gasket_bbox",
+                    color=(0, 255, 0),  # Verde
+                    thickness=3
+                )
+                
+                print(f"[análisis] ✓ Rectángulo verde del bbox de junta agregado")
+                
+                # Actualizar junta_frame con el bbox escalado
+                center_x = (enlarged_bbox[0] + enlarged_bbox[2]) / 2
+                center_y = (enlarged_bbox[1] + enlarged_bbox[3]) / 2
+                bbox_width = enlarged_bbox[2] - enlarged_bbox[0]
+                bbox_height = enlarged_bbox[3] - enlarged_bbox[1]
+                
+                # Estimar px_per_mm basado en el tamaño del bbox
+                estimated_diameter_mm = 100.0
+                px_per_mm = min(bbox_width, bbox_height) / estimated_diameter_mm
+                
+                # Actualizar junta_frame
+                overlay_manager.define_frame(
+                    "junta_frame",
+                    offset=(center_x, center_y),
+                    rotation=0.0,
+                    px_per_mm=px_per_mm,
+                    parent_frame="world"
+                )
+                
+                print(f"[análisis] ✓ Marco junta_frame actualizado:")
+                print(f"  - Centro: ({center_x:.1f}, {center_y:.1f}) px")
+                print(f"  - px_per_mm: {px_per_mm:.3f}")
+                print(f"  - Dimensiones: {bbox_width:.1f}x{bbox_height:.1f} px")
+                
+            elif gasket_result and isinstance(gasket_result, (list, tuple)) and len(gasket_result) >= 4:
+                # Si el resultado es una lista/tupla con al menos 4 elementos (x1, y1, x2, y2)
+                gasket_bbox = list(gasket_result[:4])  # Tomar los primeros 4 elementos
+                print(f"[análisis] ✓ Junta detectada (formato lista): bbox={gasket_bbox}")
+                
+                # ESCALAR bbox de baja resolución a alta resolución
+                scale_factor = 1.0 / low_res_scale  # Factor de escalado inverso
+                scaled_bbox = [
+                    int(gasket_bbox[0] * scale_factor),  # x1
+                    int(gasket_bbox[1] * scale_factor),  # y1
+                    int(gasket_bbox[2] * scale_factor),  # x2
+                    int(gasket_bbox[3] * scale_factor)   # y2
+                ]
+                
+                print(f"[análisis] ✓ Bbox escalado a alta resolución: {gasket_bbox} → {scaled_bbox}")
+                
+                # Agrandar bbox escalado en 10%
+                x1, y1, x2, y2 = scaled_bbox
+                width = x2 - x1
+                height = y2 - y1
+                margin_x = width * 0.1
+                margin_y = height * 0.1
+                
+                enlarged_bbox = [
+                    max(0, x1 - margin_x),
+                    max(0, y1 - margin_y),
+                    min(frame.shape[1], x2 + margin_x),
+                    min(frame.shape[0], y2 + margin_y)
+                ]
+                
+                print(f"[análisis] ✓ Bbox agrandado 10% (alta res): {enlarged_bbox}")
+                
+                # Crear rectángulo verde para mostrar el bbox de la junta
+                overlay_manager.add_polygon(
+                    "world",
+                    points=[
+                        [enlarged_bbox[0], enlarged_bbox[1]],  # Top-left
+                        [enlarged_bbox[2], enlarged_bbox[1]],  # Top-right
+                        [enlarged_bbox[2], enlarged_bbox[3]],  # Bottom-right
+                        [enlarged_bbox[0], enlarged_bbox[3]]   # Bottom-left
+                    ],
+                    name="gasket_bbox",
+                    color=(0, 255, 0),  # Verde
+                    thickness=3
+                )
+                
+                print(f"[análisis] ✓ Rectángulo verde del bbox de junta agregado")
+                
+                # Actualizar junta_frame con el bbox escalado
+                center_x = (enlarged_bbox[0] + enlarged_bbox[2]) / 2
+                center_y = (enlarged_bbox[1] + enlarged_bbox[3]) / 2
+                bbox_width = enlarged_bbox[2] - enlarged_bbox[0]
+                bbox_height = enlarged_bbox[3] - enlarged_bbox[1]
+                
+                # Estimar px_per_mm basado en el tamaño del bbox
+                estimated_diameter_mm = 100.0
+                px_per_mm = min(bbox_width, bbox_height) / estimated_diameter_mm
+                
+                # Actualizar junta_frame
+                overlay_manager.define_frame(
+                    "junta_frame",
+                    offset=(center_x, center_y),
+                    rotation=0.0,
+                    px_per_mm=px_per_mm,
+                    parent_frame="world"
+                )
+                
+                print(f"[análisis] ✓ Marco junta_frame actualizado:")
+                print(f"  - Centro: ({center_x:.1f}, {center_y:.1f}) px")
+                print(f"  - px_per_mm: {px_per_mm:.3f}")
+                print(f"  - Dimensiones: {bbox_width:.1f}x{bbox_height:.1f} px")
+                
+            else:
+                print(f"[análisis] ⚠️ No se detectó junta con YOLO")
+                print(f"[análisis] 🔍 Formato no reconocido: {gasket_result}")
+                gasket_result = None
+                
+        except Exception as e:
+            print(f"[análisis] ❌ Error en detección de junta: {e}")
+            gasket_result = None
+        
+        print(f"[TIMING] ⏱️  Detección de junta: {time.time() - step_start:.3f}s")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 8: YOLO holes detector (crop + detect_holes_bboxes)
+        # ═══════════════════════════════════════════════════════════════════
+        
+        step_start = time.time()
+        holes_result = None
+        
+        if gasket_result and (('bbox' in gasket_result) or (isinstance(gasket_result, (list, tuple)) and len(gasket_result) >= 4)):
+            print(f"[análisis] 🔍 Iniciando detección de agujeros en junta recortada...")
+            
+            try:
+                # Obtener bbox de la junta (en baja resolución)
+                if isinstance(gasket_result, dict) and 'bbox' in gasket_result:
+                    gasket_bbox = gasket_result['bbox']
+                else:
+                    gasket_bbox = list(gasket_result[:4])
+                
+                # ESCALAR bbox de baja resolución a alta resolución para el crop
+                scale_factor = 1.0 / low_res_scale  # Factor de escalado inverso
+                scaled_bbox = [
+                    int(gasket_bbox[0] * scale_factor),  # x1
+                    int(gasket_bbox[1] * scale_factor),  # y1
+                    int(gasket_bbox[2] * scale_factor),  # x2
+                    int(gasket_bbox[3] * scale_factor)   # y2
+                ]
+                
+                print(f"[análisis] ✓ Bbox para crop escalado: {gasket_bbox} → {scaled_bbox}")
+                
+                # Recortar imagen de la junta usando la imagen ORIGINAL (alta resolución)
+                x1, y1, x2, y2 = [int(coord) for coord in scaled_bbox]
+                cropped_image = frame[y1:y2, x1:x2]  # Usar frame original con bbox escalado
+                
+                print(f"[análisis] ✓ Imagen recortada: {cropped_image.shape} (bbox escalado: {scaled_bbox})")
+                
+                # Detectar agujeros con YOLO en la imagen recortada
+                holes_result = yolo_detector.detect_holes_bboxes(cropped_image)
+                print(f"[TIMING] ⏱️  Detectar agujeros YOLO: {time.time() - step_start:.3f}s")
+                print(f"[análisis] 🔍 Resultado detección agujeros: {holes_result}")
+                print(f"[análisis] 🔍 Tipo de resultado: {type(holes_result)}")
+                print(f"[análisis] 🔍 Longitud del resultado: {len(holes_result) if holes_result else 'None'}")
+                
+                if holes_result and len(holes_result) > 0:
+                    print(f"[análisis] ✓ Agujeros detectados: {len(holes_result)} agujeros")
+                    
+                    # Crear objetos de overlay para cada agujero detectado
+                    hole_objects = []
+                    for i, hole_data in enumerate(holes_result):
+                        # Extraer bbox del diccionario
+                        if isinstance(hole_data, dict) and 'bbox' in hole_data:
+                            hole_bbox = hole_data['bbox']
+                        else:
+                            hole_bbox = hole_data
+                        
+                        # El bbox del agujero está en coordenadas relativas a la imagen recortada
+                        # Agrandar bbox en 10%
+                        hole_x1, hole_y1, hole_x2, hole_y2 = hole_bbox
+                        width = hole_x2 - hole_x1
+                        height = hole_y2 - hole_y1
+                        margin_x = width * 0.1
+                        margin_y = height * 0.1
+                        
+                        enlarged_hole_bbox = [
+                            max(0, hole_x1 - margin_x),
+                            max(0, hole_y1 - margin_y),
+                            min(cropped_image.shape[1], hole_x2 + margin_x),
+                            min(cropped_image.shape[0], hole_y2 + margin_y)
+                        ]
+                        
+                        # Convertir a coordenadas absolutas de la imagen original
+                        abs_x1 = x1 + enlarged_hole_bbox[0]
+                        abs_y1 = y1 + enlarged_hole_bbox[1]
+                        abs_x2 = x1 + enlarged_hole_bbox[2]
+                        abs_y2 = y1 + enlarged_hole_bbox[3]
+                        
+                        # Crear rectángulo rojo para cada agujero
+                        hole_name = f"hole_{i+1}"
+                        overlay_manager.add_polygon(
+                            "world",
+                            points=[
+                                [abs_x1, abs_y1],  # Top-left
+                                [abs_x2, abs_y1],  # Top-right
+                                [abs_x2, abs_y2],  # Bottom-right
+                                [abs_x1, abs_y2]   # Bottom-left
+                            ],
+                            name=hole_name,
+                            color=(0, 0, 255),  # Rojo
+                            thickness=2
+                        )
+                        
+                        hole_objects.append(hole_name)
+                        print(f"[análisis] ✓ Agujero {i+1}: bbox original=({hole_x1}, {hole_y1}, {hole_x2}, {hole_y2}), agrandado=({enlarged_hole_bbox[0]:.1f}, {enlarged_hole_bbox[1]:.1f}, {enlarged_hole_bbox[2]:.1f}, {enlarged_hole_bbox[3]:.1f}), absoluto=({abs_x1:.1f}, {abs_y1:.1f}, {abs_x2:.1f}, {abs_y2:.1f})")
+                        
+                        # Verificar que el objeto se creó correctamente
+                        if hole_name in overlay_manager.objects:
+                            obj = overlay_manager.objects[hole_name]
+                            print(f"[análisis] ✓ Objeto '{hole_name}' creado correctamente:")
+                            print(f"  - Marco: {obj.original_frame}")
+                            print(f"  - Puntos: {obj.coordinates.get('points', 'N/A')}")
+                            print(f"  - Color: {obj.properties.get('color', 'N/A')}")
+                        else:
+                            print(f"[análisis] ❌ ERROR: Objeto '{hole_name}' NO se creó")
+                    
+                    print(f"[análisis] ✓ {len(hole_objects)} objetos de agujeros creados")
+                    print(f"[análisis] 📋 Objetos de agujeros en OverlayManager: {[name for name in overlay_manager.objects.keys() if name.startswith('hole_')]}")
+                    
+                else:
+                    print(f"[análisis] ⚠️ No se detectaron agujeros en la junta")
+                    holes_result = None
+                    
+            except Exception as e:
+                print(f"[análisis] ❌ Error en detección de agujeros: {e}")
+                holes_result = None
+        else:
+            print(f"[análisis] ⚠️ No se puede detectar agujeros: junta no detectada")
+            holes_result = None
+        
+        print(f"[TIMING] ⏱️  Detección de agujeros: {time.time() - step_start:.3f}s")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 9: OpenCV refinamiento (cada bbox + detección azul + elipses)
+        # ═══════════════════════════════════════════════════════════════════
+        
+        step_start = time.time()
+        ellipse_objects = []
+        
+        if holes_result and len(holes_result) > 0:
+            print(f"[análisis] 🔍 Iniciando refinamiento OpenCV para {len(holes_result)} agujeros...")
+            
+            try:
+                for i, hole_data in enumerate(holes_result):
+                    # Extraer bbox del diccionario
+                    if isinstance(hole_data, dict) and 'bbox' in hole_data:
+                        hole_bbox = hole_data['bbox']
+                    else:
+                        hole_bbox = hole_data
+                    
+                    # Obtener bbox agrandado (igual que antes)
+                    hole_x1, hole_y1, hole_x2, hole_y2 = hole_bbox
+                    width = hole_x2 - hole_x1
+                    height = hole_y2 - hole_y1
+                    margin_x = width * 0.1
+                    margin_y = height * 0.1
+                    
+                    enlarged_hole_bbox = [
+                        max(0, hole_x1 - margin_x),
+                        max(0, hole_y1 - margin_y),
+                        min(cropped_image.shape[1], hole_x2 + margin_x),
+                        min(cropped_image.shape[0], hole_y2 + margin_y)
+                    ]
+                    
+                    # Recortar imagen del agujero para OpenCV
+                    hole_crop = cropped_image[
+                        int(enlarged_hole_bbox[1]):int(enlarged_hole_bbox[3]),
+                        int(enlarged_hole_bbox[0]):int(enlarged_hole_bbox[2])
+                    ]
+                    
+                    print(f"[análisis] ✓ Agujero {i+1}: crop shape={hole_crop.shape}")
+                    
+                    # Aplicar OpenCV para detectar elipses (método del pipeline original)
+                    # Extraer canales BGR
+                    b_channel = hole_crop[:, :, 0].astype(np.float32)
+                    g_channel = hole_crop[:, :, 1].astype(np.float32)
+                    r_channel = hole_crop[:, :, 2].astype(np.float32)
+                    
+                    # Crear máscara donde azul es predominante
+                    # Un píxel es "azul" si B > (G + R) * factor
+                    factor_predominancia = 0.7
+                    es_azul = b_channel > (g_channel + r_channel) * factor_predominancia
+                    
+                    # Máscara binaria: azul → 255, no azul → 0
+                    mask = np.zeros_like(b_channel, dtype=np.uint8)
+                    mask[es_azul] = 255
+                    
+                    # Encontrar contornos
+                    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    
+                    if len(contours) > 0:
+                        # Encontrar el contorno más grande
+                        largest_contour = max(contours, key=cv2.contourArea)
+                        area = cv2.contourArea(largest_contour)
+                        
+                        # Filtrar contornos muy pequeños (ruido)
+                        if area < 10:
+                            print(f"[análisis] ⚠️ Agujero {i+1}: contorno muy pequeño (área={area:.1f})")
+                            continue
+                        
+                        # Ajustar elipse al contorno
+                        if len(largest_contour) >= 5:  # Mínimo 5 puntos para ajustar elipse
+                            ellipse = cv2.fitEllipse(largest_contour)
+                            center, axes, angle = ellipse
+                            
+                            print(f"[análisis] ✓ Elipse detectada en agujero {i+1}: center={center}, axes={axes}, angle={angle:.1f}°")
+                            
+                            # Convertir coordenadas de la elipse a coordenadas absolutas
+                            abs_center_x = x1 + enlarged_hole_bbox[0] + center[0]
+                            abs_center_y = y1 + enlarged_hole_bbox[1] + center[1]
+                            
+                            # Crear elipse verde
+                            ellipse_name = f"ellipse_{i+1}"
+                            overlay_manager.add_ellipse(
+                                "world",
+                                center=(abs_center_x, abs_center_y),
+                                axes=(axes[0]/2, axes[1]/2),  # OpenCV usa diámetros, nosotros radios
+                                angle=angle,
+                                name=ellipse_name,
+                                color=(0, 255, 0),  # Verde
+                                thickness=2
+                            )
+                            
+                            # Crear centro rojo
+                            center_name = f"hole_center_{i+1}"
+                            overlay_manager.add_circle(
+                                "world",
+                                center=(abs_center_x, abs_center_y),
+                                radius=3,  # 3px de radio
+                                name=center_name,
+                                color=(0, 0, 255),  # Rojo
+                                filled=True
+                            )
+                            
+                            ellipse_objects.extend([ellipse_name, center_name])
+                            print(f"[análisis] ✓ Elipse verde y centro rojo creados para agujero {i+1}")
+                            
+                        else:
+                            # Si no hay suficientes puntos para elipse, usar momentos
+                            moments = cv2.moments(largest_contour)
+                            if moments["m00"] != 0:
+                                center_x = int(moments["m10"] / moments["m00"])
+                                center_y = int(moments["m01"] / moments["m00"])
+                                
+                                print(f"[análisis] ✓ Centro detectado con momentos en agujero {i+1}: center=({center_x}, {center_y})")
+                                
+                                # Convertir coordenadas de la elipse a coordenadas absolutas
+                                abs_center_x = x1 + enlarged_hole_bbox[0] + center_x
+                                abs_center_y = y1 + enlarged_hole_bbox[1] + center_y
+                                
+                                # Crear solo centro rojo (sin elipse)
+                                center_name = f"hole_center_{i+1}"
+                                overlay_manager.add_circle(
+                                    "world",
+                                    center=(abs_center_x, abs_center_y),
+                                    radius=3,  # 3px de radio
+                                    name=center_name,
+                                    color=(0, 0, 255),  # Rojo
+                                    filled=True
+                                )
+                                
+                                ellipse_objects.append(center_name)
+                                print(f"[análisis] ✓ Centro rojo creado para agujero {i+1} (sin elipse)")
+                            else:
+                                print(f"[análisis] ⚠️ Agujero {i+1}: no se pudo calcular centro con momentos")
+                    else:
+                        print(f"[análisis] ⚠️ Agujero {i+1}: no se encontraron contornos azules")
+                        
+            except Exception as e:
+                print(f"[análisis] ❌ Error en refinamiento OpenCV: {e}")
+                ellipse_objects = []
+        else:
+            print(f"[análisis] ⚠️ No se puede aplicar refinamiento OpenCV: no hay agujeros detectados")
+            ellipse_objects = []
+        
+        print(f"[TIMING] ⏱️  Refinamiento OpenCV: {time.time() - step_start:.3f}s")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 10: Crear segmento y punto medio (misma estrategia del pipeline original)
+        # ═══════════════════════════════════════════════════════════════════
+        
+        step_start = time.time()
+        segment_objects = []
+        
+        if ellipse_objects and len(ellipse_objects) > 0:
+            print(f"[análisis] 🔍 Calculando segmento y punto medio para {len(ellipse_objects)} centros...")
+            
+            try:
+                # Extraer centros de los objetos de elipses/centros
+                centros = []
+                for obj_name in ellipse_objects:
+                    if obj_name.startswith('hole_center_'):
+                        if obj_name in overlay_manager.objects:
+                            obj = overlay_manager.objects[obj_name]
+                            center = obj.coordinates.get('center')
+                            if center:
+                                centros.append(center)
+                                print(f"[análisis] ✓ Centro extraído de {obj_name}: {center}")
+                
+                if len(centros) >= 2:
+                    # Ordenar de izquierda a derecha (misma estrategia del pipeline original)
+                    centros_ordenados = sorted(centros, key=lambda p: (p[0], p[1]))
+                    
+                    # Extremos (para la línea de referencia)
+                    p1 = centros_ordenados[0]
+                    p2 = centros_ordenados[-1]
+                    
+                    print(f"[análisis] ✓ Centros ordenados: {centros_ordenados}")
+                    print(f"[análisis] ✓ P1 (más a la izquierda): {p1}")
+                    print(f"[análisis] ✓ P2 (más a la derecha): {p2}")
+                    
+                    # Calcular punto medio entre extremos
+                    punto_medio_extremos = (
+                        int((p1[0] + p2[0]) / 2),
+                        int((p1[1] + p2[1]) / 2)
+                    )
+                    
+                    # Calcular centroide de todos los centros (más preciso)
+                    centro_x = sum(p[0] for p in centros) / len(centros)
+                    centro_y = sum(p[1] for p in centros) / len(centros)
+                    punto_medio_centroide = (int(centro_x), int(centro_y))
+                    
+                    print(f"[análisis] ✓ Punto medio entre extremos: {punto_medio_extremos}")
+                    print(f"[análisis] ✓ Punto medio centroide: {punto_medio_centroide}")
+                    
+                    # Usar el centroide (más preciso para agujeros no perfectamente equiespaciados)
+                    punto_medio = punto_medio_centroide
+                    
+                    # Calcular ángulo del segmento
+                    angle_rad = np.arctan2(p2[1] - p1[1], p2[0] - p1[0])
+                    angle_deg = np.degrees(angle_rad)
+                    
+                    print(f"[análisis] ✓ Ángulo del segmento: {angle_deg:.2f}° ({angle_rad:.4f} rad)")
+                    
+                    # Distancia en píxeles
+                    distancia_px = np.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
+                    print(f"[análisis] ✓ Distancia del segmento: {distancia_px:.1f} px")
+                    
+                    # Crear línea de referencia (segmento)
+                    segment_name = "reference_segment"
+                    overlay_manager.add_line(
+                        "world",
+                        start=p1,
+                        end=p2,
+                        name=segment_name,
+                        color=(255, 0, 0),  # Rojo
+                        thickness=3
+                    )
+                    
+                    # Crear punto medio
+                    midpoint_name = "segment_midpoint"
+                    overlay_manager.add_circle(
+                        "world",
+                        center=punto_medio,
+                        radius=5,  # 5px de radio
+                        name=midpoint_name,
+                        color=(0, 255, 255),  # Cyan
+                        filled=True
+                    )
+                    
+                    segment_objects.extend([segment_name, midpoint_name])
+                    print(f"[análisis] ✓ Segmento rojo y punto medio cyan creados")
+                    print(f"[análisis] ✓ Segmento: P1={p1} → P2={p2}")
+                    print(f"[análisis] ✓ Punto medio: {punto_medio}")
+                    
+                else:
+                    print(f"[análisis] ⚠️ No hay suficientes centros para crear segmento (necesario: 2, encontrado: {len(centros)})")
+                    
+            except Exception as e:
+                print(f"[análisis] ❌ Error calculando segmento y punto medio: {e}")
+                segment_objects = []
+        else:
+            print(f"[análisis] ⚠️ No se puede calcular segmento: no hay centros de agujeros")
+            segment_objects = []
+        
+        print(f"[TIMING] ⏱️  Cálculo de segmento y punto medio: {time.time() - step_start:.3f}s")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 11: Agregar objetos de ArUcos detectados
+        # ═══════════════════════════════════════════════════════════════════
+        
+        aruco_objects = []
+        
+        # Agregar objetos del Frame ArUco si está detectado
+        if frame_detected and frame_result:
+            frame_center = frame_result['center']
+            frame_corners = frame_result['corners']
+            frame_angle = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
+            
+            # Contorno del Frame ArUco
+            overlay_manager.add_polygon(
+                "world",
+                points=frame_corners,
+                name=f"aruco_contour_{frame_aruco_id}",
+                color=(0, 255, 255),  # Amarillo
+                thickness=2
+            )
+            
+            # Ejes del Frame ArUco
+            image_height, image_width = frame.shape[:2]
+            axis_length = max(image_width, image_height)
+            
+            x_end1 = (frame_center[0] + axis_length * np.cos(frame_angle), frame_center[1] + axis_length * np.sin(frame_angle))
+            x_end2 = (frame_center[0] - axis_length * np.cos(frame_angle), frame_center[1] - axis_length * np.sin(frame_angle))
+            
+            y_angle = frame_angle + np.pi / 2
+            y_end1 = (frame_center[0] + axis_length * np.cos(y_angle), frame_center[1] + axis_length * np.sin(y_angle))
+            y_end2 = (frame_center[0] - axis_length * np.cos(y_angle), frame_center[1] - axis_length * np.sin(y_angle))
+            
+            overlay_manager.add_line("world", start=x_end2, end=x_end1, name=f"aruco_x_axis_{frame_aruco_id}", color=(0, 255, 255), thickness=2)
+            overlay_manager.add_line("world", start=y_end2, end=y_end1, name=f"aruco_y_axis_{frame_aruco_id}", color=(0, 255, 255), thickness=2)
+            
+            # Centro del Frame ArUco
+            overlay_manager.add_circle("world", center=frame_center, radius=5, name=f"aruco_center_{frame_aruco_id}", color=(0, 255, 255), filled=True)
+            
+            # Verificar si el checkbox del Frame ArUco está habilitado
+            show_frame = aruco_config.get('aruco', {}).get('show_frame', True)
+            
+            if show_frame:
+                aruco_objects.extend([f"aruco_contour_{frame_aruco_id}", f"aruco_x_axis_{frame_aruco_id}", f"aruco_y_axis_{frame_aruco_id}", f"aruco_center_{frame_aruco_id}"])
+                print(f"[análisis] ✅ Objetos del Frame ArUco (ID: {frame_aruco_id}) agregados (checkbox habilitado)")
+            else:
+                print(f"[análisis] ⚠️ Frame ArUco detectado pero checkbox deshabilitado - NO agregado")
+        
+        # Agregar objetos del Tool ArUco si está detectado
+        if tool_detected and tool_result:
+            tool_center = tool_result['center']
+            tool_corners = tool_result['corners']
+            tool_angle = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+            
+            # Contorno del Tool ArUco
+            overlay_manager.add_polygon("world", points=tool_corners, name=f"aruco_contour_{tool_aruco_id}", color=(255, 0, 0), thickness=2)
+            
+            # Ejes del Tool ArUco
+            image_height, image_width = frame.shape[:2]
+            axis_length = max(image_width, image_height)
+            
+            x_end1 = (tool_center[0] + axis_length * np.cos(tool_angle), tool_center[1] + axis_length * np.sin(tool_angle))
+            x_end2 = (tool_center[0] - axis_length * np.cos(tool_angle), tool_center[1] - axis_length * np.sin(tool_angle))
+            
+            y_angle = tool_angle + np.pi / 2
+            y_end1 = (tool_center[0] + axis_length * np.cos(y_angle), tool_center[1] + axis_length * np.sin(y_angle))
+            y_end2 = (tool_center[0] - axis_length * np.cos(y_angle), tool_center[1] - axis_length * np.sin(y_angle))
+            
+            overlay_manager.add_line("world", start=x_end2, end=x_end1, name=f"aruco_x_axis_{tool_aruco_id}", color=(255, 0, 0), thickness=2)
+            overlay_manager.add_line("world", start=y_end2, end=y_end1, name=f"aruco_y_axis_{tool_aruco_id}", color=(255, 0, 0), thickness=2)
+            
+            # Centro del Tool ArUco
+            overlay_manager.add_circle("world", center=tool_center, radius=5, name=f"aruco_center_{tool_aruco_id}", color=(255, 0, 0), filled=True)
+            
+            # Verificar si el checkbox del Tool ArUco está habilitado
+            show_tool = aruco_config.get('aruco', {}).get('show_tool', True)
+            
+            if show_tool:
+                aruco_objects.extend([f"aruco_contour_{tool_aruco_id}", f"aruco_x_axis_{tool_aruco_id}", f"aruco_y_axis_{tool_aruco_id}", f"aruco_center_{tool_aruco_id}"])
+                print(f"[análisis] ✅ Objetos del Tool ArUco (ID: {tool_aruco_id}) agregados (checkbox habilitado)")
+            else:
+                print(f"[análisis] ⚠️ Tool ArUco detectado pero checkbox deshabilitado - NO agregado")
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # PASO 9: Crear lista de renderizado con objetos necesarios
+        # ═══════════════════════════════════════════════════════════════════
+        
+        # Crear lista de objetos para renderizar
+        all_objects = ["center_circle"] + aruco_objects  # ← Solo centro del troquel + ArUcos detectados
+        
+        # Agregar bbox de junta si fue detectado
+        if gasket_result and (('bbox' in gasket_result) or (isinstance(gasket_result, (list, tuple)) and len(gasket_result) >= 4)):
+            all_objects.append("gasket_bbox")
+            print(f"[análisis] ✓ Bbox de junta agregado a la lista de renderizado")
+        
+        # Agregar objetos de agujeros si fueron detectados
+        if holes_result and len(holes_result) > 0:
+            hole_objects = [f"hole_{i+1}" for i in range(len(holes_result))]
+            all_objects.extend(hole_objects)
+            print(f"[análisis] ✓ {len(hole_objects)} objetos de agujeros agregados a la lista de renderizado")
+        
+        # Agregar objetos de elipses si fueron detectados
+        if ellipse_objects and len(ellipse_objects) > 0:
+            all_objects.extend(ellipse_objects)
+            print(f"[análisis] ✓ {len(ellipse_objects)} objetos de elipses agregados a la lista de renderizado")
+        
+        # Agregar objetos de segmento si fueron detectados
+        if segment_objects and len(segment_objects) > 0:
+            all_objects.extend(segment_objects)
+            print(f"[análisis] ✓ {len(segment_objects)} objetos de segmento agregados a la lista de renderizado")
+        
+        # Verificar que todos los objetos existen antes de crear la renderlist
+        existing_objects = []
+        for obj_name in all_objects:
+            if obj_name in overlay_manager.objects:
+                existing_objects.append(obj_name)
+                print(f"[análisis] ✓ Objeto '{obj_name}' encontrado")
+            else:
+                print(f"[análisis] ⚠️ Objeto '{obj_name}' no existe, omitiendo...")
+        
+        print(f"[análisis] 📋 Objetos disponibles en OverlayManager: {list(overlay_manager.objects.keys())}")
+        print(f"[análisis] 🎯 Objetos que se van a renderizar: {existing_objects}")
+        
+        # Verificar específicamente el centro del troquel
+        if "center_circle" in overlay_manager.objects:
+            obj = overlay_manager.objects["center_circle"]
+            print(f"[análisis] 🔍 Centro del troquel:")
+            print(f"  - Existe: ✓")
+            print(f"  - Marco: {obj.original_frame}")
+            print(f"  - Centro: {obj.coordinates.get('center', 'N/A')}")
+            print(f"  - Radio: {obj.coordinates.get('radius', 'N/A')}")
+            print(f"  - Color: {obj.properties.get('color', 'N/A')}")
+        else:
+            print(f"[análisis] ❌ ERROR: 'center_circle' NO existe en OverlayManager")
+        
+        # Crear lista de renderizado usando el método correcto de la librería
+        overlay_manager.create_renderlist(
+            *existing_objects,  # ← Argumentos posicionales
+            name="analysis_overlay"
+        )
+        print(f"[análisis] ✓ Renderlist 'analysis_overlay' creada con {len(existing_objects)} objetos: {existing_objects}")
+        
+        print(f"[TIMING] ⏱️  Preparar renderizado: {time.time() - step_start:.3f}s")
+        
+        # ⚡ RENDERIZAR UNA SOLA VEZ al final
+        print(f"[análisis] 🎨 Iniciando renderizado con {len(existing_objects)} objetos...")
+        for obj_name in existing_objects:
+            if obj_name in overlay_manager.objects:
+                obj = overlay_manager.objects[obj_name]
+                print(f"[análisis] 🎯 Renderizando '{obj_name}': marco={obj.original_frame}, tipo={obj.type}")
+            else:
+                print(f"[análisis] ⚠️ Objeto '{obj_name}' no encontrado para renderizar")
+        
+        result_image, view_time = overlay_manager.render(
+            gray_background,
+            renderlist="analysis_overlay",  # ← Usar nombre de la lista
+            view_time=500  # 0.5 segundos
+        )
+        
+        print(f"[TIMING] ⏱️  Renderizado directo: {time.time() - step_start:.3f}s")
+        print(f"[análisis] 🎨 Renderizado completado: {result_image.shape}, view_time={view_time}ms")
+        
+        # Verificar si la lista de renderizado se creó correctamente
+        try:
+            renderlist_content = overlay_manager.get_renderlist("analysis_overlay")
+            print(f"[análisis] 📋 Contenido de la renderlist: {renderlist_content}")
+        except Exception as e:
+            print(f"[análisis] ❌ Error obteniendo renderlist: {e}")
+        
+        # Codificar imagen a base64
+        _, buffer = cv2.imencode('.jpg', result_image, [cv2.IMWRITE_JPEG_QUALITY, 75])
+        imagen_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        print(f"[TIMING] ⏱️  Codificar imagen: {time.time() - step_start:.3f}s")
+        print(f"[TIMING] ⏱️  TIEMPO TOTAL: {time.time() - start_time:.3f}s")
+        
+        return jsonify({
+            'ok': True,
+            'analisis_exitoso': True,
+            'imagen_base64': imagen_base64,
+            'data': {
+                'aruco': {'detected': True, 'test_mode': True},
+                'holes': {'total_detected': 0, 'test_mode': True},
+                'overlay_objects': all_objects,
+                'render_time_ms': view_time,
+                'total_time_ms': int((time.time() - start_time) * 1000)
+            }
+        })
+        
+    except Exception as e:
+        print(f"[TIMING] ⏱️  ERROR TOTAL: {time.time() - start_time:.3f}s")
+        print(f"[análisis] Error en POST /api/analyze_new: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/analyze', methods=['POST'])
 def api_analyze():

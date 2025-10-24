@@ -248,26 +248,19 @@
     
     <!-- Botones finales -->
     <div style="display: flex; gap: var(--space-md); margin-bottom: var(--space-lg);">
-      <button id="btnCaptureRef" class="btn btn-primary">
+      <button id="btnShow" class="btn btn-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path d="M10.5 8a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0z"/>
-          <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H2z"/>
+          <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+          <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
         </svg>
-        <span>Capturar Referencia</span>
+        <span>Mostrar Overlay</span>
       </button>
       
       <button id="btnApply" class="btn btn-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M13.485 1.929a.75.75 0 0 1 .086 1.057l-7.25 8a.75.75 0 0 1-1.094.03L2.43 8.28a.75.75 0 1 1 1.06-1.06l2.3 2.298 6.72-7.42a.75.75 0 0 1 .975-.168z"/>
         </svg>
-        <span>Aplicar Configuración</span>
-      </button>
-      
-      <button id="btnShow" class="btn btn-primary">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/>
-        </svg>
-        <span>Mostrar Overlay</span>
+        <span>Guardar</span>
       </button>
     </div>
     
@@ -292,7 +285,6 @@
     const chkShowCenter = document.getElementById('chkShowCenter');
     const chkUseSaved = document.getElementById('chkUseSaved');
     const btnApply = document.getElementById('btnApply');
-    const btnCaptureRef = document.getElementById('btnCaptureRef');
     const btnShow = document.getElementById('btnShow');
     const messageDiv = document.getElementById('message');
     
@@ -390,45 +382,9 @@
       }
     }
     
-    // ============================================================
-    // CAPTURAR REFERENCIA
-    // ============================================================
-    async function captureReference() {
-      try {
-        btnCaptureRef.disabled = true;
-        showMessage('Capturando ArUco del video en vivo...', 'info');
-        
-        const response = await Common.fetchWithTimeout('/api/aruco/capture_reference', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const result = await response.json();
-        
-        if (result.ok) {
-          showMessage('✓ Referencia ArUco capturada y guardada correctamente', 'success');
-          
-          // Actualizar display de datos guardados
-          const savedRef = {
-            px_per_mm: result.data.px_per_mm,
-            angle_rad: result.data.angle_deg * Math.PI / 180,
-            timestamp: result.data.timestamp
-          };
-          mostrarDatosGuardados(savedRef);
-        } else {
-          showMessage('❌ ' + (result.error || 'Error capturando referencia'), 'error');
-        }
-        
-      } catch (e) {
-        console.error('[arucos] Error capturando referencia:', e);
-        showMessage('Error de conexión con el servidor', 'error');
-      } finally {
-        btnCaptureRef.disabled = false;
-      }
-    }
     
     // ============================================================
-    // APLICAR CONFIGURACIÓN
+    // GUARDAR CONFIGURACIÓN
     // ============================================================
     async function applyConfig() {
       const frameArucoId = parseInt(frameArucoIdInput.value);
@@ -444,9 +400,10 @@
       
       try {
         btnApply.disabled = true;
-        showMessage('Aplicando configuración...', 'info');
+        showMessage('Guardando configuración...', 'info');
         
-        const response = await Common.fetchWithTimeout('/api/aruco/set_reference', {
+        // Primero aplicar la configuración básica
+        const setResponse = await Common.fetchWithTimeout('/api/aruco/set_reference', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -463,16 +420,51 @@
           })
         });
         
-        const data = await response.json();
+        const setData = await setResponse.json();
         
-        if (data.ok) {
-          showMessage('✓ Configuración aplicada correctamente', 'success');
+        if (!setData.ok) {
+          showMessage(setData.error || 'Error aplicando configuración', 'error');
+          return;
+        }
+        
+        // Luego guardar la configuración completa con objetos
+        const saveResponse = await Common.fetchWithTimeout('/api/aruco/save_config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const saveData = await saveResponse.json();
+        
+        if (saveData.ok) {
+          showMessage('✓ Configuración guardada correctamente', 'success');
+          
+          // Mostrar información adicional si está disponible
+          if (saveData.data) {
+            const { frame_detected, tool_detected, objects_saved } = saveData.data;
+            let infoMessage = '';
+            
+            if (frame_detected) {
+              infoMessage += 'Frame ArUco detectado y guardado. ';
+            }
+            if (tool_detected) {
+              infoMessage += 'Tool ArUco detectado y guardado. ';
+            }
+            if (objects_saved && objects_saved.length > 0) {
+              infoMessage += `${objects_saved.length} objetos de renderizado guardados.`;
+            }
+            
+            if (infoMessage) {
+              setTimeout(() => {
+                showMessage('ℹ️ ' + infoMessage, 'info');
+              }, 1000);
+            }
+          }
         } else {
-          showMessage(data.error || 'Error aplicando configuración', 'error');
+          showMessage(saveData.error || 'Error guardando configuración', 'error');
         }
         
       } catch (e) {
-        console.error('[arucos] Error aplicando config:', e);
+        console.error('[arucos] Error guardando config:', e);
         showMessage('Error de conexión con el servidor', 'error');
       } finally {
         btnApply.disabled = false;
@@ -526,14 +518,7 @@
     // EVENT LISTENERS
     // ============================================================
     btnApply.addEventListener('click', applyConfig);
-    btnCaptureRef.addEventListener('click', captureReference);
     btnShow.addEventListener('click', showOverlay);
-    
-    // Auto-aplicar cuando cambian los checkboxes
-    chkShowFrame.addEventListener('change', applyConfig);
-    chkShowTool.addEventListener('change', applyConfig);
-    chkShowCenter.addEventListener('change', applyConfig);
-    chkUseSaved.addEventListener('change', applyConfig);
     
     // Limpiar overlay al salir de la página
     window.addEventListener('beforeunload', cleanupOnExit);

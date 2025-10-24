@@ -102,9 +102,37 @@
       ],
       "timestamp": "2025-10-24T14:42:16.955919"
     },
-    "show_frame": true,
-    "show_tool": true,
-    "show_center": true
+    "show_frame": false,
+    "show_tool": false,
+    "show_center": false,
+    "saved_objects": {
+      "frame_objects": [
+        "aruco_contour_23",
+        "aruco_x_axis_23",
+        "aruco_y_axis_23",
+        "aruco_center_23"
+      ],
+      "tool_objects": [
+        "aruco_contour_4",
+        "aruco_x_axis_4",
+        "aruco_y_axis_4",
+        "aruco_center_4"
+      ],
+      "center_objects": [
+        "center_circle"
+      ],
+      "descriptions": {
+        "aruco_contour_23": "Contorno del Frame ArUco (ID: 23)",
+        "aruco_x_axis_23": "Eje X del Frame ArUco (ID: 23)",
+        "aruco_y_axis_23": "Eje Y del Frame ArUco (ID: 23)",
+        "aruco_center_23": "Centro del Frame ArUco (ID: 23)",
+        "aruco_contour_4": "Contorno del Tool ArUco (ID: 4)",
+        "aruco_x_axis_4": "Eje X del Tool ArUco (ID: 4)",
+        "aruco_y_axis_4": "Eje Y del Tool ArUco (ID: 4)",
+        "aruco_center_4": "Centro del Tool ArUco (ID: 4)",
+        "center_circle": "Círculo del centro del troquel (10mm diámetro)"
+      }
+    }
   },
   "vision": {
     "detection_model": "models/detection_model.pt",
@@ -117,7 +145,11 @@
     "umbral_distancia_tolerancia": 97,
     "umbral_centros_mm": 2,
     "umbral_colinealidad_mm": 0.5,
-    "umbral_espaciado_cv": 1
+    "umbral_espaciado_cv": 1,
+    "roi_enabled": true,
+    "roi_offset_y_mm": 19.0,
+    "roi_zoom_x_percent": 100.0,
+    "roi_zoom_y_percent": 100.0
   },
   "mqtt": {
     "broker_ip": "192.168.1.10",
