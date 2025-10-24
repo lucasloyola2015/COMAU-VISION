@@ -255,13 +255,16 @@ def load_aruco_config():
     # Configuración por defecto
     return {
         'aruco': {
-            'reference_id': 0,
-            'marker_size_mm': 42.0,
+            'frame_aruco_id': 0,
+            'frame_marker_size_mm': 42.0,
+            'tool_aruco_id': 0,
+            'tool_marker_size_mm': 42.0,
             'center_x_mm': 0,
             'center_y_mm': 0,
             'show_reference': False,
             'use_saved_reference': False,
-            'saved_reference': None
+            'saved_frame_reference': None,
+            'saved_tool_reference': None
         }
     }
 
@@ -366,7 +369,8 @@ def api_aruco_capture_reference():
 
 @app.route('/api/aruco/draw_overlay', methods=['POST'])
 def api_aruco_draw_overlay():
-    """Genera un frame con overlay de ArUco y lo muestra por 3 segundos en el dashboard"""
+    """Genera un frame con overlay de ArUcos y lo muestra por 3 segundos en el dashboard.
+    Detecta ambos ArUcos (Frame y Tool). Solo actualiza los que se encuentran."""
     global _overlay_frame, _overlay_active_until
     
     try:
@@ -376,8 +380,11 @@ def api_aruco_draw_overlay():
         config = load_aruco_config()
         aruco_config = config.get('aruco', {})
         
-        reference_id = aruco_config.get('reference_id', 0)
-        marker_size_mm = aruco_config.get('marker_size_mm', 42.0)
+        # Obtener IDs y tamaños de ambos ArUcos
+        frame_aruco_id = aruco_config.get('frame_aruco_id', 0)
+        frame_marker_size = aruco_config.get('frame_marker_size_mm', 42.0)
+        tool_aruco_id = aruco_config.get('tool_aruco_id', 0)
+        tool_marker_size = aruco_config.get('tool_marker_size_mm', 42.0)
         
         # Obtener frame actual de la cámara en formato OpenCV
         cv2_frame = camera_manager.get_frame_raw()
@@ -388,39 +395,40 @@ def api_aruco_draw_overlay():
                 'error': 'No hay frame disponible de la cámara'
             }), 400
         
-        # Detectar ArUco específico
-        result = detect_aruco_by_id(cv2_frame, reference_id, marker_size_mm=marker_size_mm)
+        # Detectar ambos ArUcos
+        frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
+        tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
         
-        if result is None:
-            # El ArUco específico no se encontró
-            all_arucos = detect_all_arucos(cv2_frame, marker_size_mm=marker_size_mm)
-            
+        # Verificar si al menos uno se detectó
+        if frame_result is None and tool_result is None:
+            all_arucos = detect_all_arucos(cv2_frame, marker_size_mm=max(frame_marker_size, tool_marker_size))
             if all_arucos is None or len(all_arucos.get('detected_ids', [])) == 0:
                 error_msg = f'No se detectó ningún marcador ArUco en el frame'
             else:
                 detected = all_arucos.get('detected_ids', [])
                 detected_str = ', '.join(str(id) for id in detected)
-                error_msg = f'ArUco ID {reference_id} no detectado.\nArUcos detectados: [{detected_str}]'
+                error_msg = f'ArUcos Frame({frame_aruco_id}) y Tool({tool_aruco_id}) no detectados.\nArUcos detectados: [{detected_str}]'
             
             return jsonify({
                 'ok': False,
                 'error': error_msg
             }), 400
         
-        # Calcular ángulo en radianes para dibujar
-        angle_rad = np.arctan2(result['rotation_matrix'][1][0], result['rotation_matrix'][0][0])
+        # Preparar datos para el visualizador (usar el primero que se encuentre para dibujar)
+        result_to_draw = frame_result if frame_result is not None else tool_result
         
-        # Preparar datos para el visualizador
+        angle_rad = np.arctan2(result_to_draw['rotation_matrix'][1][0], result_to_draw['rotation_matrix'][0][0])
+        
         datos_aruco = {
-            'center': result['center'],
+            'center': result_to_draw['center'],
             'angle_rad': float(angle_rad),
-            'corners': result['corners'],
-            'px_per_mm': result['px_per_mm']
+            'corners': result_to_draw['corners'],
+            'px_per_mm': result_to_draw['px_per_mm']
         }
         
         datos_visualizacion = {
             'aruco': datos_aruco,
-            '_force_draw_aruco': True  # Forzar dibujo sin depender del checkbox
+            '_force_draw_aruco': True
         }
         
         # Dibujar overlay usando visualizador
@@ -440,6 +448,32 @@ def api_aruco_draw_overlay():
                 'ok': False,
                 'error': 'Error codificando imagen'
             }), 500
+        
+        # Actualizar config solo con los ArUcos que se encontraron
+        if frame_result is not None:
+            print(f"[aruco] ✓ ArUco_Frame detectado (ID: {frame_aruco_id})")
+            aruco_config['saved_frame_reference'] = {
+                'px_per_mm': float(frame_result['px_per_mm']),
+                'center': list(frame_result['center']),
+                'angle_rad': float(angle_rad),
+                'corners': frame_result['corners'],
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        if tool_result is not None:
+            print(f"[aruco] ✓ ArUco_Tool detectado (ID: {tool_aruco_id})")
+            angle_tool = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+            aruco_config['saved_tool_reference'] = {
+                'px_per_mm': float(tool_result['px_per_mm']),
+                'center': list(tool_result['center']),
+                'angle_rad': float(angle_tool),
+                'corners': tool_result['corners'],
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        # Guardar config actualizada
+        config['aruco'] = aruco_config
+        save_aruco_config(config)
         
         # Guardar frame temporalmente y activar overlay por 3 segundos
         _overlay_frame = buffer.tobytes()
@@ -471,10 +505,14 @@ def api_aruco_set_reference():
         aruco_config = config.get('aruco', {})
         
         # Actualizar valores desde el request
-        if 'reference_id' in data:
-            aruco_config['reference_id'] = int(data['reference_id'])
-        if 'marker_size_mm' in data:
-            aruco_config['marker_size_mm'] = float(data['marker_size_mm'])
+        if 'frame_aruco_id' in data:
+            aruco_config['frame_aruco_id'] = int(data['frame_aruco_id'])
+        if 'frame_marker_size_mm' in data:
+            aruco_config['frame_marker_size_mm'] = float(data['frame_marker_size_mm'])
+        if 'tool_aruco_id' in data:
+            aruco_config['tool_aruco_id'] = int(data['tool_aruco_id'])
+        if 'tool_marker_size_mm' in data:
+            aruco_config['tool_marker_size_mm'] = float(data['tool_marker_size_mm'])
         if 'center_x_mm' in data:
             aruco_config['center_x_mm'] = float(data['center_x_mm'])
         if 'center_y_mm' in data:

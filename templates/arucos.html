@@ -112,14 +112,14 @@
     
     <div class="card">
     <h2 style="font-size: var(--font-size-xl); margin-bottom: var(--space-xl); font-weight: 600; color: var(--text-primary);">
-      Referencia Troqueladora
+      Aruco_Frame (Troqueladora)
     </h2>
     
     <div class="form-row" style="margin-bottom: var(--space-lg);">
       <div style="flex: 0 0 auto;">
-        <label for="refId">ID</label>
+        <label for="frameArucoCId">Aruco_Frame_ID</label>
         <input type="number" 
-               id="refId" 
+               id="frameArucoCId" 
                min="0" 
                max="1000" 
                value="0"
@@ -127,14 +127,48 @@
       </div>
       
       <div style="flex: 0 0 auto;">
-        <label for="markerSize">Tamaño (mm)</label>
+        <label for="frameArucoSize">Aruco_Frame_Tamaño (mm)</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" 
+                 id="frameArucoSize" 
+                 min="1" 
+                 max="500" 
+                 step="0.1"
+                 value="42.0"
+                 style="width: 100px;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #FFD700; flex-shrink: 0;" title="Frame"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sección: Aruco_Tool -->
+    <h2 style="font-size: var(--font-size-xl); margin-bottom: var(--space-xl); font-weight: 600; color: var(--text-primary);">
+      Aruco_Tool (Herramienta)
+    </h2>
+    
+    <div class="form-row" style="margin-bottom: var(--space-lg);">
+      <div style="flex: 0 0 auto;">
+        <label for="toolArucoCId">Aruco_Tool_ID</label>
         <input type="number" 
-               id="markerSize" 
-               min="1" 
-               max="500" 
-               step="0.1"
-               value="42.0"
+               id="toolArucoCId" 
+               min="0" 
+               max="1000" 
+               value="0"
                style="width: 100px;">
+      </div>
+      
+      <div style="flex: 0 0 auto;">
+        <label for="toolArucoSize">Aruco_Tool_Tamaño (mm)</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" 
+                 id="toolArucoSize" 
+                 min="1" 
+                 max="500" 
+                 step="0.1"
+                 value="42.0"
+                 style="width: 100px;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #0066FF; flex-shrink: 0;" title="Tool"></div>
+        </div>
       </div>
     </div>
     
@@ -148,7 +182,7 @@
         
         <div style="display: flex; align-items: center; gap: var(--space-sm);">
           <input type="checkbox" id="chkUseSaved">
-          <label for="chkUseSaved" class="checkbox-label">Usar referencia guardada (no detectar en tiempo real)</label>
+          <label for="chkUseSaved" class="checkbox-label">Usar referencias guardadas (no detectar en tiempo real)</label>
         </div>
       </div>
     </div>
@@ -233,8 +267,10 @@
   </div>
 
   <script>
-    const refIdInput = document.getElementById('refId');
-    const markerSizeInput = document.getElementById('markerSize');
+    const frameArucoIdInput = document.getElementById('frameArucoCId');
+    const frameArucoSizeInput = document.getElementById('frameArucoSize');
+    const toolArucoIdInput = document.getElementById('toolArucoCId');
+    const toolArucoSizeInput = document.getElementById('toolArucoSize');
     const centerXInput = document.getElementById('centerX');
     const centerYInput = document.getElementById('centerY');
     const chkShowRef = document.getElementById('chkShowRef');
@@ -277,8 +313,10 @@
         const config = await response.json();
         
         if (config.aruco) {
-          refIdInput.value = config.aruco.reference_id || 0;
-          markerSizeInput.value = config.aruco.marker_size_mm || 42.0;
+          frameArucoIdInput.value = config.aruco.frame_aruco_id || 0;
+          frameArucoSizeInput.value = config.aruco.frame_marker_size_mm || 42.0;
+          toolArucoIdInput.value = config.aruco.tool_aruco_id || 0;
+          toolArucoSizeInput.value = config.aruco.tool_marker_size_mm || 42.0;
           centerXInput.value = config.aruco.center_x_mm || 0;
           centerYInput.value = config.aruco.center_y_mm || 0;
           chkShowRef.checked = config.aruco.show_reference || false;
@@ -375,8 +413,10 @@
     // APLICAR CONFIGURACIÓN
     // ============================================================
     async function applyConfig() {
-      const referenceId = parseInt(refIdInput.value);
-      const markerSize = parseFloat(markerSizeInput.value);
+      const frameArucoId = parseInt(frameArucoIdInput.value);
+      const frameMarkerSize = parseFloat(frameArucoSizeInput.value);
+      const toolArucoId = parseInt(toolArucoIdInput.value);
+      const toolMarkerSize = parseFloat(toolArucoSizeInput.value);
       const centerX = parseFloat(centerXInput.value);
       const centerY = parseFloat(centerYInput.value);
       const showReference = chkShowRef.checked;
@@ -390,8 +430,10 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            reference_id: referenceId,
-            marker_size_mm: markerSize,
+            frame_aruco_id: frameArucoId,
+            frame_marker_size_mm: frameMarkerSize,
+            tool_aruco_id: toolArucoId,
+            tool_marker_size_mm: toolMarkerSize,
             center_x_mm: centerX,
             center_y_mm: centerY,
             show_reference: showReference,
