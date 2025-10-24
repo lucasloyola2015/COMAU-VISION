@@ -160,6 +160,27 @@ def analizar_frame_completo(frame):
     print(f"[pipeline] ✓ ArUco detectado: ID={datos_aruco['id']}, px_per_mm={datos_aruco['px_per_mm']:.3f}")
     
     # ═══════════════════════════════════════════════════════════════════
+    # PASO 1.5: Detectar Tool ArUco también
+    # ═══════════════════════════════════════════════════════════════════
+    
+    # Cargar configuración para obtener Tool ArUco
+    config = _cargar_config()
+    aruco_config = config.get('aruco', {})
+    tool_aruco_id = aruco_config.get('tool_aruco_id')
+    tool_marker_size_mm = aruco_config.get('tool_marker_size_mm', 50.0)
+    
+    tool_result = None
+    if tool_aruco_id:
+        from vision.aruco_detector import detect_aruco_by_id
+        tool_result = detect_aruco_by_id(frame, tool_aruco_id, marker_size_mm=tool_marker_size_mm)
+        if tool_result:
+            print(f"[pipeline] ✓ Tool ArUco detectado: ID={tool_result['id']}, px_per_mm={tool_result['px_per_mm']:.3f}")
+            # Agregar tool_result a datos_aruco para que esté disponible en el pipeline
+            datos_aruco['tool_result'] = tool_result
+        else:
+            print(f"[pipeline] ⚠️ Tool ArUco no detectado (ID: {tool_aruco_id})")
+    
+    # ═══════════════════════════════════════════════════════════════════
     # CORRECCIÓN DE IMAGEN (Perspectiva según configuración)
     # ═══════════════════════════════════════════════════════════════════
     
@@ -386,6 +407,14 @@ def analizar_frame_completo(frame):
             offset_vector = calcular_offset_vector(datos_aruco_corregido, muescas[0])
             datos_visualizacion['offset_vector'] = offset_vector
             print(f"[pipeline] ✓ Offset vector calculado: X={offset_vector['x_mm']:.2f}mm, Y={offset_vector['y_mm']:.2f}mm, Módulo={offset_vector['modulo_mm']:.2f}mm")
+            
+            # ═══════════════════════════════════════════════════════════════════
+            # CALCULAR COORDENADAS RESPECTO AL TOOL (NUEVA FUNCIONALIDAD)
+            # ═══════════════════════════════════════════════════════════════════
+            coords_tool = calcular_coords_primera_muesca_respecto_tool(datos_aruco_corregido, muescas[0])
+            if coords_tool:
+                datos_visualizacion['coords_tool'] = coords_tool
+                print(f"[pipeline] ✓ Coordenadas Tool calculadas: X={coords_tool['x_mm']:.2f}mm, Y={coords_tool['y_mm']:.2f}mm")
     else:
         # NO calcular muescas si hay fallas
         datos_visualizacion['muescas'] = []
@@ -433,6 +462,13 @@ def analizar_frame_completo(frame):
         'validaciones_geometricas': resultados_validacion
     }
     
+    # Agregar datos de visualización si existen
+    if datos_visualizacion.get('offset_vector'):
+        datos_completos['offset_vector'] = datos_visualizacion['offset_vector']
+    
+    if datos_visualizacion.get('coords_tool'):
+        datos_completos['coords_tool'] = datos_visualizacion['coords_tool']
+    
     # ═══════════════════════════════════════════════════════════════════
     # PASO 10: Retornar resultado
     # ═══════════════════════════════════════════════════════════════════
@@ -454,7 +490,7 @@ def analizar_frame_completo(frame):
 
 def detectar_aruco(frame):
     """
-    Detecta el marcador ArUco de referencia y calcula calibración.
+    Detecta el marcador ArUco Frame (calibración) y calcula px_per_mm.
     
     MODOS DE OPERACIÓN:
     1. Usar referencia guardada (si use_saved_reference=True)
@@ -484,45 +520,45 @@ def detectar_aruco(frame):
     aruco_config = config.get('aruco', {})
     
     use_saved_reference = aruco_config.get('use_saved_reference', False)
-    saved_reference = aruco_config.get('saved_reference')
+    saved_frame_reference = aruco_config.get('saved_frame_reference')
     
     # ═══════════════════════════════════════════════════════════════════
-    # MODO 1: Usar referencia guardada
+    # MODO 1: Usar referencia guardada del FRAME
     # ═══════════════════════════════════════════════════════════════════
-    if use_saved_reference and saved_reference:
-        print("[pipeline] 📌 Usando ArUco de referencia GUARDADA (no se detecta en tiempo real)")
+    if use_saved_reference and saved_frame_reference:
+        print("[pipeline] 📌 Usando ArUco_Frame de referencia GUARDADA (no se detecta en tiempo real)")
         
         # Obtener marker_size_mm del config para validaciones posteriores
-        marker_size_mm = aruco_config.get('marker_size_mm', 42.0)
+        marker_size_mm = aruco_config.get('frame_marker_size_mm', 70.0)
         
         # Verificar que tenga todos los datos necesarios
-        if all(k in saved_reference for k in ['px_per_mm', 'center', 'angle_rad', 'corners']):
+        if all(k in saved_frame_reference for k in ['px_per_mm', 'center', 'angle_rad', 'corners']):
             return {
-                'id': aruco_config.get('reference_id', 0),
-                'center': saved_reference['center'],
-                'px_per_mm': saved_reference['px_per_mm'],
+                'id': aruco_config.get('frame_aruco_id', 0),
+                'center': saved_frame_reference['center'],
+                'px_per_mm': saved_frame_reference['px_per_mm'],
                 'marker_size_mm': marker_size_mm,  # Incluir tamaño para validaciones posteriores
-                'angle_rad': saved_reference['angle_rad'],
-                'corners': saved_reference['corners'],
+                'angle_rad': saved_frame_reference['angle_rad'],
+                'corners': saved_frame_reference['corners'],
                 'source': 'saved',  # Indica que viene de memoria
-                'timestamp': saved_reference.get('timestamp')
+                'timestamp': saved_frame_reference.get('timestamp')
             }
         else:
-            print("[pipeline] ⚠️ Referencia guardada incompleta, detectando en tiempo real...")
+            print("[pipeline] ⚠️ Referencia Frame guardada incompleta, detectando en tiempo real...")
     
     # ═══════════════════════════════════════════════════════════════════
-    # MODO 2: Detectar en tiempo real
+    # MODO 2: Detectar Frame ArUco en tiempo real
     # ═══════════════════════════════════════════════════════════════════
-    print("[pipeline] 🔍 Detectando ArUco en tiempo real...")
+    print("[pipeline] 🔍 Detectando ArUco_Frame en tiempo real...")
     
-    reference_id = aruco_config.get('reference_id', 0)
-    marker_size_mm = aruco_config.get('marker_size_mm', 42.0)
+    frame_aruco_id = aruco_config.get('frame_aruco_id', 23)  # Usar frame_aruco_id
+    marker_size_mm = aruco_config.get('frame_marker_size_mm', 70.0)  # Usar frame_marker_size_mm
     dictionary_id = aruco_config.get('dictionary_id', 50)
     
-    # Detectar ArUco
+    # Detectar ArUco del Frame
     deteccion = detect_aruco_by_id(
         frame,
-        reference_id,
+        frame_aruco_id,
         dictionary_id,
         marker_size_mm
     )
@@ -1026,6 +1062,57 @@ def calcular_offset_vector(datos_aruco, primera_muesca):
         'x_mm': delta_x_mm,
         'y_mm': delta_y_mm,
         'modulo_mm': modulo_mm
+    }
+
+
+def calcular_coords_primera_muesca_respecto_tool(datos_aruco, primera_muesca):
+    """
+    Calcula las coordenadas de la primera muesca respecto al centro del Tool ArUco.
+    
+    Args:
+        datos_aruco: {'center', 'px_per_mm', 'tool_result'}
+        primera_muesca: {'x_px', 'y_px'}
+    
+    Returns:
+        {'x_mm', 'y_mm', 'x_px', 'y_px', 'pixel_pos'}
+        o None si no hay Tool detectado
+    """
+    
+    # Verificar si hay Tool ArUco detectado
+    tool_result = datos_aruco.get('tool_result')
+    if tool_result is None:
+        print("[pipeline] ⚠️ No hay Tool ArUco detectado para calcular coordenadas")
+        return None
+    
+    # Centro del Tool ArUco
+    tool_center = tool_result.get('center')
+    if tool_center is None:
+        return None
+    
+    px_per_mm = datos_aruco.get('px_per_mm', 1.0)
+    
+    # Posición de la primera muesca en píxeles
+    muesca_x_px = primera_muesca['x_px']
+    muesca_y_px = primera_muesca['y_px']
+    
+    # Calcular diferencia en píxeles (desde centro del Tool hasta primera muesca)
+    delta_x_px = muesca_x_px - tool_center[0]
+    delta_y_px = muesca_y_px - tool_center[1]
+    
+    # Convertir a mm
+    delta_x_mm = delta_x_px / px_per_mm
+    delta_y_mm = delta_y_px / px_per_mm
+    
+    print(f"[pipeline] 🔧 Coordenadas primera muesca respecto al Tool:")
+    print(f"[pipeline] 🔧 Delta X: {delta_x_mm:.2f}mm, Delta Y: {delta_y_mm:.2f}mm")
+    print(f"[pipeline] 🔧 Posición pixel en frame: ({int(muesca_x_px)}, {int(muesca_y_px)})")
+    
+    return {
+        'x_mm': delta_x_mm,
+        'y_mm': delta_y_mm,
+        'x_px': muesca_x_px,
+        'y_px': muesca_y_px,
+        'pixel_pos': f"({int(muesca_x_px)}, {int(muesca_y_px)})"
     }
 
 

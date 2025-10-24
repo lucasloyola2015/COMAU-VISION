@@ -142,12 +142,11 @@ def dibujar_todo(frame, datos_visualizacion):
             print(f"[visualizador] ✓ Muescas dibujadas (cantidad: {len(muescas)})")
             
             # ═══════════════════════════════════════════════════════════════
-            # PASO 8: Dibujar línea azul del troquel a la primera muesca
+            # PASO 8: Dibujar línea magenta de Tool a primera muesca
             # ═══════════════════════════════════════════════════════════════
             if datos_visualizacion.get('aruco') and len(muescas) > 0:
-                linea_ref = datos_visualizacion.get('linea_referencia', {})
-                resultado = _dibujar_linea_offset(resultado, datos_visualizacion['aruco'], muescas[0], linea_ref)
-                print(f"[visualizador] ✓ Línea offset dibujada (troquel → primera muesca)")
+                resultado = _dibujar_linea_tool_muesca(resultado, datos_visualizacion['aruco'], muescas[0])
+                print(f"[visualizador] ✓ Línea Tool-muesca dibujada en magenta")
         else:
             print("[visualizador] ✗ No hay muescas para dibujar")
     
@@ -160,71 +159,95 @@ def dibujar_todo(frame, datos_visualizacion):
 
 def _dibujar_aruco(frame, datos_aruco):
     """
-    Dibuja ejes de coordenadas, contorno del ArUco y cruz amarilla en centro del troquel.
+    Dibuja TODOS los ArUcos detectados en el frame.
+    - Frame ArUco: amarillo (0, 255, 255)
+    - Tool ArUco: azul (255, 0, 0)
+    - Otros ArUcos: cian (255, 255, 0)
     
     Args:
         frame: Imagen BGR
-        datos_aruco: {'center', 'angle_rad', 'corners'}
+        datos_aruco: {
+            'center', 'angle_rad', 'corners',
+            'frame_result': {...}, 
+            'tool_result': {...},
+            'all_detected_ids': [...],
+            'all_detected_markers': [...]
+        }
     
     Returns:
-        Frame con ArUco dibujado
+        Frame con todos los ArUcos dibujados
     """
     
-    center = tuple(map(int, datos_aruco['center']))
-    angle_rad = datos_aruco['angle_rad']
-    corners = np.array(datos_aruco['corners'])
+    print(f"[visualizador] _dibujar_aruco llamado con datos_aruco: {list(datos_aruco.keys())}")
     
-    # Cargar configuración del ArUco para obtener coordenadas del centro del troquel
+    # Obtener información del Frame (requerido para calibración)
+    frame_result = datos_aruco.get('frame_result')
+    if frame_result is None:
+        return frame
+    
+    # Obtener lista de todos los ArUcos detectados
+    all_detected_ids = datos_aruco.get('all_detected_ids', [])
+    all_detected_markers = datos_aruco.get('all_detected_markers', [])
+    tool_result = datos_aruco.get('tool_result')
+    
+    print(f"[visualizador] Dibujando {len(all_detected_ids)} ArUcos: {all_detected_ids}")
+    
+    # Cargar configuración del ArUco
     import json
     import os
-    
+    aruco_config = {}
     try:
-        # Intentar leer de aruco_config.json primero
-        aruco_config = None
-        if os.path.exists('aruco_config.json'):
-            with open('aruco_config.json', 'r') as f:
-                aruco_data = json.load(f)
-                aruco_config = aruco_data.get('aruco', {})
-        
-        # Si no existe, intentar leer de config.json
-        if aruco_config is None:
-            if os.path.exists('config.json'):
-                with open('config.json', 'r') as f:
-                    config = json.load(f)
-                    aruco_config = config.get('aruco', {})
-            else:
-                aruco_config = {}
-        
-        center_x_mm = aruco_config.get('center_x_mm', 0)
-        center_y_mm = aruco_config.get('center_y_mm', 0)
-        px_per_mm = datos_aruco.get('px_per_mm', 1.0)
-        
-        # Convertir coordenadas del centro del troquel de mm a píxeles
-        center_troquel_x = center[0] + (center_x_mm * px_per_mm)
-        center_troquel_y = center[1] + (center_y_mm * px_per_mm)
-        center_troquel = (int(center_troquel_x), int(center_troquel_y))
-        
-        # Dibujar cruz amarilla en el centro del troquel
-        cross_size = 20
-        cv2.line(frame, 
-                 (center_troquel[0] - cross_size, center_troquel[1]), 
-                 (center_troquel[0] + cross_size, center_troquel[1]), 
-                 (0, 255, 255), 3)  # Línea horizontal amarilla
-        cv2.line(frame, 
-                 (center_troquel[0], center_troquel[1] - cross_size), 
-                 (center_troquel[0], center_troquel[1] + cross_size), 
-                 (0, 255, 255), 3)  # Línea vertical amarilla
-        
-        print(f"[visualizador] ✓ Cruz amarilla dibujada en centro del troquel: {center_troquel} (offset: {center_x_mm}mm, {center_y_mm}mm)")
-        
+        if os.path.exists('config.json'):
+            with open('config.json', 'r') as f:
+                config = json.load(f)
+                aruco_config = config.get('aruco', {})
     except Exception as e:
-        print(f"[visualizador] ⚠️ No se pudo dibujar cruz del troquel: {e}")
+        print(f"[visualizador] ⚠️ Error cargando config: {e}")
     
+    frame_aruco_id = aruco_config.get('frame_aruco_id', frame_result['id'])
+    tool_aruco_id = aruco_config.get('tool_aruco_id')
+    
+    # ═════════════════════════════════════════════════════════════════════
+    # DIBUJAR TODOS LOS ARUCOS DETECTADOS
+    # ═════════════════════════════════════════════════════════════════════
+    for marker_id, marker_data in zip(all_detected_ids, all_detected_markers):
+        center = tuple(map(int, marker_data['center']))
+        px_per_mm = marker_data['px_per_mm']
+        
+        # Determinar color según tipo de ArUco
+        if marker_id == frame_aruco_id:
+            color = (0, 255, 255)  # Amarillo para Frame
+            label = f"Frame({marker_id})"
+        elif marker_id == tool_aruco_id:
+            color = (255, 0, 0)  # Azul para Tool
+            label = f"Tool({marker_id})"
+        else:
+            color = (255, 255, 0)  # Cian para otros
+            label = f"ArUco({marker_id})"
+        
+        # Dibujar círculo en el centro
+        cv2.circle(frame, center, 10, color, -1)
+        cv2.circle(frame, center, 8, (255, 255, 255), -1)
+        
+        # Dibujar texto con ID
+        cv2.putText(frame, label, (center[0] + 15, center[1] - 10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+        
+        print(f"[visualizador] ✓ {label} dibujado en {center}")
+    
+    # ═════════════════════════════════════════════════════════════════════
+    # DIBUJAR FRAME CON DETALLE (solo el Frame ArUco requerido)
+    # ═════════════════════════════════════════════════════════════════════
+    center = tuple(map(int, frame_result['center']))
+    angle_rad = datos_aruco['angle_rad']
+    corners = np.array(frame_result['corners'])
+    px_per_mm = frame_result['px_per_mm']
+    
+    # Dibujar ejes de coordenadas para el Frame
     height, width = frame.shape[:2]
     max_length = max(width, height) * 2
     
-    # Calcular puntos finales de los ejes rotados
-    # Eje X (rojo) - alineado con el lado superior del ArUco
+    # Eje X (rojo)
     x_end1 = (
         int(center[0] + max_length * np.cos(angle_rad)),
         int(center[1] + max_length * np.sin(angle_rad))
@@ -234,7 +257,7 @@ def _dibujar_aruco(frame, datos_aruco):
         int(center[1] - max_length * np.sin(angle_rad))
     )
     
-    # Eje Y (verde) - perpendicular al eje X
+    # Eje Y (verde)
     y_angle_rad = angle_rad + np.pi / 2
     y_end1 = (
         int(center[0] + max_length * np.cos(y_angle_rad)),
@@ -249,13 +272,97 @@ def _dibujar_aruco(frame, datos_aruco):
     cv2.line(frame, x_end2, x_end1, (0, 0, 255), 2)  # Eje X rojo
     cv2.line(frame, y_end2, y_end1, (0, 255, 0), 2)  # Eje Y verde
     
-    # Dibujar punto central
-    cv2.circle(frame, center, 8, (0, 0, 255), -1)
-    cv2.circle(frame, center, 6, (255, 255, 255), -1)
-    
-    # Dibujar contorno del ArUco (cyan)
+    # Dibujar contorno del Frame (amarillo)
     corners_int = corners.astype(np.int32)
     cv2.polylines(frame, [corners_int], True, (0, 255, 255), 2)
+    
+    # Dibujar cruz amarilla en el centro del troquel
+    try:
+        center_x_mm = aruco_config.get('center_x_mm', 0)
+        center_y_mm = aruco_config.get('center_y_mm', 0)
+        
+        center_troquel_x = center[0] + (center_x_mm * px_per_mm)
+        center_troquel_y = center[1] + (center_y_mm * px_per_mm)
+        center_troquel = (int(center_troquel_x), int(center_troquel_y))
+        
+        cross_size = 20
+        cv2.line(frame, 
+                 (center_troquel[0] - cross_size, center_troquel[1]), 
+                 (center_troquel[0] + cross_size, center_troquel[1]), 
+                 (0, 255, 255), 3)  # Línea horizontal amarilla
+        cv2.line(frame, 
+                 (center_troquel[0], center_troquel[1] - cross_size), 
+                 (center_troquel[0], center_troquel[1] + cross_size), 
+                 (0, 255, 255), 3)  # Línea vertical amarilla
+        
+        print(f"[visualizador] ✓ Cruz amarilla dibujada en centro del troquel: {center_troquel}")
+    except Exception as e:
+        print(f"[visualizador] ⚠️ No se pudo dibujar cruz del troquel: {e}")
+    
+    # ═════════════════════════════════════════════════════════════════════
+    # DIBUJAR TOOL CON DETALLE SI EXISTE
+    # ═════════════════════════════════════════════════════════════════════
+    print(f"[visualizador] Tool_result disponible: {tool_result is not None}")
+    if tool_result is not None:
+        tool_center = tuple(map(int, tool_result['center']))
+        tool_angle_rad = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+        tool_corners = np.array(tool_result['corners'])
+        
+        # Dibujar ejes de coordenadas para el Tool
+        # Eje X y Eje Y en AZUL
+        tool_x_end1 = (
+            int(tool_center[0] + max_length * np.cos(tool_angle_rad)),
+            int(tool_center[1] + max_length * np.sin(tool_angle_rad))
+        )
+        tool_x_end2 = (
+            int(tool_center[0] - max_length * np.cos(tool_angle_rad)),
+            int(tool_center[1] - max_length * np.sin(tool_angle_rad))
+        )
+        
+        # Eje Y (azul también)
+        tool_y_angle_rad = tool_angle_rad + np.pi / 2
+        tool_y_end1 = (
+            int(tool_center[0] + max_length * np.cos(tool_y_angle_rad)),
+            int(tool_center[1] + max_length * np.sin(tool_y_angle_rad))
+        )
+        tool_y_end2 = (
+            int(tool_center[0] - max_length * np.cos(tool_y_angle_rad)),
+            int(tool_center[1] - max_length * np.sin(tool_y_angle_rad))
+        )
+        
+        # Dibujar ejes del Tool en AZUL
+        cv2.line(frame, tool_x_end2, tool_x_end1, (255, 0, 0), 2)  # Eje X azul
+        cv2.line(frame, tool_y_end2, tool_y_end1, (255, 0, 0), 2)  # Eje Y azul
+        
+        # Dibujar contorno del Tool (azul)
+        tool_corners_int = tool_corners.astype(np.int32)
+        cv2.polylines(frame, [tool_corners_int], True, (255, 0, 0), 2)  # Azul
+        
+        # Dibujar cruz amarilla en el centro del Tool (troqueladora)
+        try:
+            center_x_mm = aruco_config.get('center_x_mm', 0)
+            center_y_mm = aruco_config.get('center_y_mm', 0)
+            tool_px_per_mm = tool_result.get('px_per_mm', px_per_mm)
+            
+            center_troquel_tool_x = tool_center[0] + (center_x_mm * tool_px_per_mm)
+            center_troquel_tool_y = tool_center[1] + (center_y_mm * tool_px_per_mm)
+            center_troquel_tool = (int(center_troquel_tool_x), int(center_troquel_tool_y))
+            
+            cross_size = 20
+            cv2.line(frame, 
+                     (center_troquel_tool[0] - cross_size, center_troquel_tool[1]), 
+                     (center_troquel_tool[0] + cross_size, center_troquel_tool[1]), 
+                     (0, 255, 255), 3)  # Línea horizontal amarilla
+            cv2.line(frame, 
+                     (center_troquel_tool[0], center_troquel_tool[1] - cross_size), 
+                     (center_troquel_tool[0], center_troquel_tool[1] + cross_size), 
+                     (0, 255, 255), 3)  # Línea vertical amarilla
+            
+            print(f"[visualizador] ✓ Cruz amarilla dibujada en centro del troquel (Tool): {center_troquel_tool}")
+        except Exception as e:
+            print(f"[visualizador] ⚠️ No se pudo dibujar cruz del troquel (Tool): {e}")
+        
+        print(f"[visualizador] ✓ Tool contorno y ejes (X e Y) dibujados en azul")
     
     return frame
 
@@ -453,6 +560,47 @@ def _dibujar_linea_offset(frame, datos_aruco, primera_muesca, linea_referencia):
         
     except Exception as e:
         print(f"[visualizador] ⚠️ No se pudo dibujar línea offset: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    return frame
+
+
+def _dibujar_linea_tool_muesca(frame, datos_aruco, primera_muesca):
+    """
+    Dibuja una línea magenta desde el centro del Tool ArUco hasta la primera muesca.
+    
+    Args:
+        frame: Imagen BGR
+        datos_aruco: {'center', 'px_per_mm', 'tool_result'}
+        primera_muesca: {'x_px', 'y_px'} (en sistema de junta rotada)
+    Returns:
+        Frame con línea dibujada
+    """
+    
+    try:
+        # Verificar si hay Tool ArUco detectado
+        tool_result = datos_aruco.get('tool_result')
+        if tool_result is None:
+            print(f"[visualizador] ⚠️ No hay Tool ArUco para dibujar línea")
+            return frame
+        
+        # Centro del Tool ArUco
+        tool_center = tool_result.get('center')
+        if tool_center is None:
+            return frame
+        
+        # Posición de la primera muesca
+        muesca_pos = (int(primera_muesca['x_px']), int(primera_muesca['y_px']))
+        tool_center_int = (int(tool_center[0]), int(tool_center[1]))
+        
+        # Dibujar línea magenta desde Tool hasta primera muesca
+        cv2.line(frame, tool_center_int, muesca_pos, (255, 0, 255), 3)  # Magenta, grosor 3
+        
+        print(f"[visualizador] ✓ Línea Tool-muesca dibujada en magenta: {tool_center_int} → {muesca_pos}")
+        
+    except Exception as e:
+        print(f"[visualizador] ⚠️ No se pudo dibujar línea Tool-muesca: {e}")
         import traceback
         traceback.print_exc()
     

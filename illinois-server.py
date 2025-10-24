@@ -395,35 +395,58 @@ def api_aruco_draw_overlay():
                 'error': 'No hay frame disponible de la cámara'
             }), 400
         
-        # Detectar ambos ArUcos
+        # Detectar TODOS los ArUcos en la imagen
+        all_arucos_result = detect_all_arucos(cv2_frame, marker_size_mm=frame_marker_size)
+        
+        # Si no hay ArUcos, retornar error
+        if all_arucos_result is None or len(all_arucos_result.get('detected_ids', [])) == 0:
+            return jsonify({
+                'ok': False,
+                'error': 'No se detectó ningún marcador ArUco en el frame'
+            }), 400
+        
+        detected_ids = all_arucos_result.get('detected_ids', [])
+        detected_markers = all_arucos_result.get('markers', [])
+        
+        print(f"[overlay] Todos los ArUcos detectados: {detected_ids}")
+        
+        # Buscar Frame y Tool en los detectados
         frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
         tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
         
-        # Verificar si al menos uno se detectó
-        if frame_result is None and tool_result is None:
-            all_arucos = detect_all_arucos(cv2_frame, marker_size_mm=max(frame_marker_size, tool_marker_size))
-            if all_arucos is None or len(all_arucos.get('detected_ids', [])) == 0:
-                error_msg = f'No se detectó ningún marcador ArUco en el frame'
-            else:
-                detected = all_arucos.get('detected_ids', [])
-                detected_str = ', '.join(str(id) for id in detected)
-                error_msg = f'ArUcos Frame({frame_aruco_id}) y Tool({tool_aruco_id}) no detectados.\nArUcos detectados: [{detected_str}]'
-            
+        # Se requiere el Frame para la calibración
+        if frame_result is None:
+            detected_str = ', '.join(str(id) for id in detected_ids)
             return jsonify({
                 'ok': False,
-                'error': error_msg
+                'error': f'ArUco_Frame({frame_aruco_id}) no detectado. Se requiere Frame para la calibración.\nArUcos detectados: [{detected_str}]'
             }), 400
         
-        # Preparar datos para el visualizador (usar el primero que se encuentre para dibujar)
-        result_to_draw = frame_result if frame_result is not None else tool_result
+        print(f"[overlay] Frame detectado: ID={frame_aruco_id}, px_per_mm={frame_result['px_per_mm']:.3f}")
+        if tool_result is not None:
+            print(f"[overlay] Tool detectado: ID={tool_aruco_id}, px_per_mm={tool_result['px_per_mm']:.3f}")
         
-        angle_rad = np.arctan2(result_to_draw['rotation_matrix'][1][0], result_to_draw['rotation_matrix'][0][0])
+        # Detectar ArUcos adicionales que no sean Frame ni Tool
+        other_arucos = [aruco_id for aruco_id in detected_ids if aruco_id != frame_aruco_id and aruco_id != tool_aruco_id]
+        info_message = None
+        if other_arucos:
+            other_str = ', '.join(str(id) for id in other_arucos)
+            info_message = f'Se hallaron ArUcos adicionales: [{other_str}]'
+            print(f"[overlay] ⚠️ {info_message}")
+        
+        # La calibración SIEMPRE viene del Frame
+        px_per_mm_frame = frame_result['px_per_mm']
+        angle_rad = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
         
         datos_aruco = {
-            'center': result_to_draw['center'],
+            'center': frame_result['center'],  # Centro del Frame para calibración
             'angle_rad': float(angle_rad),
-            'corners': result_to_draw['corners'],
-            'px_per_mm': result_to_draw['px_per_mm']
+            'corners': frame_result['corners'],
+            'px_per_mm': px_per_mm_frame,  # SIEMPRE del Frame
+            'frame_result': frame_result,  # Pasar Frame completo
+            'tool_result': tool_result if tool_result is not None else None,  # Pasar Tool si existe
+            'all_detected_ids': detected_ids,  # NUEVO: Todos los IDs detectados
+            'all_detected_markers': detected_markers  # NUEVO: Todos los marcadores detectados
         }
         
         datos_visualizacion = {
@@ -481,13 +504,523 @@ def api_aruco_draw_overlay():
         
         print(f"[aruco] ✓ Overlay mostrado por 3 segundos en dashboard")
         
-        return jsonify({
+        response = {
             'ok': True,
             'message': 'Overlay mostrado en dashboard por 3 segundos'
-        })
+        }
+        
+        # Agregar información de ArUcos adicionales si existen
+        if info_message:
+            response['info'] = info_message
+        
+        return jsonify(response)
     
     except Exception as e:
         print(f"[aruco] Error en POST /api/aruco/draw_overlay: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/overlay/render', methods=['POST'])
+def api_overlay_render():
+    """Endpoint genérico para renderizar overlays usando OverlayManager"""
+    try:
+        import cv2
+        import numpy as np
+        
+        # Importar OverlayManager
+        from overlay_manager import OverlayManager
+        
+        # Obtener configuración de ArUcos
+        config = load_aruco_config()
+        aruco_config = config.get('aruco', {})
+        
+        frame_aruco_id = aruco_config.get('frame_aruco_id', 0)
+        tool_aruco_id = aruco_config.get('tool_aruco_id', 0)
+        
+        # Obtener frame actual de la cámara
+        cv2_frame = camera_manager.get_frame_raw()
+        
+        if cv2_frame is None:
+            return jsonify({
+                'ok': False,
+                'error': 'No hay frame disponible de la cámara'
+            }), 400
+        
+        # Convertir a escala de grises SOLO para detección de ArUcos
+        gray_frame = cv2.cvtColor(cv2_frame, cv2.COLOR_BGR2GRAY)
+        
+        # Debug: información de la imagen
+        print(f"[overlay] Imagen capturada:")
+        print(f"  - Dimensiones RGB: {cv2_frame.shape}")
+        print(f"  - Dimensiones Gray: {gray_frame.shape}")
+        print(f"  - Tipo RGB: {cv2_frame.dtype}, Gray: {gray_frame.dtype}")
+        print(f"  - Rango RGB: {cv2_frame.min()} - {cv2_frame.max()}")
+        print(f"  - Rango Gray: {gray_frame.min()} - {gray_frame.max()}")
+        print(f"  - Canales RGB: {cv2_frame.shape[2] if len(cv2_frame.shape) == 3 else 'N/A'}")
+        
+        # Crear instancia de OverlayManager
+        overlay_manager = OverlayManager()
+        
+        # Detectar ArUcos usando el mismo método que el código original
+        frame_marker_size = aruco_config.get('frame_marker_size_mm', 70.0)
+        tool_marker_size = aruco_config.get('tool_marker_size_mm', 50.0)
+        
+        # Detectar TODOS los ArUcos en la imagen RGB (mismo método que el original)
+        all_arucos_result = detect_all_arucos(cv2_frame, marker_size_mm=frame_marker_size)
+        
+        # Debug: mostrar información de detección
+        print(f"[overlay] Detección de ArUcos (método original):")
+        if all_arucos_result is not None:
+            detected_ids = all_arucos_result.get('detected_ids', [])
+            print(f"  - IDs detectados: {detected_ids}")
+        else:
+            detected_ids = []
+            print(f"  - ⚠️ No se detectó ningún ArUco en la imagen")
+        
+        # Buscar Frame y Tool específicos (mismo método que el original)
+        frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
+        tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
+        
+        frame_detected = frame_result is not None
+        tool_detected = tool_result is not None
+        
+        print(f"  - Frame ArUco (ID: {frame_aruco_id}) detectado: {frame_detected}")
+        print(f"  - Tool ArUco (ID: {tool_aruco_id}) detectado: {tool_detected}")
+        
+        # Crear resultado en formato compatible con OverlayManager
+        detection_result = {
+            'detected_arucos': {},
+            'detected_ids': detected_ids,
+            'frame_detected': frame_detected,
+            'tool_detected': tool_detected,
+            'frame_aruco_id': frame_aruco_id,
+            'tool_aruco_id': tool_aruco_id,
+            'frame_result': frame_result,
+            'tool_result': tool_result
+        }
+        
+        # Crear marcos temporales si no existen
+        if not overlay_manager.frames.get("base_frame_temp"):
+            overlay_manager.define_frame("base_frame_temp", offset=(0, 0), rotation=0.0, 
+                                       px_per_mm=1.0, is_temporary=True)
+        if not overlay_manager.frames.get("tool_frame_temp"):
+            overlay_manager.define_frame("tool_frame_temp", offset=(0, 0), rotation=0.0, 
+                                       px_per_mm=1.0, is_temporary=True)
+        
+        # Crear/actualizar marcos temporales desde ArUcos detectados
+        if frame_detected and frame_result:
+            # Crear marco temporal del Frame ArUco
+            frame_center = frame_result['center']
+            frame_angle = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
+            frame_px_per_mm = frame_result['px_per_mm']
+            
+            overlay_manager.define_frame(
+                "base_frame_temp", 
+                offset=(frame_center[0], frame_center[1]), 
+                rotation=frame_angle,
+                px_per_mm=frame_px_per_mm,
+                is_temporary=True
+            )
+            print(f"[overlay] Marco base_frame_temp creado: center=({frame_center[0]:.1f}, {frame_center[1]:.1f}), angle={frame_angle:.3f}rad, px_per_mm={frame_px_per_mm:.3f}")
+        
+        if tool_detected and tool_result:
+            # Crear marco temporal del Tool ArUco
+            tool_center = tool_result['center']
+            tool_angle = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+            tool_px_per_mm = tool_result['px_per_mm']
+            
+            overlay_manager.define_frame(
+                "tool_frame_temp", 
+                offset=(tool_center[0], tool_center[1]), 
+                rotation=tool_angle,
+                px_per_mm=tool_px_per_mm,
+                is_temporary=True
+            )
+            print(f"[overlay] Marco tool_frame_temp creado: center=({tool_center[0]:.1f}, {tool_center[1]:.1f}), angle={tool_angle:.3f}rad, px_per_mm={tool_px_per_mm:.3f}")
+        
+        # Crear objetos de overlay para ArUcos usando coordenadas absolutas
+        if frame_detected and frame_result:
+            # Crear objetos para Frame ArUco usando coordenadas absolutas
+            frame_center = frame_result['center']
+            frame_corners = frame_result['corners']
+            frame_angle = np.arctan2(frame_result['rotation_matrix'][1][0], frame_result['rotation_matrix'][0][0])
+            
+            # Contorno del Frame ArUco (coordenadas absolutas)
+            overlay_manager.add_polygon(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                points=frame_corners,
+                name=f"aruco_contour_{frame_aruco_id}",
+                color=(0, 255, 255),  # Amarillo para Frame
+                thickness=2
+            )
+            
+            # Ejes del Frame ArUco (coordenadas absolutas)
+            # Hacer ejes muy largos para que lleguen a los bordes de la imagen
+            image_height, image_width = cv2_frame.shape[:2]
+            axis_length = max(image_width, image_height)  # Largo suficiente para cubrir toda la imagen
+            print(f"[overlay] Ejes Frame ArUco: longitud={axis_length}px (imagen: {image_width}x{image_height})")
+            x_end1 = (
+                frame_center[0] + axis_length * np.cos(frame_angle),
+                frame_center[1] + axis_length * np.sin(frame_angle)
+            )
+            x_end2 = (
+                frame_center[0] - axis_length * np.cos(frame_angle),
+                frame_center[1] - axis_length * np.sin(frame_angle)
+            )
+            
+            y_angle = frame_angle + np.pi / 2
+            y_end1 = (
+                frame_center[0] + axis_length * np.cos(y_angle),
+                frame_center[1] + axis_length * np.sin(y_angle)
+            )
+            y_end2 = (
+                frame_center[0] - axis_length * np.cos(y_angle),
+                frame_center[1] - axis_length * np.sin(y_angle)
+            )
+            
+            overlay_manager.add_line(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                start=x_end2,
+                end=x_end1,
+                name=f"aruco_x_axis_{frame_aruco_id}",
+                color=(0, 255, 255),
+                thickness=2
+            )
+            
+            overlay_manager.add_line(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                start=y_end2,
+                end=y_end1,
+                name=f"aruco_y_axis_{frame_aruco_id}",
+                color=(0, 255, 255),
+                thickness=2
+            )
+            
+            # Centro del Frame ArUco (coordenadas absolutas)
+            overlay_manager.add_circle(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                center=frame_center,  # Centro absoluto
+                radius=5,
+                name=f"aruco_center_{frame_aruco_id}",
+                color=(0, 255, 255),
+                filled=True
+            )
+            
+            print(f"[overlay] Objetos de overlay creados para Frame ArUco {frame_aruco_id} en coordenadas absolutas")
+        
+        if tool_detected and tool_result:
+            # Crear objetos para Tool ArUco usando coordenadas absolutas
+            tool_center = tool_result['center']
+            tool_corners = tool_result['corners']
+            tool_angle = np.arctan2(tool_result['rotation_matrix'][1][0], tool_result['rotation_matrix'][0][0])
+            
+            # Contorno del Tool ArUco (coordenadas absolutas)
+            overlay_manager.add_polygon(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                points=tool_corners,
+                name=f"aruco_contour_{tool_aruco_id}",
+                color=(255, 0, 0),  # Azul para Tool
+                thickness=2
+            )
+            
+            # Ejes del Tool ArUco (coordenadas absolutas)
+            # Hacer ejes muy largos para que lleguen a los bordes de la imagen
+            image_height, image_width = cv2_frame.shape[:2]
+            axis_length = max(image_width, image_height)  # Largo suficiente para cubrir toda la imagen
+            print(f"[overlay] Ejes Tool ArUco: longitud={axis_length}px (imagen: {image_width}x{image_height})")
+            x_end1 = (
+                tool_center[0] + axis_length * np.cos(tool_angle),
+                tool_center[1] + axis_length * np.sin(tool_angle)
+            )
+            x_end2 = (
+                tool_center[0] - axis_length * np.cos(tool_angle),
+                tool_center[1] - axis_length * np.sin(tool_angle)
+            )
+            
+            y_angle = tool_angle + np.pi / 2
+            y_end1 = (
+                tool_center[0] + axis_length * np.cos(y_angle),
+                tool_center[1] + axis_length * np.sin(y_angle)
+            )
+            y_end2 = (
+                tool_center[0] - axis_length * np.cos(y_angle),
+                tool_center[1] - axis_length * np.sin(y_angle)
+            )
+            
+            overlay_manager.add_line(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                start=x_end2,
+                end=x_end1,
+                name=f"aruco_x_axis_{tool_aruco_id}",
+                color=(255, 0, 0),
+                thickness=2
+            )
+            
+            overlay_manager.add_line(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                start=y_end2,
+                end=y_end1,
+                name=f"aruco_y_axis_{tool_aruco_id}",
+                color=(255, 0, 0),
+                thickness=2
+            )
+            
+            # Centro del Tool ArUco (coordenadas absolutas)
+            overlay_manager.add_circle(
+                "Base",  # Usar marco Base para coordenadas absolutas
+                center=tool_center,  # Centro absoluto
+                radius=5,
+                name=f"aruco_center_{tool_aruco_id}",
+                color=(255, 0, 0),
+                filled=True
+            )
+            
+            print(f"[overlay] Objetos de overlay creados para Tool ArUco {tool_aruco_id} en coordenadas absolutas")
+        
+        # Filtrar objetos según configuración de checkboxes
+        show_frame = aruco_config.get('show_frame', False)
+        show_tool = aruco_config.get('show_tool', False)
+        show_center = aruco_config.get('show_center', False)
+        
+        aruco_objects = []
+        
+        # Agregar objetos del Frame ArUco si está habilitado
+        if show_frame:
+            frame_objects = [name for name in overlay_manager.objects.keys() 
+                           if name.startswith(f'aruco_') and str(frame_aruco_id) in name]
+            aruco_objects.extend(frame_objects)
+        
+        # Agregar objetos del Tool ArUco si está habilitado
+        if show_tool:
+            tool_objects = [name for name in overlay_manager.objects.keys() 
+                           if name.startswith(f'aruco_') and str(tool_aruco_id) in name]
+            aruco_objects.extend(tool_objects)
+        
+        # Agregar cruz del centro del troquel si está habilitado
+        if show_center:
+            center_x_mm = aruco_config.get('center_x_mm', 0.0)
+            center_y_mm = aruco_config.get('center_y_mm', 0.0)
+            
+            # SIEMPRE usar el marco del Frame ArUco si está detectado
+            if detection_result.get('frame_detected', False):
+                frame_name = "base_frame_temp"
+                print(f"[overlay] Centro del troquel: usando marco Frame ({center_x_mm}, {center_y_mm}) mm")
+                print(f"[overlay] px_per_mm del Frame: {overlay_manager.frames['base_frame_temp'].px_per_mm:.3f}")
+                print(f"[overlay] La librería debe transformar automáticamente de base_frame_temp a Base")
+            else:
+                frame_name = "Base"
+                # Calcular px_per_mm basado en la resolución de la imagen
+                # Asumiendo que la imagen representa aproximadamente 200x150 mm de área real
+                # Esto da un px_per_mm proporcional a la resolución
+                image_height, image_width = gray_frame.shape
+                assumed_width_mm = 200.0  # Ancho asumido en mm
+                assumed_height_mm = 150.0  # Alto asumido en mm
+                
+                px_per_mm = min(image_width / assumed_width_mm, image_height / assumed_height_mm)
+                center_x_px = center_x_mm * px_per_mm
+                center_y_px = center_y_mm * px_per_mm
+                print(f"[overlay] Centro del troquel: usando marco Base ({center_x_px:.1f}, {center_y_px:.1f}) px")
+                print(f"[overlay] px_per_mm calculado: {px_per_mm:.2f} (imagen: {image_width}x{image_height})")
+                
+                # Actualizar el px_per_mm del marco Base para esta sesión
+                overlay_manager.frames["Base"].px_per_mm = px_per_mm
+            
+            # Crear cruz cyan en las coordenadas del centro del troquel
+            # Tamaño: 3cm x 3cm (30mm x 30mm)
+            # Color: #00FFFF (cyan) como está definido en la página de configuración
+            cross_size_mm = 30.0  # 30mm de tamaño (15mm en cada dirección)
+            
+            print(f"[overlay] Debug coordenadas del centro del troquel:")
+            print(f"  - Coordenadas en mm: ({center_x_mm:.1f}, {center_y_mm:.1f}) mm")
+            print(f"  - Marco usado: {frame_name}")
+            print(f"  - px_per_mm del marco: {overlay_manager.frames[frame_name].px_per_mm:.3f}")
+            print(f"  - Tamaño ArUco Frame: {frame_marker_size}mm")
+            print(f"  - La librería convertirá automáticamente mm a px usando px_per_mm")
+            
+            overlay_manager.add_line(
+                frame_name,
+                start=(center_x_mm - cross_size_mm/2, center_y_mm),  # Línea horizontal
+                end=(center_x_mm + cross_size_mm/2, center_y_mm),
+                name="center_cross_h",
+                color=(255, 255, 0),  # Cyan en BGR (#00FFFF)
+                thickness=4  # Grosor mayor para mejor visibilidad
+            )
+            
+            overlay_manager.add_line(
+                frame_name, 
+                start=(center_x_mm, center_y_mm - cross_size_mm/2),  # Línea vertical
+                end=(center_x_mm, center_y_mm + cross_size_mm/2),
+                name="center_cross_v",
+                color=(255, 255, 0),  # Cyan en BGR (#00FFFF)
+                thickness=4  # Grosor mayor para mejor visibilidad
+            )
+            
+            # Agregar círculo en el centro para mayor visibilidad
+            overlay_manager.add_circle(
+                frame_name,
+                center=(center_x_mm, center_y_mm),
+                radius=3.0,  # 3mm de radio (proporcional al tamaño)
+                name="center_circle",
+                color=(255, 255, 0),  # Cyan en BGR (#00FFFF)
+                filled=True
+            )
+            
+            aruco_objects.extend(["center_cross_h", "center_cross_v", "center_circle"])
+            
+            # ============================================================
+            # PRUEBA DE LA LIBRERÍA: 3 SEGMENTOS DE TRANSFORMACIÓN
+            # ============================================================
+            print(f"[overlay] 🧪 PRUEBA DE LIBRERÍA: Creando 3 segmentos de transformación...")
+            
+            # SEGMENTO 1: Cruz (base_frame_temp) -> Centro del Frame ArUco (base_frame_temp)
+            # Punto de la cruz en el marco base_frame_temp
+            cross_point_base = (center_x_mm, center_y_mm)  # (35, 35) mm en base_frame_temp
+            
+            # Leer coordenadas de la cruz respecto al tool_frame_temp
+            cross_point_tool = overlay_manager.get_object("tool_frame_temp", name="center_cross_h")
+            print(f"[overlay] Segmento 1: Cruz en base_frame_temp: {cross_point_base} mm")
+            print(f"[overlay] Estructura completa de transformación: {cross_point_tool}")
+            
+            # SEGMENTO 1: Del centro del Frame ArUco (0,0) a la cruz
+            overlay_manager.add_line(
+                "base_frame_temp",
+                start=(0, 0),  # Centro del Frame ArUco
+                end=cross_point_base,  # Posición de la cruz
+                name="test_segment_1",
+                color=(0, 255, 0),  # Verde
+                thickness=3
+            )
+            
+            # SEGMENTO 2: Del centro del Tool ArUco (0,0) a la cruz transformada al Tool
+            # Usar el centro de la cruz (círculo) en lugar del punto de la línea
+            cross_center_tool = overlay_manager.get_object("tool_frame_temp", name="center_circle")
+            cross_center_tool_coords = cross_center_tool['coordinates']['center']
+            print(f"[overlay] Centro de la cruz en tool_frame_temp: {cross_center_tool_coords} mm")
+            overlay_manager.add_line(
+                "tool_frame_temp", 
+                start=(0, 0),  # Centro del Tool ArUco
+                end=cross_center_tool_coords,  # Centro de la cruz transformada al Tool
+                name="test_segment_2",
+                color=(255, 0, 0),  # Rojo
+                thickness=3
+            )
+            
+            # SEGMENTO 3: Del centro del World (0,0) a la cruz transformada al World
+            cross_center_world = overlay_manager.get_object("Base", name="center_circle")
+            cross_center_world_coords = cross_center_world['coordinates']['center']
+            print(f"[overlay] Centro de la cruz en Base (World): {cross_center_world_coords} px")
+            overlay_manager.add_line(
+                "Base",
+                start=(0, 0),  # Centro del World (esquina de la imagen)
+                end=cross_center_world_coords,  # Centro de la cruz transformada al World
+                name="test_segment_3", 
+                color=(0, 0, 255),  # Azul
+                thickness=3
+            )
+            print(f"[overlay] ✅ 3 segmentos de prueba creados:")
+            print(f"  - Segmento 1 (Verde): Frame ArUco -> Cruz")
+            print(f"  - Segmento 2 (Rojo): Tool ArUco -> Cruz") 
+            print(f"  - Segmento 3 (Azul): World -> Cruz")
+            
+            # Agregar los segmentos de prueba a la lista de objetos
+            aruco_objects.extend(["test_segment_1", "test_segment_2", "test_segment_3"])
+        
+        # Verificar si hay elementos habilitados para mostrar
+        if not show_frame and not show_tool and not show_center:
+            return jsonify({
+                'ok': False,
+                'error': 'No hay elementos habilitados para mostrar. Verifica los checkboxes de configuración.'
+            }), 400
+        
+        # Crear renderlist
+        renderlist = overlay_manager.create_renderlist(*aruco_objects, name="aruco_overlay")
+        
+        # Crear imagen de fondo en escala de grises pero manteniendo formato RGB
+        gray_background = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)  # Convertir a RGB pero en grises
+        
+        # Establecer la imagen de fondo en el OverlayManager
+        overlay_manager.set_background("main_background", gray_background)
+        
+        # Renderizar overlay sobre la imagen de fondo en escala de grises
+        print(f"[overlay] Renderizando sobre fondo en escala de grises: {gray_background.shape}, dtype: {gray_background.dtype}")
+        result_image, view_time = overlay_manager.render(
+            gray_background,  # Usar imagen de fondo en escala de grises
+            renderlist=renderlist,
+            view_time=3000  # 3 segundos
+        )
+        print(f"[overlay] Imagen renderizada: {result_image.shape}, dtype: {result_image.dtype}")
+        
+        # Codificar imagen a base64 para envío
+        _, buffer = cv2.imencode('.jpg', result_image, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        image_base64 = base64.b64encode(buffer).decode('utf-8')
+        
+        # Guardar frame temporalmente y activar overlay en el dashboard
+        global _overlay_frame, _overlay_active_until
+        _overlay_frame = buffer.tobytes()
+        _overlay_active_until = time.time() + (view_time / 1000.0)  # Convertir ms a segundos
+        
+        print(f"[overlay] ✓ Overlay mostrado por {view_time/1000:.1f} segundos en dashboard")
+        
+        # Preparar información de respuesta
+        detected_ids = detection_result.get('detected_ids', [])
+        frame_detected = detection_result.get('frame_detected', False)
+        tool_detected = detection_result.get('tool_detected', False)
+        
+        # Crear mensaje informativo
+        info_messages = []
+        
+        # Información sobre Frame ArUco
+        if show_frame:
+            if frame_detected:
+                info_messages.append(f"Frame ArUco (ID: {frame_aruco_id}) detectado - habilitado")
+            else:
+                info_messages.append(f"Frame ArUco (ID: {frame_aruco_id}) NO detectado - habilitado (no se mostrará)")
+        else:
+            info_messages.append(f"Frame ArUco (ID: {frame_aruco_id}) deshabilitado en configuración")
+            
+        # Información sobre Tool ArUco
+        if show_tool:
+            if tool_detected:
+                info_messages.append(f"Tool ArUco (ID: {tool_aruco_id}) detectado - habilitado")
+            else:
+                info_messages.append(f"Tool ArUco (ID: {tool_aruco_id}) NO detectado - habilitado (no se mostrará)")
+        else:
+            info_messages.append(f"Tool ArUco (ID: {tool_aruco_id}) deshabilitado en configuración")
+        
+        # Información sobre centro del troquel
+        if show_center:
+            center_x = aruco_config.get('center_x_mm', 0.0)
+            center_y = aruco_config.get('center_y_mm', 0.0)
+            if frame_detected:
+                info_messages.append(f"Centro del troquel: ({center_x:.1f}, {center_y:.1f}) mm - habilitado (cruz cyan 3x3cm)")
+            else:
+                info_messages.append(f"Centro del troquel: ({center_x:.1f}, {center_y:.1f}) mm - habilitado (cruz cyan 3x3cm, coordenadas absolutas)")
+        else:
+            info_messages.append("Centro del troquel: deshabilitado en configuración")
+        
+        if detected_ids:
+            other_ids = [id for id in detected_ids if id not in [frame_aruco_id, tool_aruco_id]]
+            if other_ids:
+                info_messages.append(f"ArUcos adicionales detectados: {other_ids}")
+        
+        return jsonify({
+            'ok': True,
+            'image': image_base64,
+            'view_time': view_time,
+            'detection_info': {
+                'detected_ids': detected_ids,
+                'frame_detected': frame_detected,
+                'tool_detected': tool_detected,
+                'messages': info_messages
+            }
+        })
+        
+    except Exception as e:
+        print(f"[overlay] Error en renderizado: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({
@@ -517,8 +1050,12 @@ def api_aruco_set_reference():
             aruco_config['center_x_mm'] = float(data['center_x_mm'])
         if 'center_y_mm' in data:
             aruco_config['center_y_mm'] = float(data['center_y_mm'])
-        if 'show_reference' in data:
-            aruco_config['show_reference'] = bool(data['show_reference'])
+        if 'show_frame' in data:
+            aruco_config['show_frame'] = bool(data['show_frame'])
+        if 'show_tool' in data:
+            aruco_config['show_tool'] = bool(data['show_tool'])
+        if 'show_center' in data:
+            aruco_config['show_center'] = bool(data['show_center'])
         if 'use_saved_reference' in data:
             aruco_config['use_saved_reference'] = bool(data['use_saved_reference'])
         
@@ -1564,6 +2101,29 @@ def api_analyze():
         _analisis_junta_actual = datos
         _visualizacion_junta_actual = imagen_bytes
         _analisis_serializable_junta_actual = _convertir_numpy_a_python(datos)
+        
+        # ═══════════════════════════════════════════════════════════════════
+        # GUARDAR ANÁLISIS EN ARCHIVO SI ES EXITOSO
+        # ═══════════════════════════════════════════════════════════════════
+        if exito and selected_id:
+            try:
+                # Obtener nombre de la junta
+                juntas = juntas_data.get('juntas', [])
+                junta = next((j for j in juntas if j['id'] == selected_id), None)
+                
+                if junta:
+                    junta_nombre = junta.get('nombre')
+                    
+                    # Crear directorio si no existe
+                    os.makedirs('juntas_analisis', exist_ok=True)
+                    
+                    # Guardar análisis completo
+                    analisis_path = f'juntas_analisis/{junta_nombre}_analisis.json'
+                    with open(analisis_path, 'w', encoding='utf-8') as f:
+                        json.dump(_analisis_serializable_junta_actual, f, indent=2, ensure_ascii=False)
+                    print(f"[análisis] ✓ Análisis guardado: {analisis_path}")
+            except Exception as e:
+                print(f"[análisis] ⚠️ No se pudo guardar análisis en archivo: {e}")
         
         # Retornar resultado
         return jsonify({

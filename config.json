@@ -11,45 +11,106 @@
   "aruco": {
     "reference_id": 23,
     "marker_size_mm": 64.9,
-    "center_x_mm": 420.0,
-    "center_y_mm": -180.0,
-    "show_reference": true,
+    "center_x_mm": 35.0,
+    "center_y_mm": 35.0,
+    "show_reference": false,
     "dictionary_id": 50,
     "correct_perspective": false,
     "saved_reference": {
-      "px_per_mm": 3.0303185617821846,
+      "px_per_mm": 3.2096771099166985,
+      "angle_deg": 178.8876003837022,
+      "timestamp": "2025-10-24T14:40:18.991138",
       "center": [
-        213,
-        960
+        977,
+        183
       ],
-      "angle_rad": -1.5996900176249744,
       "corners": [
         [
-          126.0,
-          1047.0
+          1084.0,
+          286.0
         ],
         [
-          121.0,
-          874.0
+          877.0,
+          290.0
         ],
         [
-          303.0,
-          872.0
+          871.0,
+          80.0
         ],
         [
-          303.0,
-          1049.0
+          1078.0,
+          77.0
+        ]
+      ]
+    },
+    "use_saved_reference": false,
+    "frame_aruco_id": 23,
+    "frame_marker_size_mm": 70.0,
+    "tool_aruco_id": 4,
+    "tool_marker_size_mm": 50.0,
+    "saved_frame_reference": {
+      "px_per_mm": 2.9793387276785714,
+      "center": [
+        977,
+        183
+      ],
+      "angle_rad": 3.122177617687475,
+      "corners": [
+        [
+          1084.0,
+          287.0
+        ],
+        [
+          877.0,
+          290.0
+        ],
+        [
+          871.0,
+          80.0
+        ],
+        [
+          1078.0,
+          77.0
         ]
       ],
-      "timestamp": "2025-10-23T15:24:16.620223"
+      "timestamp": "2025-10-24T14:42:16.955919"
     },
-    "use_saved_reference": false
+    "saved_tool_reference": {
+      "px_per_mm": 3.26645751953125,
+      "center": [
+        944,
+        835
+      ],
+      "angle_rad": -0.024534953062735818,
+      "corners": [
+        [
+          862.0,
+          756.0
+        ],
+        [
+          1023.0,
+          751.0
+        ],
+        [
+          1028.0,
+          915.0
+        ],
+        [
+          865.0,
+          921.0
+        ]
+      ],
+      "timestamp": "2025-10-24T14:42:16.955919"
+    },
+    "show_frame": true,
+    "show_tool": true,
+    "show_center": true
   },
   "vision": {
     "detection_model": "models/detection_model.pt",
     "holes_model": "models/holes_model.pt",
     "detection_enabled": true,
-    "show_bbox": true,
+    "show_bbox": false,
     "show_contours": false,
     "show_ellipses": true,
     "show_notches": true,

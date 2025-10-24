@@ -111,36 +111,6 @@
     <h1 style="color: var(--text-primary); margin-bottom: var(--space-xl);">Configurar ArUcos</h1>
     
     <div class="card">
-    <h2 style="font-size: var(--font-size-xl); margin-bottom: var(--space-xl); font-weight: 600; color: var(--text-primary);">
-      Aruco_Frame (Troqueladora)
-    </h2>
-    
-    <div class="form-row" style="margin-bottom: var(--space-lg);">
-      <div style="flex: 0 0 auto;">
-        <label for="frameArucoCId">Aruco_Frame_ID</label>
-        <input type="number" 
-               id="frameArucoCId" 
-               min="0" 
-               max="1000" 
-               value="0"
-               style="width: 100px;">
-      </div>
-      
-      <div style="flex: 0 0 auto;">
-        <label for="frameArucoSize">Aruco_Frame_Tamaño (mm)</label>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <input type="number" 
-                 id="frameArucoSize" 
-                 min="1" 
-                 max="500" 
-                 step="0.1"
-                 value="42.0"
-                 style="width: 100px;">
-          <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #FFD700; flex-shrink: 0;" title="Frame"></div>
-        </div>
-      </div>
-    </div>
-    
     <!-- Sección: Aruco_Tool -->
     <h2 style="font-size: var(--font-size-xl); margin-bottom: var(--space-xl); font-weight: 600; color: var(--text-primary);">
       Aruco_Tool (Herramienta)
@@ -170,16 +140,52 @@
           <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #0066FF; flex-shrink: 0;" title="Tool"></div>
         </div>
       </div>
+      
+      <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="chkShowTool">
+        <label for="chkShowTool" class="checkbox-label">Mostrar</label>
+      </div>
     </div>
     
-    <!-- Checkboxes apilados verticalmente -->
+    <!-- Sección: Aruco_Frame -->
+    <h2 style="font-size: var(--font-size-xl); margin-bottom: var(--space-xl); font-weight: 600; color: var(--text-primary);">
+      Aruco_Frame (Troqueladora)
+    </h2>
+    
+    <div class="form-row" style="margin-bottom: var(--space-lg);">
+      <div style="flex: 0 0 auto;">
+        <label for="frameArucoCId">Aruco_Frame_ID</label>
+        <input type="number" 
+               id="frameArucoCId" 
+               min="0" 
+               max="1000" 
+               value="0"
+               style="width: 100px;">
+      </div>
+      
+      <div style="flex: 0 0 auto;">
+        <label for="frameArucoSize">Aruco_Frame_Tamaño (mm)</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="number" 
+                 id="frameArucoSize" 
+                 min="1" 
+                 max="500" 
+                 step="0.1"
+                 value="42.0"
+                 style="width: 100px;">
+          <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #FFD700; flex-shrink: 0;" title="Frame"></div>
+        </div>
+      </div>
+      
+      <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="chkShowFrame">
+        <label for="chkShowFrame" class="checkbox-label">Mostrar</label>
+      </div>
+    </div>
+    
+    <!-- Checkboxes de configuración -->
     <div style="margin-bottom: var(--space-lg); padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border-light);">
       <div class="checkbox-group" style="flex-direction: column; align-items: flex-start; gap: var(--space-md);">
-        <div style="display: flex; align-items: center; gap: var(--space-sm);">
-          <input type="checkbox" id="chkShowRef">
-          <label for="chkShowRef" class="checkbox-label">Mostrar ejes de referencia</label>
-        </div>
-        
         <div style="display: flex; align-items: center; gap: var(--space-sm);">
           <input type="checkbox" id="chkUseSaved">
           <label for="chkUseSaved" class="checkbox-label">Usar referencias guardadas (no detectar en tiempo real)</label>
@@ -188,28 +194,36 @@
     </div>
     
     <!-- Coordenadas del centro del troquel -->
-    <div style="margin-bottom: var(--space-lg); padding-bottom: var(--space-lg); border-bottom: 1px solid var(--border-light);">
-      <div style="margin-bottom: var(--space-md);">
-        <label style="font-weight: 600; color: var(--text-primary);">Coordenadas Centro Troquel</label>
+    <h2 style="font-size: var(--font-size-xl); margin-bottom: var(--space-xl); font-weight: 600; color: var(--text-primary);">
+      Coordenadas Centro Troquel
+    </h2>
+    
+    <div class="form-row" style="margin-bottom: var(--space-lg);">
+      <div style="flex: 0 0 auto;">
+        <label for="centerX" style="font-size: var(--font-size-xs); color: var(--text-muted);">X (mm)</label>
+        <input type="number" 
+               id="centerX" 
+               step="0.1"
+               value="0"
+               style="width: 120px;">
       </div>
-      <div class="form-row" style="gap: var(--space-xl);">
-        <div style="flex: 0 0 auto;">
-          <label for="centerX" style="font-size: var(--font-size-xs); color: var(--text-muted);">X (mm)</label>
-          <input type="number" 
-                 id="centerX" 
-                 step="0.1"
-                 value="0"
-                 style="width: 120px;">
-        </div>
-        
-        <div style="flex: 0 0 auto;">
-          <label for="centerY" style="font-size: var(--font-size-xs); color: var(--text-muted);">Y (mm)</label>
-          <input type="number" 
-                 id="centerY" 
-                 step="0.1"
-                 value="0"
-                 style="width: 120px;">
-        </div>
+      
+      <div style="flex: 0 0 auto;">
+        <label for="centerY" style="font-size: var(--font-size-xs); color: var(--text-muted);">Y (mm)</label>
+        <input type="number" 
+               id="centerY" 
+               step="0.1"
+               value="0"
+               style="width: 120px;">
+      </div>
+      
+      <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px;">
+        <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #00FFFF; flex-shrink: 0;" title="Centro Troquel"></div>
+      </div>
+      
+      <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px;">
+        <input type="checkbox" id="chkShowCenter">
+        <label for="chkShowCenter" class="checkbox-label">Mostrar</label>
       </div>
     </div>
     
@@ -273,7 +287,9 @@
     const toolArucoSizeInput = document.getElementById('toolArucoSize');
     const centerXInput = document.getElementById('centerX');
     const centerYInput = document.getElementById('centerY');
-    const chkShowRef = document.getElementById('chkShowRef');
+    const chkShowFrame = document.getElementById('chkShowFrame');
+    const chkShowTool = document.getElementById('chkShowTool');
+    const chkShowCenter = document.getElementById('chkShowCenter');
     const chkUseSaved = document.getElementById('chkUseSaved');
     const btnApply = document.getElementById('btnApply');
     const btnCaptureRef = document.getElementById('btnCaptureRef');
@@ -319,7 +335,9 @@
           toolArucoSizeInput.value = config.aruco.tool_marker_size_mm || 42.0;
           centerXInput.value = config.aruco.center_x_mm || 0;
           centerYInput.value = config.aruco.center_y_mm || 0;
-          chkShowRef.checked = config.aruco.show_reference || false;
+          chkShowFrame.checked = config.aruco.show_frame || false;
+          chkShowTool.checked = config.aruco.show_tool || false;
+          chkShowCenter.checked = config.aruco.show_center || false;
           chkUseSaved.checked = config.aruco.use_saved_reference || false;
           
           // Mostrar datos de referencia guardada si existen
@@ -419,7 +437,9 @@
       const toolMarkerSize = parseFloat(toolArucoSizeInput.value);
       const centerX = parseFloat(centerXInput.value);
       const centerY = parseFloat(centerYInput.value);
-      const showReference = chkShowRef.checked;
+      const showFrame = chkShowFrame.checked;
+      const showTool = chkShowTool.checked;
+      const showCenter = chkShowCenter.checked;
       const useSavedReference = chkUseSaved.checked;
       
       try {
@@ -436,7 +456,9 @@
             tool_marker_size_mm: toolMarkerSize,
             center_x_mm: centerX,
             center_y_mm: centerY,
-            show_reference: showReference,
+            show_frame: showFrame,
+            show_tool: showTool,
+            show_center: showCenter,
             use_saved_reference: useSavedReference
           })
         });
@@ -465,7 +487,7 @@
         btnShow.disabled = true;
         showMessage('Mostrando overlay en dashboard...', 'info');
         
-        const response = await Common.fetchWithTimeout('/api/aruco/draw_overlay', {
+        const response = await Common.fetchWithTimeout('/api/overlay/render', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -474,6 +496,16 @@
         
         if (result.ok) {
           showMessage('✓ Overlay mostrado en dashboard por 3 segundos', 'success');
+          
+          // Mostrar información de detección
+          if (result.detection_info && result.detection_info.messages) {
+            const messages = result.detection_info.messages;
+            messages.forEach((msg, index) => {
+              setTimeout(() => {
+                showMessage('ℹ️ ' + msg, 'info');
+              }, (index + 1) * 200);
+            });
+          }
         } else {
           showMessage('❌ ' + (result.error || 'Error mostrando overlay'), 'error');
         }
@@ -498,7 +530,9 @@
     btnShow.addEventListener('click', showOverlay);
     
     // Auto-aplicar cuando cambian los checkboxes
-    chkShowRef.addEventListener('change', applyConfig);
+    chkShowFrame.addEventListener('change', applyConfig);
+    chkShowTool.addEventListener('change', applyConfig);
+    chkShowCenter.addEventListener('change', applyConfig);
     chkUseSaved.addEventListener('change', applyConfig);
     
     // Limpiar overlay al salir de la página
