@@ -15,7 +15,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from vision import camera_manager
 from vision.aruco_detector import detect_aruco_by_id, detect_all_arucos
+from vision import yolo_detector
 import visualizador
+import pipeline_analisis
 
 # Importar módulos de rendering
 import muescas_renderer
@@ -35,6 +37,12 @@ _shutting_down = False
 # Variables para control de overlay temporal
 _overlay_frame = None
 _overlay_active_until = None
+
+# Variables globales para almacenar resultados del análisis
+_analisis_junta_actual = None
+_visualizacion_junta_actual = None
+_fondo_detectado_junta_actual = None
+_analisis_serializable_junta_actual = None
 
 app = Flask(__name__, 
             static_folder='static',
@@ -234,16 +242,15 @@ def video_feed():
 # ============================================================
 # API ARUCO
 # ============================================================
-ARUCO_CONFIG_FILE = 'aruco_config.json'
 
 def load_aruco_config():
-    """Carga la configuración de ArUcos desde JSON"""
-    if os.path.exists(ARUCO_CONFIG_FILE):
-        try:
-            with open(ARUCO_CONFIG_FILE, 'r') as f:
-                return json.load(f)
-        except:
-            pass
+    """Carga la configuración de ArUcos desde config.json"""
+    try:
+        with open('config.json', 'r') as f:
+            full_config = json.load(f)
+            return full_config
+    except:
+        pass
     
     # Configuración por defecto
     return {
@@ -259,9 +266,9 @@ def load_aruco_config():
     }
 
 def save_aruco_config(config):
-    """Guarda la configuración de ArUcos en JSON"""
+    """Guarda la configuración COMPLETA en config.json"""
     try:
-        with open(ARUCO_CONFIG_FILE, 'w') as f:
+        with open('config.json', 'w') as f:
             json.dump(config, f, indent=2)
         return True
     except Exception as e:
@@ -1288,6 +1295,314 @@ def api_juntas_parametrizar():
         }), 500
 
 # ============================================================
+# API VISIÓN
+# ============================================================
+CONFIG_FILE = 'config.json'
+
+def load_config():
+    """Carga la configuración completa desde config.json"""
+    if os.path.exists(CONFIG_FILE):
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"[vision] Error cargando configuración: {e}")
+    return {'vision': {}}
+
+def save_config(config_data):
+    """Guarda la configuración completa en config.json"""
+    try:
+        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, indent=2, ensure_ascii=False)
+        print(f"[vision] ✓ Configuración guardada")
+        return True
+    except Exception as e:
+        print(f"[vision] ❌ Error guardando configuración: {e}")
+        return False
+
+@app.route('/api/vision/config', methods=['GET'])
+def api_get_vision_config():
+    """Obtiene la configuración actual de visión"""
+    try:
+        config = load_config()
+        vision_config = config.get('vision', {})
+        
+        print(f"[vision] ✓ Configuración cargada: {list(vision_config.keys())}")
+        
+        return jsonify({
+            'ok': True,
+            'vision': vision_config
+        })
+    
+    except Exception as e:
+        print(f"[vision] ❌ Error en GET /api/vision/config: {e}")
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/vision/set_models', methods=['POST'])
+def api_set_vision_models():
+    """Actualiza la configuración de modelos y opciones de visión"""
+    try:
+        data = request.get_json()
+        
+        # Cargar configuración actual
+        config = load_config()
+        
+        # Asegurar que existe la sección vision
+        if 'vision' not in config:
+            config['vision'] = {}
+        
+        # Actualizar campos de visión
+        if 'detection_model' in data:
+            config['vision']['detection_model'] = data['detection_model']
+        
+        if 'holes_model' in data:
+            config['vision']['holes_model'] = data['holes_model']
+        
+        if 'enabled' in data:
+            config['vision']['detection_enabled'] = data['enabled']
+        
+        if 'show_bbox' in data:
+            config['vision']['show_bbox'] = data['show_bbox']
+        
+        if 'show_contours' in data:
+            config['vision']['show_contours'] = data['show_contours']
+        
+        if 'show_ellipses' in data:
+            config['vision']['show_ellipses'] = data['show_ellipses']
+        
+        if 'show_notches' in data:
+            config['vision']['show_notches'] = data['show_notches']
+        
+        # Umbrales de validación
+        if 'umbral_distancia_tolerancia' in data:
+            config['vision']['umbral_distancia_tolerancia'] = data['umbral_distancia_tolerancia']
+        
+        if 'umbral_centros_mm' in data:
+            config['vision']['umbral_centros_mm'] = data['umbral_centros_mm']
+        
+        if 'umbral_colinealidad_mm' in data:
+            config['vision']['umbral_colinealidad_mm'] = data['umbral_colinealidad_mm']
+        
+        if 'umbral_espaciado_cv' in data:
+            config['vision']['umbral_espaciado_cv'] = data['umbral_espaciado_cv']
+        
+        # Guardar configuración
+        if save_config(config):
+            print(f"[vision] ✓ Configuración de modelos actualizada")
+            return jsonify({
+                'ok': True,
+                'message': 'Configuración guardada correctamente'
+            })
+        else:
+            return jsonify({
+                'ok': False,
+                'error': 'Error guardando configuración'
+            }), 500
+    
+    except Exception as e:
+        print(f"[vision] ❌ Error en POST /api/vision/set_models: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+# ============================================================
+# INICIALIZACIÓN DE MODELOS YOLO (GLOBAL)
+# ============================================================
+def initialize_yolo_models():
+    """Carga los modelos YOLO globalmente al iniciar el servidor"""
+    print("\n[yolo] 🚀 Inicializando modelos YOLO...")
+    
+    config = load_config()
+    vision_config = config.get('vision', {})
+    
+    detection_model_path = vision_config.get('detection_model')
+    holes_model_path = vision_config.get('holes_model')
+    
+    # Cargar modelo de detección
+    if detection_model_path:
+        if os.path.exists(detection_model_path):
+            success = yolo_detector.load_model('detection', detection_model_path)
+            if success:
+                print(f"[yolo] ✓ Modelo Detection cargado: {detection_model_path}")
+            else:
+                print(f"[yolo] ❌ Error cargando Detection: {detection_model_path}")
+        else:
+            print(f"[yolo] ⚠️ Archivo no encontrado: {detection_model_path}")
+    else:
+        print(f"[yolo] ⚠️ No configurado modelo Detection en config.json")
+    
+    # Cargar modelo de agujeros
+    if holes_model_path:
+        if os.path.exists(holes_model_path):
+            success = yolo_detector.load_model('holes', holes_model_path)
+            if success:
+                print(f"[yolo] ✓ Modelo Holes cargado: {holes_model_path}")
+            else:
+                print(f"[yolo] ❌ Error cargando Holes: {holes_model_path}")
+        else:
+            print(f"[yolo] ⚠️ Archivo no encontrado: {holes_model_path}")
+    else:
+        print(f"[yolo] ⚠️ No configurado modelo Holes en config.json")
+
+@app.route('/api/vision/models_status', methods=['GET'])
+def api_get_models_status():
+    """Retorna el estado de carga de los modelos YOLO"""
+    try:
+        detection_loaded = yolo_detector.is_model_loaded('detection')
+        holes_loaded = yolo_detector.is_model_loaded('holes')
+        detection_path = yolo_detector.get_model_path('detection')
+        holes_path = yolo_detector.get_model_path('holes')
+        
+        print(f"[yolo] Estado de modelos - Detection: {detection_loaded}, Holes: {holes_loaded}")
+        
+        return jsonify({
+            'ok': True,
+            'models': {
+                'detection': {
+                    'loaded': detection_loaded,
+                    'path': detection_path
+                },
+                'holes': {
+                    'loaded': holes_loaded,
+                    'path': holes_path
+                }
+            }
+        })
+    
+    except Exception as e:
+        print(f"[yolo] ❌ Error en GET /api/vision/models_status: {e}")
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+# ============================================================
+# API ANÁLISIS DE JUNTAS
+# ============================================================
+
+@app.route('/api/analyze', methods=['POST'])
+def api_analyze():
+    """Ejecuta análisis completo de la junta seleccionada con reintentos"""
+    global _analisis_junta_actual, _visualizacion_junta_actual, _fondo_detectado_junta_actual, _analisis_serializable_junta_actual
+    
+    try:
+        print("\n[análisis] 🚀 POST /api/analyze iniciado")
+        
+        # Obtener junta seleccionada
+        juntas_data = load_juntas()
+        selected_id = juntas_data.get('selected_id')
+        
+        if not selected_id:
+            print("[análisis] ❌ No hay junta seleccionada")
+            return jsonify({
+                'ok': False,
+                'error': 'No hay junta seleccionada'
+            }), 400
+        
+        # Obtener frame actual de la cámara
+        frame = camera_manager.get_frame_raw()
+        if frame is None:
+            print("[análisis] ❌ No se pudo obtener frame de la cámara")
+            return jsonify({
+                'ok': False,
+                'error': 'Cámara no disponible'
+            }), 500
+        
+        print(f"[análisis] ✓ Frame capturado: {frame.shape}")
+        
+        # Ejecutar análisis con reintentos
+        exito, imagen_bytes, datos = pipeline_analisis.analizar_con_reintentos(frame, max_intentos=3)
+        
+        print(f"[análisis] 📊 Análisis completado - Exitoso: {exito}")
+        print(f"[análisis] 📊 Datos obtenidos: {list(datos.keys())}")
+        
+        # Guardar globalmente para /api/analyze_result
+        _analisis_junta_actual = datos
+        _visualizacion_junta_actual = imagen_bytes
+        _analisis_serializable_junta_actual = _convertir_numpy_a_python(datos)
+        
+        # Retornar resultado
+        return jsonify({
+            'ok': True,
+            'analisis_exitoso': exito,
+            'error': datos.get('error'),
+            'data': _analisis_serializable_junta_actual
+        })
+    
+    except Exception as e:
+        print(f"[análisis] ❌ Error en POST /api/analyze: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/analyze_result', methods=['GET'])
+def api_analyze_result():
+    """Retorna la imagen del último análisis en base64"""
+    global _visualizacion_junta_actual
+    
+    try:
+        print("[análisis] GET /api/analyze_result solicitado")
+        
+        if _visualizacion_junta_actual is None:
+            print("[análisis] ⚠️ No hay imagen analizada disponible")
+            return jsonify({
+                'ok': False,
+                'error': 'No hay imagen analizada disponible'
+            }), 400
+        
+        # Convertir bytes a base64 si es necesario
+        if isinstance(_visualizacion_junta_actual, bytes):
+            image_b64 = base64.b64encode(_visualizacion_junta_actual).decode('utf-8')
+        else:
+            image_b64 = _visualizacion_junta_actual
+        
+        print(f"[análisis] ✓ Imagen retornada ({len(image_b64)} caracteres en base64)")
+        
+        return jsonify({
+            'ok': True,
+            'image': f'data:image/jpeg;base64,{image_b64}'
+        })
+    
+    except Exception as e:
+        print(f"[análisis] ❌ Error en GET /api/analyze_result: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+# ============================================================
+# UTILIDADES
+# ============================================================
+
+def _convertir_numpy_a_python(obj):
+    """Convierte arrays numpy a listas Python para JSON serialization"""
+    import numpy as np
+    
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    elif isinstance(obj, np.integer):
+        return int(obj)
+    elif isinstance(obj, np.floating):
+        return float(obj)
+    elif isinstance(obj, dict):
+        return {k: _convertir_numpy_a_python(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return [_convertir_numpy_a_python(item) for item in obj]
+    else:
+        return obj
+
+# ============================================================
 # GESTIÓN DE CHROME
 # ============================================================
 def launch_chrome(url: str, kiosk: bool = False):
@@ -1475,6 +1790,11 @@ Ejemplos:
             print(f"⚠️  {message}")
     except Exception as e:
         print(f"❌ Error conectando a cámara: {e}")
+    
+    # ═══════════════════════════════════════════════════════════════
+    # PASO 1.7: Inicializar modelos YOLO (GLOBAL)
+    # ═══════════════════════════════════════════════════════════════
+    initialize_yolo_models()
     
     # ═══════════════════════════════════════════════════════════════
     # PASO 2: Lanzar Chrome

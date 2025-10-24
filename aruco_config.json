@@ -1,35 +1,35 @@
 {
   "aruco": {
     "reference_id": 23,
-    "marker_size_mm": 42.0,
+    "marker_size_mm": 50.0,
     "center_x_mm": 50.0,
     "center_y_mm": 50.0,
     "show_reference": true,
     "use_saved_reference": false,
     "saved_reference": {
-      "px_per_mm": 4.305946713402157,
-      "angle_deg": 177.13759477388828,
-      "timestamp": "2025-10-24T10:18:40.858785",
+      "px_per_mm": 2.893219299316406,
+      "angle_deg": -177.9545915111128,
+      "timestamp": "2025-10-24T12:09:10.674783",
       "center": [
-        812,
-        743
+        1170,
+        251
       ],
       "corners": [
         [
-          903.0,
-          829.0
+          1236.0,
+          327.0
         ],
         [
-          721.0,
-          840.0
+          1097.0,
+          323.0
         ],
         [
-          723.0,
-          655.0
+          1103.0,
+          174.0
         ],
         [
-          901.0,
-          651.0
+          1246.0,
+          180.0
         ]
       ]
     }

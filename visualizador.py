@@ -145,7 +145,8 @@ def dibujar_todo(frame, datos_visualizacion):
             # PASO 8: Dibujar línea azul del troquel a la primera muesca
             # ═══════════════════════════════════════════════════════════════
             if datos_visualizacion.get('aruco') and len(muescas) > 0:
-                resultado = _dibujar_linea_offset(resultado, datos_visualizacion['aruco'], muescas[0])
+                linea_ref = datos_visualizacion.get('linea_referencia', {})
+                resultado = _dibujar_linea_offset(resultado, datos_visualizacion['aruco'], muescas[0], linea_ref)
                 print(f"[visualizador] ✓ Línea offset dibujada (troquel → primera muesca)")
         else:
             print("[visualizador] ✗ No hay muescas para dibujar")
@@ -384,27 +385,33 @@ def _dibujar_muescas(frame, muescas):
     return frame
 
 
-def _dibujar_linea_offset(frame, datos_aruco, primera_muesca):
+def _dibujar_linea_offset(frame, datos_aruco, primera_muesca, linea_referencia):
     """
     Dibuja línea azul fina desde el centro del troquel hasta la primera muesca.
+    Transforma el center_troquel del sistema del ArUco al sistema de la junta (rotado).
     
     Args:
         frame: Imagen BGR
         datos_aruco: {'center', 'px_per_mm'}
-        primera_muesca: {'x_px', 'y_px'}
-    
+        primera_muesca: {'x_px', 'y_px'} (en sistema de junta rotada)
+        linea_referencia: {'punto_medio', 'angle_rad'}
     Returns:
         Frame con línea offset dibujada
     """
     
-    # Obtener centro del ArUco
-    center_aruco = tuple(map(int, datos_aruco['center']))
-    px_per_mm = datos_aruco.get('px_per_mm', 1.0)
-    
-    # Cargar configuración del ArUco para obtener coordenadas del centro del troquel
     import json
+    import numpy as np
     
     try:
+        # Obtener datos del ArUco
+        center_aruco = np.array(datos_aruco['center'], dtype=float)
+        px_per_mm = datos_aruco.get('px_per_mm', 1.0)
+        
+        # Obtener datos de la línea de referencia (segmento)
+        punto_medio = np.array(linea_referencia.get('punto_medio', [0, 0]), dtype=float)
+        angle_rad = linea_referencia.get('angle_rad', 0)
+        
+        # Cargar configuración del ArUco para obtener offset del troquel
         with open('config.json', 'r') as f:
             config = json.load(f)
         
@@ -412,21 +419,42 @@ def _dibujar_linea_offset(frame, datos_aruco, primera_muesca):
         center_x_mm = aruco_config.get('center_x_mm', 0)
         center_y_mm = aruco_config.get('center_y_mm', 0)
         
-        # Convertir coordenadas del centro del troquel de mm a píxeles
-        center_troquel_x = center_aruco[0] + (center_x_mm * px_per_mm)
-        center_troquel_y = center_aruco[1] + (center_y_mm * px_per_mm)
-        center_troquel = (int(center_troquel_x), int(center_troquel_y))
+        # Calcular center_troquel en sistema del ArUco (sin rotación)
+        center_troquel = np.array([
+            center_aruco[0] + (center_x_mm * px_per_mm),
+            center_aruco[1] + (center_y_mm * px_per_mm)
+        ], dtype=float)
         
-        # Posición de la primera muesca
+        # Transformar center_troquel al sistema de coordenadas de la junta
+        # 1. Calcular offset respecto al punto_medio
+        offset_x = center_troquel[0] - punto_medio[0]
+        offset_y = center_troquel[1] - punto_medio[1]
+        
+        # 2. Rotar el offset por el angle_rad del segmento
+        cos_angle = np.cos(angle_rad)
+        sin_angle = np.sin(angle_rad)
+        rotated_x = offset_x * cos_angle - offset_y * sin_angle
+        rotated_y = offset_x * sin_angle + offset_y * cos_angle
+        
+        # 3. Sumar al punto_medio para obtener center_troquel en sistema de junta
+        center_troquel_rotated = np.array([
+            punto_medio[0] + rotated_x,
+            punto_medio[1] + rotated_y
+        ], dtype=float)
+        
+        # Posición de la primera muesca (ya está en sistema de junta)
         muesca_pos = (int(primera_muesca['x_px']), int(primera_muesca['y_px']))
+        center_troquel_int = (int(center_troquel_rotated[0]), int(center_troquel_rotated[1]))
         
         # Dibujar línea azul fina
-        cv2.line(frame, center_troquel, muesca_pos, (255, 0, 0), 2)  # Azul, grosor 2
+        cv2.line(frame, center_troquel_int, muesca_pos, (255, 0, 0), 2)  # Azul, grosor 2
         
-        print(f"[visualizador] ✓ Línea offset: {center_troquel} → {muesca_pos}")
+        print(f"[visualizador] ✓ Línea offset: {center_troquel_int} → {muesca_pos} (rotación: {np.degrees(angle_rad):.1f}°)")
         
     except Exception as e:
         print(f"[visualizador] ⚠️ No se pudo dibujar línea offset: {e}")
+        import traceback
+        traceback.print_exc()
     
     return frame
 

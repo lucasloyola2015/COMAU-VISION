@@ -12,6 +12,13 @@ Validaciones implementadas:
 3. Espaciado uniforme: Verifica que el espaciado entre pistones sea consistente
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Agregar src al path de Python (mismo que en illinois-server.py)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
 import numpy as np
 
 try:
@@ -61,8 +68,8 @@ def validar_todo(datos_agujeros, datos_aruco, metricas):
         }
     
     # Cargar umbrales de configuración
-    import camera_manager
-    config = camera_manager.load_config()
+    from vision.camera_manager import load_config
+    config = load_config()
     vision_config = config.get('vision', {})
     
     umbral_centros_mm = vision_config.get('umbral_centros_mm', 3.0)

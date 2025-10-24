@@ -24,9 +24,16 @@ Pipeline completo:
 9. Retornar resultado
 """
 
+import os
+import sys
+from pathlib import Path
+
+# Agregar src al path de Python (mismo que en illinois-server.py)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+import cv2
 import numpy as np
 import json
-import os
 
 try:
     import cv2
@@ -295,8 +302,8 @@ def analizar_frame_completo(frame):
     distancia_esperada_mm = analisis_junta.get('linea_referencia', {}).get('distancia_mm', 0)
     
     # Cargar umbral de tolerancia
-    import camera_manager
-    config = camera_manager.load_config()
+    from vision.camera_manager import load_config
+    config = load_config()
     umbral_distancia_tol = config.get('vision', {}).get('umbral_distancia_tolerancia', 98.0)
     
     if distancia_obtenida_mm and distancia_esperada_mm:
@@ -340,8 +347,8 @@ def analizar_frame_completo(frame):
     # ⚠️  IMPORTANTE: Esta validación NO hace early return
     # Si falla, igual genera overlay (sin muescas) para debug visual
     
-    import validaciones_geometricas as validaciones
-    resultados_validacion = validaciones.validar_todo(datos_agujeros, datos_aruco, metricas)
+    import validaciones_geometricas
+    resultados_validacion = validaciones_geometricas.validar_todo(datos_agujeros, datos_aruco, metricas)
     
     analisis_exitoso = resultados_validacion.get('todas_ok', False)
     
@@ -468,11 +475,12 @@ def detectar_aruco(frame):
         o None si no se detecta
     """
     
-    import aruco_detector
-    import camera_manager
-    
+    from vision.aruco_detector import detect_aruco_by_id
+    from vision.camera_manager import load_config
+    import json
+
     # Cargar configuración de ArUco
-    config = camera_manager.load_config()
+    config = load_config()
     aruco_config = config.get('aruco', {})
     
     use_saved_reference = aruco_config.get('use_saved_reference', False)
@@ -484,12 +492,16 @@ def detectar_aruco(frame):
     if use_saved_reference and saved_reference:
         print("[pipeline] 📌 Usando ArUco de referencia GUARDADA (no se detecta en tiempo real)")
         
+        # Obtener marker_size_mm del config para validaciones posteriores
+        marker_size_mm = aruco_config.get('marker_size_mm', 42.0)
+        
         # Verificar que tenga todos los datos necesarios
         if all(k in saved_reference for k in ['px_per_mm', 'center', 'angle_rad', 'corners']):
             return {
                 'id': aruco_config.get('reference_id', 0),
                 'center': saved_reference['center'],
                 'px_per_mm': saved_reference['px_per_mm'],
+                'marker_size_mm': marker_size_mm,  # Incluir tamaño para validaciones posteriores
                 'angle_rad': saved_reference['angle_rad'],
                 'corners': saved_reference['corners'],
                 'source': 'saved',  # Indica que viene de memoria
@@ -508,7 +520,7 @@ def detectar_aruco(frame):
     dictionary_id = aruco_config.get('dictionary_id', 50)
     
     # Detectar ArUco
-    deteccion = aruco_detector.detect_aruco_by_id(
+    deteccion = detect_aruco_by_id(
         frame,
         reference_id,
         dictionary_id,
@@ -528,6 +540,7 @@ def detectar_aruco(frame):
         'id': deteccion['id'],
         'center': deteccion['center'],
         'px_per_mm': deteccion['px_per_mm'],
+        'marker_size_mm': marker_size_mm,  # Incluir tamaño para validaciones posteriores
         'angle_rad': angle_rad,
         'corners': deteccion['corners'],
         'source': 'detected'  # Indica que fue detectado en tiempo real
@@ -551,7 +564,7 @@ def detectar_junta(frame):
         o None si no se detecta
     """
     
-    import yolo_detector
+    from vision import yolo_detector
     
     resultado = yolo_detector.detect_gasket(frame, conf_threshold=0.5)
     
@@ -597,7 +610,7 @@ def detectar_agujeros(frame, datos_junta):
         list: [{'center': (x, y), 'contour': contour, 'ellipse': ellipse}, ...]
     """
     
-    import yolo_detector
+    from vision import yolo_detector
     
     # ═══════════════════════════════════════════════════════════════════
     # ETAPA 1: Preparar crop de junta con padding 10%
