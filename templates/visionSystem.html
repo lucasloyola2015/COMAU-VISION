@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vision System</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <style>
+    body {
+      padding: 24px;
+      background: var(--bg-primary);
+    }
+    
+    .model-item {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      padding: var(--space-md);
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: var(--space-md);
+    }
+    
+    .model-label {
+      flex: 0 0 150px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .model-path {
+      flex: 1;
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      font-family: 'Consolas', monospace;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .model-status {
+      flex: 0 0 auto;
+      padding: 4px 12px;
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+    }
+    
+    .status-loaded {
+      background: rgba(40, 167, 69, 0.2);
+      color: #28a745;
+    }
+    
+    .status-not-loaded {
+      background: rgba(220, 53, 69, 0.2);
+      color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="color: var(--text-primary); margin-bottom: var(--space-lg);">Vision System</h1>
+  
+  <div class="card">
+    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
+      Modelos YOLO
+    </h2>
+    
+    <div class="model-item" style="padding: var(--space-sm) var(--space-md);">
+      <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-sm);">Detection</div>
+      <div class="model-path" id="detectionPath" style="font-size: var(--font-size-xs);">No seleccionado</div>
+      <div class="model-status status-not-loaded" id="detectionStatus" style="font-size: var(--font-size-xs); padding: 2px 8px;">No cargado</div>
+      <button class="btn btn-secondary btn-sm" id="btnSelectDetection" style="padding: 4px 12px; font-size: var(--font-size-xs);">
+        Seleccionar
+      </button>
+    </div>
+    
+    <div class="model-item" style="padding: var(--space-sm) var(--space-md); margin-bottom: 0;">
+      <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-sm);">Holes</div>
+      <div class="model-path" id="holesPath" style="font-size: var(--font-size-xs);">No seleccionado</div>
+      <div class="model-status status-not-loaded" id="holesStatus" style="font-size: var(--font-size-xs); padding: 2px 8px;">No cargado</div>
+      <button class="btn btn-secondary btn-sm" id="btnSelectHoles" style="padding: 4px 12px; font-size: var(--font-size-xs);">
+        Seleccionar
+      </button>
+    </div>
+    
+    <input type="file" id="fileInputDetection" accept=".pt" style="display: none;">
+    <input type="file" id="fileInputHoles" accept=".pt" style="display: none;">
+    
+    <!-- Opciones de visualización en grid 2 columnas -->
+    <div style="margin-top: var(--space-md); display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm) var(--space-xl);">
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkEnableDetection" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkEnableDetection" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Habilitar detección
+        </label>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkShowBbox" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkShowBbox" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Bounding box junta
+        </label>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkShowContours" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkShowContours" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Contornos agujeros (cyan)
+        </label>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkShowEllipses" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkShowEllipses" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Elipses OpenCV (verde) - Bordes reales del agujero azul
+        </label>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkShowNotches" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkShowNotches" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Muescas referencia (rojo)
+        </label>
+      </div>
+    </div>
+    
+    <div style="margin-top: var(--space-md); display: flex; justify-content: flex-end;">
+      <button id="btnSave" class="btn btn-primary btn-sm">
+        Guardar Configuración
+      </button>
+    </div>
+  </div>
+  
+  <!-- Card de Umbrales de Validación -->
+  <div class="card" style="margin-top: var(--space-lg);">
+    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
+      Umbrales de Validación de Calidad
+    </h2>
+    
+    <!-- Diseño en grid compacto: 2 columnas -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm) var(--space-xl);">
+
+      
+      <!-- Tolerancia Distancia -->
+      <div style="display: flex; align-items: center; gap: var(--space-md);">
+        <label for="inputDistanciaTol" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
+          Tolerancia Distancia (%)
+        </label>
+        <input type="number" id="inputDistanciaTol" min="90" max="100" step="0.1" value="98.0"
+               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
+      </div>
+      
+      <!-- Umbral Centros -->
+      <div style="display: flex; align-items: center; gap: var(--space-md);">
+        <label for="inputCentrosMm" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
+          Divergencia Centros (mm)
+        </label>
+        <input type="number" id="inputCentrosMm" min="0" max="10" step="0.1" value="3.0"
+               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
+      </div>
+      
+      <!-- Umbral Colinealidad -->
+      <div style="display: flex; align-items: center; gap: var(--space-md);">
+        <label for="inputColinealidadMm" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
+          Desviación Linealidad (mm)
+        </label>
+        <input type="number" id="inputColinealidadMm" min="0" max="10" step="0.1" value="2.0"
+               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
+      </div>
+      
+      <!-- Umbral Espaciado -->
+      <div style="display: flex; align-items: center; gap: var(--space-md);">
+        <label for="inputEspaciadoCV" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
+          Espaciado Uniforme (CV máx)
+        </label>
+        <input type="number" id="inputEspaciadoCV" min="0" step="0.01" value="0.05"
+               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
+      </div>
+      
+    </div>
+    
+    <div style="margin-top: var(--space-md); display: flex; justify-content: flex-end;">
+      <button id="btnSaveThresholds" class="btn btn-primary btn-sm">
+        Guardar Umbrales
+      </button>
+    </div>
+  </div>
+  
+  <!-- Mensaje general (compartido por ambos cards) -->
+  <div id="message" style="margin-top: var(--space-lg);"></div>
+
+  <script>
+    const btnSelectDetection = document.getElementById('btnSelectDetection');
+    const btnSelectHoles = document.getElementById('btnSelectHoles');
+    const fileInputDetection = document.getElementById('fileInputDetection');
+    const fileInputHoles = document.getElementById('fileInputHoles');
+    const detectionPath = document.getElementById('detectionPath');
+    const detectionStatus = document.getElementById('detectionStatus');
+    const holesPath = document.getElementById('holesPath');
+    const holesStatus = document.getElementById('holesStatus');
+    const chkEnableDetection = document.getElementById('chkEnableDetection');
+    const chkShowBbox = document.getElementById('chkShowBbox');
+    const chkShowContours = document.getElementById('chkShowContours');
+    const chkShowEllipses = document.getElementById('chkShowEllipses');
+    const chkShowNotches = document.getElementById('chkShowNotches');
+    const btnSave = document.getElementById('btnSave');
+    const btnSaveThresholds = document.getElementById('btnSaveThresholds');
+    const messageDiv = document.getElementById('message');
+    const inputDistanciaTol = document.getElementById('inputDistanciaTol');
+    const inputCentrosMm = document.getElementById('inputCentrosMm');
+    const inputColinealidadMm = document.getElementById('inputColinealidadMm');
+    const inputEspaciadoCV = document.getElementById('inputEspaciadoCV');
+    
+    let currentDetectionPath = null;
+    let currentHolesPath = null;
+    
+    // ============================================================
+    // FUNCIONES DE UI
+    // ============================================================
+    function showMessage(text, type = 'info') {
+      messageDiv.textContent = text;
+      messageDiv.style.padding = 'var(--space-sm) var(--space-md)';
+      messageDiv.style.borderRadius = 'var(--radius-sm)';
+      messageDiv.style.fontSize = 'var(--font-size-sm)';
+      
+      if (type === 'success') {
+        messageDiv.style.background = 'rgba(40, 167, 69, 0.1)';
+        messageDiv.style.color = '#28a745';
+        messageDiv.style.border = '1px solid #28a745';
+      } else if (type === 'error') {
+        messageDiv.style.background = 'rgba(220, 53, 69, 0.1)';
+        messageDiv.style.color = '#dc3545';
+        messageDiv.style.border = '1px solid #dc3545';
+      } else {
+        messageDiv.style.background = 'rgba(23, 162, 184, 0.1)';
+        messageDiv.style.color = '#17a2b8';
+        messageDiv.style.border = '1px solid #17a2b8';
+      }
+    }
+    
+    function updateModelStatus(type, path) {
+      if (type === 'detection') {
+        if (path && path !== 'No seleccionado') {
+          detectionPath.textContent = path;
+          detectionStatus.textContent = 'Configurado';
+          detectionStatus.className = 'model-status status-loaded';
+        } else {
+          detectionPath.textContent = 'No seleccionado';
+          detectionStatus.textContent = 'No cargado';
+          detectionStatus.className = 'model-status status-not-loaded';
+        }
+      } else if (type === 'holes') {
+        if (path && path !== 'No seleccionado') {
+          holesPath.textContent = path;
+          holesStatus.textContent = 'Configurado';
+          holesStatus.className = 'model-status status-loaded';
+        } else {
+          holesPath.textContent = 'No seleccionado';
+          holesStatus.textContent = 'No cargado';
+          holesStatus.className = 'model-status status-not-loaded';
+        }
+      }
+    }
+    
+    // ============================================================
+    // SELECCIÓN DE ARCHIVO
+    // ============================================================
+    btnSelectDetection.addEventListener('click', () => {
+      fileInputDetection.click();
+    });
+    
+    btnSelectHoles.addEventListener('click', () => {
+      fileInputHoles.click();
+    });
+    
+    fileInputDetection.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        currentDetectionPath = file.name;
+        updateModelStatus('detection', file.name);
+        showMessage('Modelo de detección seleccionado. Presiona "Guardar" para aplicar.', 'info');
+      }
+    });
+    
+    fileInputHoles.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        currentHolesPath = file.name;
+        updateModelStatus('holes', file.name);
+        showMessage('Modelo de agujeros seleccionado. Presiona "Guardar" para aplicar.', 'info');
+      }
+    });
+    
+    // ============================================================
+    // GUARDAR CONFIGURACIÓN
+    // ============================================================
+    async function saveConfig() {
+      if (!currentDetectionPath && !currentHolesPath) {
+        showMessage('Selecciona al menos un modelo', 'error');
+        return;
+      }
+      
+      try {
+        btnSave.disabled = true;
+        showMessage('Guardando configuración...', 'info');
+        
+        const response = await Common.fetchWithTimeout('/api/vision/set_models', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            detection_model: currentDetectionPath,
+            holes_model: currentHolesPath,
+            enabled: chkEnableDetection.checked,
+            show_bbox: chkShowBbox.checked,
+            show_contours: chkShowContours.checked,
+            show_ellipses: chkShowEllipses.checked,
+            show_notches: chkShowNotches.checked,
+            umbral_distancia_tolerancia: parseFloat(inputDistanciaTol.value),
+            umbral_centros_mm: parseFloat(inputCentrosMm.value),
+            umbral_colinealidad_mm: parseFloat(inputColinealidadMm.value),
+            umbral_espaciado_cv: parseFloat(inputEspaciadoCV.value)
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          showMessage('✓ Configuración guardada correctamente', 'success');
+        } else {
+          showMessage(data.error || 'Error guardando configuración', 'error');
+        }
+        
+      } catch (e) {
+        console.error('[visionSystem] Error guardando:', e);
+        showMessage('Error de conexión con el servidor', 'error');
+      } finally {
+        btnSave.disabled = false;
+      }
+    }
+    
+    // ============================================================
+    // CARGAR CONFIGURACIÓN
+    // ============================================================
+    async function loadConfig() {
+      try {
+        const response = await Common.fetchWithTimeout('/api/vision/config');
+        const config = await response.json();
+        
+        if (config.vision) {
+          if (config.vision.detection_model) {
+            currentDetectionPath = config.vision.detection_model;
+            updateModelStatus('detection', currentDetectionPath);
+          }
+          
+          if (config.vision.holes_model) {
+            currentHolesPath = config.vision.holes_model;
+            updateModelStatus('holes', currentHolesPath);
+          }
+          
+          chkEnableDetection.checked = config.vision.detection_enabled || false;
+          chkShowBbox.checked = config.vision.show_bbox || false;
+          chkShowContours.checked = config.vision.show_contours !== false; // true por defecto
+          chkShowEllipses.checked = config.vision.show_ellipses || false;
+          chkShowNotches.checked = config.vision.show_notches || false;
+          
+          // Cargar umbrales
+          inputDistanciaTol.value = config.vision.umbral_distancia_tolerancia || 98.0;
+          inputCentrosMm.value = config.vision.umbral_centros_mm || 3.0;
+          inputColinealidadMm.value = config.vision.umbral_colinealidad_mm || 2.0;
+          inputEspaciadoCV.value = config.vision.umbral_espaciado_cv || 0.05;
+        }
+        
+        console.log('[visionSystem] Configuración cargada:', config);
+      } catch (e) {
+        console.error('[visionSystem] Error cargando config:', e);
+      }
+    }
+    
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+    btnSave.addEventListener('click', saveConfig);
+    
+    // Auto-aplicar cuando cambia el checkbox
+    chkEnableDetection.addEventListener('change', saveConfig);
+    
+    // Guardar umbrales (usa la misma función saveConfig)
+    btnSaveThresholds.addEventListener('click', saveConfig);
+    
+    // ============================================================
+    // INICIALIZACIÓN
+    // ============================================================
+    (async function init() {
+      await loadConfig();
+    })();
+  </script>
+</body>
+</html>
+
+
+

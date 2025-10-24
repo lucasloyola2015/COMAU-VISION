@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar Webcam</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <style>
+    body {
+      padding: 24px;
+      background: var(--bg-primary);
+    }
+    
+    .status-indicator {
+      display: none;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-top: var(--space-sm);
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+    }
+    
+    .status-indicator.on {
+      display: flex;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--brand-red);
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+      margin-top: var(--space-md);
+    }
+    
+    .message {
+      margin-top: var(--space-sm);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+    }
+  </style>
+</head>
+<body>
+  <h1 style="color: var(--text-primary); margin-bottom: var(--space-xl);">Configurar Webcam</h1>
+  
+  <!-- Sección: Selección de Cámara -->
+  <div class="card">
+    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-md); font-weight: 600;">Origen</h2>
+    
+    <div class="controls-row">
+      <button id="btnScan" class="btn btn-secondary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+        </svg>
+        <span>Buscar cámaras</span>
+      </button>
+      
+      <select id="cmbCams" style="min-width: 320px;">
+        <option value="">— Seleccioná una cámara —</option>
+      </select>
+      
+      <select id="cmbRes" style="min-width: 160px;" disabled>
+        <option value="">— Resolución —</option>
+      </select>
+      
+      <button id="btnApply" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M13.485 1.929a.75.75 0 0 1 .086 1.057l-7.25 8a.75.75 0 0 1-1.094.03L2.43 8.28a.75.75 0 1 1 1.06-1.06l2.3 2.298 6.72-7.42a.75.75 0 0 1 .975-.168z"/>
+        </svg>
+        <span>Aplicar</span>
+      </button>
+    </div>
+    
+    <div id="statusCam" class="status-indicator">
+      <span class="status-dot"></span>
+      <span>Buscando cámaras...</span>
+    </div>
+    
+    <div id="statusRes" class="status-indicator">
+      <span class="status-dot"></span>
+      <span>Buscando resoluciones disponibles...</span>
+    </div>
+    
+    <div id="message"></div>
+  </div>
+
+  <script>
+    const btnScan = document.getElementById('btnScan');
+    const btnApply = document.getElementById('btnApply');
+    const cmbCams = document.getElementById('cmbCams');
+    const cmbRes = document.getElementById('cmbRes');
+    const statusCam = document.getElementById('statusCam');
+    const statusRes = document.getElementById('statusRes');
+    const messageDiv = document.getElementById('message');
+    
+    let savedConfig = { uid: null, name: null, width: null, height: null };
+    
+    // ============================================================
+    // FUNCIONES DE UI
+    // ============================================================
+    function showMessage(text, type = 'info') {
+      messageDiv.textContent = text;
+      messageDiv.className = 'message';
+      
+      if (type === 'success') {
+        messageDiv.style.background = 'rgba(40, 167, 69, 0.1)';
+        messageDiv.style.color = '#28a745';
+        messageDiv.style.border = '1px solid #28a745';
+      } else if (type === 'error') {
+        messageDiv.style.background = 'rgba(220, 53, 69, 0.1)';
+        messageDiv.style.color = '#dc3545';
+        messageDiv.style.border = '1px solid #dc3545';
+      } else {
+        messageDiv.style.background = 'rgba(23, 162, 184, 0.1)';
+        messageDiv.style.color = '#17a2b8';
+        messageDiv.style.border = '1px solid #17a2b8';
+      }
+    }
+    
+    function setScanning(isScanning) {
+      statusCam.classList.toggle('on', isScanning);
+      btnScan.disabled = isScanning;
+      cmbCams.disabled = isScanning;
+      btnApply.disabled = isScanning;
+    }
+    
+    function setResolutionLoading(isLoading) {
+      statusRes.classList.toggle('on', isLoading);
+      cmbCams.disabled = isLoading;
+      cmbRes.disabled = isLoading;
+      btnApply.disabled = isLoading;
+    }
+    
+    // ============================================================
+    // CARGAR CONFIGURACIÓN GUARDADA
+    // ============================================================
+    async function loadSavedConfig() {
+      try {
+        const response = await Common.fetchWithTimeout('/api/config');
+        const config = await response.json();
+        const camera = config.camera || {};
+        
+        savedConfig.uid = camera.uid || null;
+        savedConfig.name = camera.name || null;
+        savedConfig.width = camera.preferred_resolution?.width || null;
+        savedConfig.height = camera.preferred_resolution?.height || null;
+        
+        console.log('[configWebCam] Config cargada:', savedConfig);
+      } catch (e) {
+        console.error('[configWebCam] Error cargando config:', e);
+      }
+    }
+    
+    // ============================================================
+    // ESCANEAR CÁMARAS
+    // ============================================================
+    async function scanCameras() {
+      showMessage('');
+      setScanning(true);
+      
+      // Limpiar dropdowns
+      cmbCams.innerHTML = '<option value="">— Seleccioná una cámara —</option>';
+      cmbRes.innerHTML = '<option value="">— Resolución —</option>';
+      cmbRes.disabled = true;
+      
+      try {
+        const response = await Common.fetchWithTimeout('/api/scan_cams', {}, 30000);
+        const data = await response.json();
+        
+        if (!data.ok) {
+          showMessage(data.error || 'Error al escanear cámaras', 'error');
+          return;
+        }
+        
+        const devices = data.devices || [];
+        console.log('[configWebCam] Cámaras encontradas:', devices);
+        
+        // Llenar dropdown
+        devices.forEach(dev => {
+          const option = document.createElement('option');
+          option.value = dev.uid;
+          option.textContent = `${dev.name}  [${dev.uid}]`;
+          option.dataset.id = dev.id;
+          option.dataset.name = dev.name;
+          option.dataset.vid = dev.vid;
+          option.dataset.pid = dev.pid;
+          cmbCams.appendChild(option);
+        });
+        
+        // Si hay config guardada pero no se detectó, agregarla igual
+        if (savedConfig.uid && !devices.some(d => d.uid === savedConfig.uid)) {
+          const option = document.createElement('option');
+          const label = savedConfig.name || savedConfig.uid;
+          option.value = savedConfig.uid;
+          option.textContent = `${label}  (guardada — no detectada)`;
+          option.dataset.vid = savedConfig.uid; // Assuming uid is vid for saved config
+          option.dataset.pid = savedConfig.uid; // Assuming uid is pid for saved config
+          cmbCams.appendChild(option);
+        }
+        
+        // Seleccionar la guardada si existe
+        if (savedConfig.uid) {
+          cmbCams.value = savedConfig.uid;
+          if (cmbCams.value === savedConfig.uid) {
+            await loadResolutions(savedConfig.uid, savedConfig.uid);
+          }
+        }
+        
+        showMessage(`${devices.length} cámara(s) detectada(s)`, devices.length ? 'success' : 'error');
+        
+      } catch (e) {
+        console.error('[configWebCam] Error escaneando:', e);
+        showMessage('Error al escanear cámaras (timeout)', 'error');
+      } finally {
+        setScanning(false);
+      }
+    }
+    
+    // ============================================================
+    // CARGAR RESOLUCIONES
+    // ============================================================
+    async function loadResolutions(vid, pid) {
+      if (!vid || !pid) return;
+      
+      setResolutionLoading(true);
+      cmbRes.innerHTML = '<option value="">— Resolución —</option>';
+      
+      try {
+        const response = await Common.fetchWithTimeout(`/api/cam_resolutions?vid=${encodeURIComponent(vid)}&pid=${encodeURIComponent(pid)}`, {}, 15000);
+        const data = await response.json();
+        
+        if (!data.ok) {
+          showMessage('Error cargando resoluciones', 'error');
+          return;
+        }
+        
+        const resolutions = data.resolutions || [];
+        console.log('[configWebCam] Resoluciones encontradas:', resolutions);
+        
+        // Llenar dropdown
+        resolutions.forEach(([w, h]) => {
+          const option = document.createElement('option');
+          option.value = `${w}x${h}`;
+          option.textContent = `${w}×${h}`;
+          cmbRes.appendChild(option);
+        });
+        
+        // Seleccionar la guardada si existe
+        if (savedConfig.width && savedConfig.height) {
+          const savedValue = `${savedConfig.width}x${savedConfig.height}`;
+          cmbRes.value = savedValue;
+          
+          // Si no está en la lista, agregarla
+          if (!cmbRes.value) {
+            const option = document.createElement('option');
+            option.value = savedValue;
+            option.textContent = `${savedConfig.width}×${savedConfig.height} (guardada)`;
+            cmbRes.appendChild(option);
+            cmbRes.value = savedValue;
+          }
+        }
+        
+        cmbRes.disabled = resolutions.length === 0;
+        
+      } catch (e) {
+        console.error('[configWebCam] Error cargando resoluciones:', e);
+        showMessage('Error cargando resoluciones (timeout)', 'error');
+      } finally {
+        setResolutionLoading(false);
+      }
+    }
+    
+    // ============================================================
+    // APLICAR CONFIGURACIÓN
+    // ============================================================
+    async function applyCamera() {
+      const selectedOption = cmbCams.options[cmbCams.selectedIndex];
+      if (!selectedOption || !selectedOption.value) {
+        showMessage('Seleccioná una cámara primero', 'error');
+        return;
+      }
+      
+      const vid = selectedOption.dataset.vid || '';
+      const pid = selectedOption.dataset.pid || '';
+      const name = selectedOption.dataset.name || '';
+      
+      if (!vid || !pid) {
+        showMessage('Datos de cámara incompletos', 'error');
+        return;
+      }
+      
+      let width = null, height = null;
+      if (cmbRes.value) {
+        const [w, h] = cmbRes.value.split('x');
+        width = parseInt(w);
+        height = parseInt(h);
+      }
+      
+      try {
+        showMessage('Conectando cámara...', 'info');
+        btnApply.disabled = true;
+        
+        const response = await Common.fetchWithTimeout('/api/connect_cam', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vid, pid, name, width, height })
+        }, 15000);
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          showMessage('✓ Cámara conectada y guardada. Mirá el Dashboard →', 'success');
+          
+          // Actualizar stream en el dashboard
+          try {
+            const frames = window.top.document.querySelectorAll('iframe');
+            if (frames[1]) {
+              const img = frames[1].contentWindow.document.getElementById('camStream');
+              if (img) {
+                img.src = '/video_feed?t=' + Date.now();
+              }
+            }
+          } catch (e) {
+            console.warn('[configWebCam] No se pudo actualizar dashboard:', e);
+          }
+          
+        } else {
+          showMessage(data.error || 'No se pudo conectar', 'error');
+        }
+        
+      } catch (e) {
+        console.error('[configWebCam] Error aplicando:', e);
+        showMessage('Error de conexión (timeout)', 'error');
+      } finally {
+        btnApply.disabled = false;
+      }
+    }
+    
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+    btnScan.addEventListener('click', scanCameras);
+    btnApply.addEventListener('click', applyCamera);
+    
+    cmbCams.addEventListener('change', () => {
+      const selectedOption = cmbCams.options[cmbCams.selectedIndex];
+      if (selectedOption && selectedOption.dataset.vid && selectedOption.dataset.pid) {
+        loadResolutions(selectedOption.dataset.vid, selectedOption.dataset.pid);
+      } else {
+        cmbRes.innerHTML = '<option value="">— Resolución —</option>';
+        cmbRes.disabled = true;
+      }
+    });
+    
+    // ============================================================
+    // INICIALIZACIÓN
+    // ============================================================
+    (async function init() {
+      await loadSavedConfig();
+      
+      // Auto-escanear al cargar
+      await scanCameras();
+    })();
+  </script>
+</body>
+</html>
+

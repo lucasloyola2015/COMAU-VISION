@@ -1,0 +1,70 @@
+{
+  "camera": {
+    "vid": "04F2",
+    "pid": "B729",
+    "name": "Chicony USB2.0 Camera",
+    "preferred_resolution": {
+      "width": 1920,
+      "height": 1080
+    }
+  },
+  "aruco": {
+    "reference_id": 23,
+    "marker_size_mm": 58.5,
+    "center_x_mm": 420,
+    "center_y_mm": -180,
+    "show_reference": true,
+    "dictionary_id": 50,
+    "correct_perspective": false,
+    "saved_reference": {
+      "px_per_mm": 3.0303185617821846,
+      "center": [
+        213,
+        960
+      ],
+      "angle_rad": -1.5996900176249744,
+      "corners": [
+        [
+          126.0,
+          1047.0
+        ],
+        [
+          121.0,
+          874.0
+        ],
+        [
+          303.0,
+          872.0
+        ],
+        [
+          303.0,
+          1049.0
+        ]
+      ],
+      "timestamp": "2025-10-23T15:24:16.620223"
+    },
+    "use_saved_reference": false
+  },
+  "vision": {
+    "detection_model": "models/detection_model.pt",
+    "holes_model": "models/holes_model.pt",
+    "detection_enabled": true,
+    "show_bbox": false,
+    "show_contours": false,
+    "show_ellipses": true,
+    "show_notches": true,
+    "umbral_distancia_tolerancia": 97,
+    "umbral_centros_mm": 2,
+    "umbral_colinealidad_mm": 0.5,
+    "umbral_espaciado_cv": 1
+  },
+  "mqtt": {
+    "broker_ip": "192.168.1.10",
+    "broker_port": 1883,
+    "topics": {
+      "commands": "COMAU/commands",
+      "keyboard": "COMAU/toRobot",
+      "responses": "COMAU/responses"
+    }
+  }
+}

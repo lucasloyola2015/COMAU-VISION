@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Browser profiles (no necesarios en el repositorio)
+.chrome_profile/
+.chrome_kiosk_profile/
+
+# Archivos temporales
+*.tmp
+*.log
+*.pid
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Modelos grandes (opcional, agregar si los .pt son muy grandes)
+# models/*.pt
+
+# Node modules (si lo usas)
+node_modules/

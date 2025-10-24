@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COMAU Control • Illinois Automation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <style>
+    /* Estilos específicos para la página de control COMAU */
+    .comau-control-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .control-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .control-header h1 {
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+    
+    .control-header p {
+      color: #7f8c8d;
+      font-size: 16px;
+    }
+    
+    .control-buttons-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .control-button {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      border: 2px solid #dee2e6;
+      border-radius: 12px;
+      padding: 25px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .control-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+      border-color: #007bff;
+    }
+    
+    .control-button:active {
+      transform: translateY(0);
+    }
+    
+    .control-button.disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .control-button-icon {
+      width: 48px;
+      height: 48px;
+      margin: 0 auto 15px;
+      fill: #6c757d;
+      transition: fill 0.3s ease;
+    }
+    
+    .control-button-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 8px;
+    }
+    
+    .control-button-description {
+      font-size: 14px;
+      color: #6c757d;
+      line-height: 1.4;
+    }
+    
+    /* Estados de los botones */
+    .control-button.status-waiting {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+      border-color: #ffc107;
+    }
+    
+    .control-button.status-waiting .control-button-icon {
+      fill: #ffc107;
+    }
+    
+    .control-button.status-success {
+      background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+      border-color: #28a745;
+    }
+    
+    .control-button.status-success .control-button-icon {
+      fill: #28a745;
+    }
+    
+    .control-button.status-error {
+      background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+      border-color: #dc3545;
+    }
+    
+    .control-button.status-error .control-button-icon {
+      fill: #dc3545;
+    }
+    
+    /* Animación de parpadeo para estado waiting */
+    .control-button.status-waiting {
+      animation: pulse-waiting 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse-waiting {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    
+    /* Botón de regreso */
+    .back-button {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+    
+    .back-button:hover {
+      background: #0056b3;
+      transform: translateY(-1px);
+    }
+    
+    /* Información del estado */
+    .status-info {
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 20px;
+    }
+    
+    .status-info h3 {
+      margin: 0 0 10px 0;
+      color: #495057;
+      font-size: 16px;
+    }
+    
+    .status-info p {
+      margin: 5px 0;
+      color: #6c757d;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Botón de regreso -->
+  <button class="back-button" onclick="window.location.href='/templates/configuracion.html'">
+    ← Volver a Configuración
+  </button>
+
+  <div class="comau-control-container">
+    <!-- Header -->
+    <div class="control-header">
+      <h1>Control COMAU Robot</h1>
+      <p>Panel de control para comandos del robot COMAU</p>
+    </div>
+
+    <!-- Grid de botones de control -->
+    <div class="control-buttons-grid">
+      <!-- Botón Say Hello -->
+      <div class="control-button" id="btn-say-hello" onclick="sendSayHello()">
+        <svg class="control-button-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+          <path d="M320 96C239.2 96 174.5 132.8 127.4 176.6C80.6 220.1 49.3 272 34.4 307.7C31.1 315.6 31.1 324.4 34.4 332.3C49.3 368 80.6 420 127.4 463.4C174.5 507.1 239.2 544 320 544C400.8 544 465.5 507.2 512.6 463.4C559.4 419.9 590.7 368 605.6 332.3C608.9 324.4 608.9 315.6 605.6 307.7C590.7 272 559.4 220 512.6 176.6C465.5 132.9 400.8 96 320 96zM176 320C176 240.5 240.5 176 320 176C399.5 176 464 240.5 464 320C464 399.5 399.5 464 320 464C240.5 464 176 399.5 176 320zM320 256C320 291.3 291.3 320 256 320C244.5 320 233.7 317 224.3 311.6C223.3 322.5 224.2 333.7 227.2 344.8C240.9 396 293.6 426.4 344.8 412.7C396 399 426.4 346.3 412.7 295.1C400.5 249.4 357.2 220.3 311.6 224.3C316.9 233.6 320 244.4 320 256z"/>
+        </svg>
+        <div class="control-button-title">Say Hello</div>
+        <div class="control-button-description">Envía comando de saludo al robot</div>
+      </div>
+
+      <!-- Botón Move to Home -->
+      <div class="control-button" id="btn-move-to-home" onclick="sendMoveToHome()">
+        <svg class="control-button-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+          <path d="M352 64C352 46.3 337.7 32 320 32C302.3 32 288 46.3 288 64L288 128L192 128C139 128 96 171 96 224L96 448C96 501 139 544 192 544L448 544C501 544 544 501 544 448L544 224C544 171 501 128 448 128L352 128L352 64zM160 432C160 418.7 170.7 408 184 408L216 408C229.3 408 240 418.7 240 432C240 445.3 229.3 456 216 456L184 456C170.7 456 160 445.3 160 432zM280 432C280 418.7 290.7 408 304 408L336 408C349.3 408 360 418.7 360 432C360 445.3 349.3 456 336 456L304 456C290.7 456 280 445.3 280 432zM400 432C400 418.7 410.7 408 424 408L456 408C469.3 408 480 418.7 480 432C480 445.3 469.3 456 456 456L424 456C410.7 456 400 445.3 400 432zM224 240C250.5 240 272 261.5 272 288C272 314.5 250.5 336 224 336C197.5 336 176 314.5 176 288C176 261.5 197.5 240 224 240zM368 288C368 261.5 389.5 240 416 240C442.5 240 464 261.5 464 288C464 314.5 442.5 336 416 336C389.5 336 368 314.5 368 288z"/>
+        </svg>
+        <div class="control-button-title">Move to Home</div>
+        <div class="control-button-description">Mueve el robot a la posición HOME</div>
+      </div>
+
+      <!-- Botón Rutina de Prueba -->
+      <div class="control-button" id="btn-test-routine" onclick="sendTestRoutine()">
+        <svg class="control-button-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+          <path d="M320 96C239.2 96 174.5 132.8 127.4 176.6C80.6 220.1 49.3 272 34.4 307.7C31.1 315.6 31.1 324.4 34.4 332.3C49.3 368 80.6 420 127.4 463.4C174.5 507.1 239.2 544 320 544C400.8 544 465.5 507.2 512.6 463.4C559.4 419.9 590.7 368 605.6 332.3C608.9 324.4 608.9 315.6 605.6 307.7C590.7 272 559.4 220 512.6 176.6C465.5 132.9 400.8 96 320 96zM176 320C176 240.5 240.5 176 320 176C399.5 176 464 240.5 464 320C464 399.5 399.5 464 320 464C240.5 464 176 399.5 176 320zM320 256C320 291.3 291.3 320 256 320C244.5 320 233.7 317 224.3 311.6C223.3 322.5 224.2 333.7 227.2 344.8C240.9 396 293.6 426.4 344.8 412.7C396 399 426.4 346.3 412.7 295.1C400.5 249.4 357.2 220.3 311.6 224.3C316.9 233.6 320 244.4 320 256z"/>
+        </svg>
+        <div class="control-button-title">Rutina de Prueba</div>
+        <div class="control-button-description">Ejecuta rutina de prueba del robot</div>
+      </div>
+    </div>
+
+    <!-- Información del estado -->
+    <div class="status-info">
+      <h3>Estado de la Conexión</h3>
+      <p id="connection-status">Verificando conexión MQTT...</p>
+      <p id="last-command">Último comando: Ninguno</p>
+    </div>
+  </div>
+
+  <script>
+    // Función para actualizar el estado de un botón
+    function updateButtonStatus(buttonId, status) {
+      const button = document.getElementById(buttonId);
+      if (!button) return;
+      
+      // Remover todas las clases de estado
+      button.classList.remove('status-waiting', 'status-success', 'status-error');
+      
+      if (status === 'waiting') {
+        button.classList.add('status-waiting');
+      } else if (status === 'success') {
+        button.classList.add('status-success');
+      } else if (status === 'error') {
+        button.classList.add('status-error');
+      }
+    }
+    
+    // Función para deshabilitar/habilitar botón
+    function setButtonDisabled(buttonId, disabled) {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.classList.toggle('disabled', disabled);
+      }
+    }
+    
+    // Función para actualizar información del estado
+    function updateStatusInfo(lastCommand, status) {
+      const lastCommandEl = document.getElementById('last-command');
+      const connectionStatusEl = document.getElementById('connection-status');
+      
+      if (lastCommandEl) {
+        lastCommandEl.textContent = `Último comando: ${lastCommand}`;
+      }
+      
+      if (connectionStatusEl) {
+        connectionStatusEl.textContent = `Estado MQTT: ${status}`;
+      }
+    }
+    
+    // Función para enviar comando Say Hello
+    async function sendSayHello() {
+      const buttonId = 'btn-say-hello';
+      
+      try {
+        console.log('[COMAU_Control] 🤖 Enviando comando Say Hello');
+        
+        // Actualizar botón a estado waiting
+        updateButtonStatus(buttonId, 'waiting');
+        setButtonDisabled(buttonId, true);
+        
+        const response = await fetch('/api/robot_hello', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          console.log('[COMAU_Control] ✅ Comando Say Hello procesado');
+          console.log(`[COMAU_Control] 📋 Secuencia ID: ${data.sequence_id}`);
+          console.log(`[COMAU_Control] 📊 Estado: ${data.status}`);
+          
+          if (data.status === 'success') {
+            console.log('[COMAU_Control] 🎉 ¡Robot respondió HOLA correctamente!');
+            updateButtonStatus(buttonId, 'success');
+            updateStatusInfo('Say Hello - Éxito', 'Conectado');
+          } else {
+            console.log('[COMAU_Control] ⚠️ Respuesta del robot: ' + data.message);
+            updateButtonStatus(buttonId, 'error');
+            updateStatusInfo('Say Hello - Error', 'Conectado');
+          }
+        } else {
+          console.error('[COMAU_Control] ❌ Error en comando Say Hello:', data.error);
+          updateButtonStatus(buttonId, 'error');
+          updateStatusInfo('Say Hello - Error', 'Error');
+        }
+        
+      } catch (e) {
+        console.error('[COMAU_Control] ❌ Error enviando comando Say Hello:', e);
+        updateButtonStatus(buttonId, 'error');
+        updateStatusInfo('Say Hello - Error', 'Sin conexión');
+      }
+      
+      // Restaurar botón después de 3 segundos
+      setTimeout(() => {
+        updateButtonStatus(buttonId, 'default');
+        setButtonDisabled(buttonId, false);
+      }, 3000);
+    }
+    
+    // Función para enviar comando Move to Home
+    async function sendMoveToHome() {
+      const buttonId = 'btn-move-to-home';
+      
+      try {
+        console.log('[COMAU_Control] 🤖 Enviando comando Move to Home');
+        
+        // Actualizar botón a estado waiting
+        updateButtonStatus(buttonId, 'waiting');
+        setButtonDisabled(buttonId, true);
+        
+        const response = await fetch('/api/robot_move_to_home', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          console.log('[COMAU_Control] ✅ Comando Move to Home procesado');
+          console.log(`[COMAU_Control] 📋 Secuencia ID: ${data.sequence_id}`);
+          console.log(`[COMAU_Control] 📊 Estado: ${data.status}`);
+          
+          if (data.status === 'success') {
+            console.log('[COMAU_Control] 🎉 ¡Robot movido a HOME exitosamente!');
+            updateButtonStatus(buttonId, 'success');
+            updateStatusInfo('Move to Home - Éxito', 'Conectado');
+          } else {
+            console.log('[COMAU_Control] ⚠️ Respuesta del robot: ' + data.message);
+            updateButtonStatus(buttonId, 'error');
+            updateStatusInfo('Move to Home - Error', 'Conectado');
+          }
+        } else {
+          console.error('[COMAU_Control] ❌ Error en comando Move to Home:', data.error);
+          updateButtonStatus(buttonId, 'error');
+          updateStatusInfo('Move to Home - Error', 'Error');
+        }
+        
+      } catch (e) {
+        console.error('[COMAU_Control] ❌ Error enviando comando Move to Home:', e);
+        updateButtonStatus(buttonId, 'error');
+        updateStatusInfo('Move to Home - Error', 'Sin conexión');
+      }
+      
+      // Restaurar botón después de 3 segundos
+      setTimeout(() => {
+        updateButtonStatus(buttonId, 'default');
+        setButtonDisabled(buttonId, false);
+      }, 3000);
+    }
+    
+    // Función para enviar comando Rutina de Prueba
+    async function sendTestRoutine() {
+      const buttonId = 'btn-test-routine';
+      
+      try {
+        console.log('[COMAU_Control] 🤖 Enviando Rutina de Prueba');
+        
+        // Actualizar botón a estado waiting
+        updateButtonStatus(buttonId, 'waiting');
+        setButtonDisabled(buttonId, true);
+        
+        console.log('[COMAU_Control] 📤 Enviando petición a /api/robot_test_routine...');
+        
+        // Enviar petición directa al servidor
+        const response = await fetch('/api/robot_test_routine', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const data = await response.json();
+        
+        console.log('[COMAU_Control] 📥 Respuesta recibida del servidor:', data);
+        
+        if (data.ok) {
+          console.log('[COMAU_Control] ✅ Rutina de Prueba completada');
+          console.log(`[COMAU_Control] 📋 Secuencia ID: ${data.sequence_id}`);
+          console.log(`[COMAU_Control] 📊 Estado: ${data.status}`);
+          console.log(`[COMAU_Control] 📐 dY enviado: ${data.dY_enviado}, dZ enviado: ${data.dZ_enviado}`);
+          
+          if (data.status === 'complete_success') {
+            console.log('[COMAU_Control] 🎉 ¡Rutina de Prueba completada EXITOSAMENTE!');
+            updateButtonStatus(buttonId, 'success');
+            updateStatusInfo('Rutina de Prueba - Éxito', 'Conectado');
+          } else if (data.status === 'analysis_failed') {
+            console.log('[COMAU_Control] ⚠️ Análisis automático falló');
+            updateButtonStatus(buttonId, 'error');
+            updateStatusInfo('Rutina de Prueba - Análisis Falló', 'Error');
+          } else if (data.status === 'offset_not_found') {
+            console.log('[COMAU_Control] ⚠️ No se encontró offset válido');
+            updateButtonStatus(buttonId, 'error');
+            updateStatusInfo('Rutina de Prueba - Offset No Encontrado', 'Error');
+          } else {
+            console.log('[COMAU_Control] ⚠️ Estado parcial:', data.message);
+            updateButtonStatus(buttonId, 'error');
+            updateStatusInfo(`Rutina de Prueba - ${data.status}`, 'Advertencia');
+          }
+        } else {
+          console.error('[COMAU_Control] ❌ Error en Rutina de Prueba:', data.error);
+          updateButtonStatus(buttonId, 'error');
+          updateStatusInfo('Rutina de Prueba - Error', 'Error');
+        }
+        
+      } catch (e) {
+        console.error('[COMAU_Control] ❌ Error enviando Rutina de Prueba:', e);
+        updateButtonStatus(buttonId, 'error');
+        updateStatusInfo('Rutina de Prueba - Error', 'Sin conexión');
+      }
+      
+      // Restaurar botón después de 5 segundos (más tiempo para operaciones complejas)
+      setTimeout(() => {
+        updateButtonStatus(buttonId, 'default');
+        setButtonDisabled(buttonId, false);
+      }, 5000);
+    }
+    
+    // Verificar estado de conexión MQTT al cargar la página
+    async function checkMQTTStatus() {
+      try {
+        const response = await fetch('/api/mqtt_status');
+        const data = await response.json();
+        
+        if (data.ok && data.status.connected) {
+          updateStatusInfo('Ninguno', 'Conectado');
+        } else {
+          updateStatusInfo('Ninguno', 'Desconectado');
+        }
+      } catch (e) {
+        console.error('[COMAU_Control] Error verificando estado MQTT:', e);
+        updateStatusInfo('Ninguno', 'Error de conexión');
+      }
+    }
+    
+    // Inicializar cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('[COMAU_Control] Página cargada, verificando estado MQTT');
+      checkMQTTStatus();
+    });
+  </script>
+</body>
+</html>

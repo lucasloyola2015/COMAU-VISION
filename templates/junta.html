@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Junta</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <style>
+    body {
+      padding: 24px;
+      background: var(--bg-primary);
+      overflow-y: auto;
+      overflow-x: hidden;
+      height: 100vh;
+    }
+    
+    /* Personalizar scrollbar */
+    body::-webkit-scrollbar {
+      width: 12px;
+    }
+    
+    body::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+      border-radius: 10px;
+    }
+    
+    body::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 10px;
+      border: 2px solid var(--bg-secondary);
+    }
+    
+    body::-webkit-scrollbar-thumb:hover {
+      background: var(--text-secondary);
+    }
+    
+    .form-container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding-bottom: 100px;
+    }
+    
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+    }
+    
+    .form-group {
+      margin-bottom: var(--space-lg);
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: var(--space-sm);
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: var(--font-size-sm);
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: var(--space-md);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: var(--font-size-md);
+      transition: all 0.2s ease;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(212, 20, 20, 0.1);
+    }
+    
+    .form-group input:disabled {
+      background: var(--bg-secondary);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .form-actions {
+      display: flex;
+      gap: var(--space-md);
+      justify-content: flex-end;
+      margin-top: var(--space-xl);
+    }
+    
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    
+    .btn-secondary:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-light);
+    }
+    
+    .header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      margin-bottom: var(--space-xl);
+    }
+    
+    .back-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: var(--space-sm);
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    
+    .back-btn:hover {
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+    
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <div class="header" style="display: flex; align-items: center; gap: 16px;">
+      <button class="back-btn" onclick="volver()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+        </svg>
+      </button>
+      <h1 id="pageTitle" style="color: var(--text-primary); margin: 0; flex: 1;">Nueva Junta</h1>
+      <button id="btnEditar" class="btn btn-primary" onclick="irAEditar()" style="display: none;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+        </svg>
+        <span>Editar</span>
+      </button>
+    </div>
+
+    <div class="card">
+      <form id="juntaForm" enctype="multipart/form-data">
+        <div class="form-group" id="seccion-datos">
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-md);">
+            <div>
+              <label for="nombre">Nombre *</label>
+              <input type="text" id="nombre" name="nombre" required placeholder="TC" style="text-transform: uppercase;">
+            </div>
+            <div>
+              <label for="modelo">Modelo *</label>
+              <input type="text" id="modelo" name="modelo" required placeholder="441">
+            </div>
+            <div>
+              <label for="version">Versión *</label>
+              <input type="text" id="version" name="version" required placeholder="20">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" id="seccion-imagen">
+          <label>Imagen de Referencia</label>
+          <div id="imagenContainer" style="position: relative; display: inline-block; margin-top: var(--space-sm);">
+            <!-- Botón de selección SIEMPRE visible -->
+            <button type="button" id="selectImageBtn" style="position: absolute; top: 8px; right: 8px; background: #dc3545; border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2); z-index: 10;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16">
+                <path d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3M2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4zm4.69-1.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981l.006.139q.323-.119.684-.12h5.396z"/>
+              </svg>
+            </button>
+            
+            <div id="imagenPreview" style="display: none;">
+              <img id="imagenPreviewImg" src="" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: var(--radius-md); border: 1px solid var(--border); cursor: pointer;" title="Click para mostrar/ocultar overlay">
+            </div>
+            <div id="imagenPlaceholder" style="width: 200px; height: 120px; border: 2px dashed var(--border); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); background: var(--bg-secondary);">
+              <div style="text-align: center;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16" style="margin-bottom: var(--space-sm);">
+                  <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0"/>
+                  <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.126L1.002 12V3a1 1 0 0 1 1-1z"/>
+                </svg>
+                <div style="font-size: var(--font-size-sm);">Sin imagen</div>
+              </div>
+            </div>
+          </div>
+          <input type="file" id="imagen" name="imagen" accept="image/*" style="display: none;">
+        </div>
+
+        <div class="form-group" id="seccion-parametros" style="display: none;">
+          <label style="font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-md);">Parámetros del Motor</label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-md); margin-bottom: var(--space-md);">
+            <div>
+              <label for="cantidadCilindros">Cantidad Cilindros</label>
+              <input type="number" id="cantidadCilindros" name="cantidadCilindros" min="0" step="1" readonly style="background: var(--bg-secondary);">
+            </div>
+            <div>
+              <label for="diametroCilindro">Diámetro Cilindro (mm)</label>
+              <input type="number" id="diametroCilindro" name="diametroCilindro" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary);">
+            </div>
+            <div>
+              <label for="distanciaCilindrosExtremos">Distancia Extremos (mm)</label>
+              <input type="number" id="distanciaCilindrosExtremos" name="distanciaCilindrosExtremos" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary);">
+            </div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+            <div>
+              <label for="anchoJunta">Ancho de la Junta (mm)</label>
+              <input type="number" id="anchoJunta" name="anchoJunta" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary);">
+            </div>
+            <div>
+              <label for="altoJunta">Alto de la Junta (mm)</label>
+              <input type="number" id="altoJunta" name="altoJunta" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary);">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" id="seccion-elementos">
+          <label style="font-weight: 600; color: var(--text-primary); margin-bottom: var(--space-md);">Elementos de Marcado</label>
+          
+          <!-- Tabla de elementos -->
+          <table style="width: 100%; border-collapse: collapse; margin-top: var(--space-sm);">
+            <thead>
+              <tr style="border-bottom: 2px solid var(--border-color);">
+                <th style="padding: var(--space-sm); text-align: center; font-size: var(--font-size-sm); color: var(--text-secondary); width: 60px;">Select</th>
+                <th style="padding: var(--space-sm); text-align: left; font-size: var(--font-size-sm); color: var(--text-secondary);">Objeto</th>
+                <th style="padding: var(--space-sm); text-align: left; font-size: var(--font-size-sm); color: var(--text-secondary);">Valor</th>
+                <th style="padding: var(--space-sm); text-align: center; font-size: var(--font-size-sm); color: var(--text-secondary); width: 90px;">X (mm)</th>
+                <th style="padding: var(--space-sm); text-align: center; font-size: var(--font-size-sm); color: var(--text-secondary); width: 90px;">Y (mm)</th>
+                <th style="padding: var(--space-sm); text-align: center; font-size: var(--font-size-sm); color: var(--text-secondary); width: 70px;">Vertical</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Muescas -->
+              <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="radio" id="radioMuescas" name="elementoActivo" value="muescas" checked style="width: auto; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); color: var(--text-primary); font-weight: 500;">Muescas</td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="cantidadMuescas" name="cantidadMuescas" min="0" step="1" placeholder="0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="muescaX" name="muescaX" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="muescaY" name="muescaY" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="checkbox" id="muescasVertical" name="muescasVertical" style="width: auto; margin: 0;">
+                </td>
+              </tr>
+              
+              <!-- Illinois -->
+              <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="radio" id="radioIllinois" name="elementoActivo" value="illinois" style="width: auto; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); color: var(--text-primary); font-weight: 500;">ILLINOIS</td>
+                <td style="padding: var(--space-sm); color: var(--text-secondary); font-size: var(--font-size-sm);">266x4 mm</td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="illinoisX" name="illinoisX" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="illinoisY" name="illinoisY" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="checkbox" id="illinoisVertical" name="illinoisVertical" style="width: auto; margin: 0;">
+                </td>
+              </tr>
+              
+              <!-- Código -->
+              <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="radio" id="radioCodigo" name="elementoActivo" value="codigo" style="width: auto; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); color: var(--text-primary); font-weight: 500;">Código</td>
+                <td style="padding: var(--space-sm); color: var(--text-secondary); font-size: var(--font-size-sm);">123456 (4mm)</td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="codigoX" name="codigoX" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="codigoY" name="codigoY" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="checkbox" id="codigoVertical" name="codigoVertical" style="width: auto; margin: 0;">
+                </td>
+              </tr>
+              
+              <!-- Lote -->
+              <tr>
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="radio" id="radioLote" name="elementoActivo" value="lote" style="width: auto; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); color: var(--text-primary); font-weight: 500;">Lote</td>
+                <td style="padding: var(--space-sm); color: var(--text-secondary); font-size: var(--font-size-sm);">23-45 (4mm)</td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="loteX" name="loteX" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm);">
+                  <input type="number" id="loteY" name="loteY" step="0.1" placeholder="0.0" style="width: 100%; padding: 6px; margin: 0;">
+                </td>
+                <td style="padding: var(--space-sm); text-align: center;">
+                  <input type="checkbox" id="loteVertical" name="loteVertical" style="width: auto; margin: 0;">
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="volver()">
+            Cancelar
+          </button>
+          <button type="button" class="btn btn-secondary" id="parametrizarBtn" style="background: #495057; color: white; border: 2px solid #dc3545; display: none;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M5.5 2A1.5 1.5 0 0 1 7 3.5v9A1.5 1.5 0 0 1 5.5 14h-3A1.5 1.5 0 0 1 1 12.5v-9A1.5 1.5 0 0 1 2.5 2zm6 0A1.5 1.5 0 0 1 13 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 7 12.5v-9A1.5 1.5 0 0 1 8.5 2z"/>
+            </svg>
+            Parametrizar
+          </button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z"/>
+            </svg>
+            Guardar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    let juntaId = urlParams.get('id');
+    let mode = urlParams.get('mode'); // 'view' o 'edit'
+    let currentJuntaId = juntaId; // Variable para tracking del ID actual
+    
+    // Actualizar título con nombre compuesto
+    function updateTitulo() {
+      const nombre = document.getElementById('nombre').value.trim().toUpperCase();
+      const modelo = document.getElementById('modelo').value.trim();
+      const version = document.getElementById('version').value.trim();
+      
+      const titulo = document.getElementById('pageTitle');
+      const baseText = juntaId ? (mode === 'view' ? 'Ver Junta' : 'Editar Junta') : 'Nueva Junta';
+      
+      if (nombre && modelo && version) {
+        titulo.textContent = `${baseText} ${nombre}-${modelo}-${version}`;
+      } else {
+        titulo.textContent = baseText;
+      }
+      
+      // Mostrar botón "Editar" solo en modo "view"
+      const btnEditar = document.getElementById('btnEditar');
+      if (btnEditar) {
+        btnEditar.style.display = mode === 'view' ? 'inline-flex' : 'none';
+      }
+    }
+    
+    // Listeners para actualizar título
+    document.getElementById('nombre').addEventListener('input', updateTitulo);
+    document.getElementById('modelo').addEventListener('input', updateTitulo);
+    document.getElementById('version').addEventListener('input', updateTitulo);
+    
+    // Botón para seleccionar imagen
+    document.getElementById('selectImageBtn').addEventListener('click', function() {
+      document.getElementById('imagen').click();
+    });
+    
+    // Variables globales para las imágenes procesadas
+    let imagenFondoNegro = null;  // Para guardar
+    let imagenFondoBlanco = null; // Para análisis
+    let datosAnalisis = null;     // Datos del análisis completo
+    let imagenVisualizacion = null; // Imagen con overlay
+    let overlayVisible = false;   // Estado del toggle
+    let imagenOriginalUrl = null; // URL de la imagen original desde servidor
+    let imagenConMuescas = null;  // Imagen original + muescas dibujadas
+    let muescasVisibles = false;  // Estado de visualización de muescas
+    let imagenVisualizacionUrl = null;  // URL de la imagen coloreada (_visualizacion.jpg)
+    let mostrandoVisualizacion = false; // Estado del toggle de visualización coloreada
+    
+    // Variables para calibración manual
+    let valoresOriginales = {
+      diametro_cilindro_px: null,     // Diámetro en píxeles (calculado del área)
+      distancia_extremos_px: null,    // Distancia en píxeles
+      ancho_junta_px: null,           // Ancho del bounding box en píxeles
+      alto_junta_px: null,            // Alto del bounding box en píxeles
+      mm_por_pixel: null              // Escala original
+    };
+    
+    // Preview de imagen
+    document.getElementById('imagen').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('imagenPreviewImg').src = e.target.result;
+          document.getElementById('imagenPreview').style.display = 'block';
+          document.getElementById('imagenPlaceholder').style.display = 'none';
+          
+          // Mostrar botón Parametrizar
+          document.getElementById('parametrizarBtn').style.display = 'flex';
+          
+          // Resetear imágenes procesadas
+          imagenFondoNegro = null;
+          imagenFondoBlanco = null;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        document.getElementById('imagenPreview').style.display = 'none';
+        document.getElementById('imagenPlaceholder').style.display = 'flex';
+        document.getElementById('parametrizarBtn').style.display = 'none';
+      }
+    });
+    
+    // Función para parametrizar la imagen
+    async function parametrizarImagen() {
+      const btnParametrizar = document.getElementById('parametrizarBtn');
+      btnParametrizar.disabled = true;
+      btnParametrizar.textContent = 'Procesando...';
+      
+      try {
+        // Obtener nombre compuesto para guardar la visualización
+        const nombre = document.getElementById('nombre').value.trim().toUpperCase();
+        const modelo = document.getElementById('modelo').value.trim();
+        const version = document.getElementById('version').value.trim();
+        const nombreCompuesto = `${nombre}-${modelo}-${version}`;
+        
+        const formData = new FormData();
+        
+        // Agregar nombre de la junta
+        if (nombre && modelo && version) {
+          formData.append('nombre_junta', nombreCompuesto);
+        }
+        
+        // Agregar ID si estamos editando
+        if (juntaId) {
+          formData.append('junta_id', juntaId);
+        }
+        
+        // Si ya hay una escala calibrada manualmente, enviarla al servidor
+        if (valoresOriginales.mm_por_pixel && valoresOriginales.mm_por_pixel !== 0.1) {
+          formData.append('mm_por_pixel_manual', valoresOriginales.mm_por_pixel);
+          console.log(`[junta] Usando escala calibrada: ${valoresOriginales.mm_por_pixel.toFixed(4)} mm/px`);
+        }
+        
+        // Verificar si hay un archivo nuevo seleccionado
+        const imagenFile = document.getElementById('imagen').files[0];
+        
+        if (imagenFile) {
+          // Caso 1: Nueva imagen seleccionada desde el input
+          formData.append('imagen', imagenFile);
+          console.log('[junta] Usando imagen nueva del input');
+        } else if (imagenOriginalUrl) {
+          // Caso 2: Usar SIEMPRE la imagen original del servidor (sin muescas/textos)
+          console.log('[junta] Usando imagen ORIGINAL del servidor:', imagenOriginalUrl);
+          const imgResponse = await fetch(imagenOriginalUrl);
+          const imgBlob = await imgResponse.blob();
+          formData.append('imagen', imgBlob, 'imagen.jpg');
+        } else {
+          alert('No hay imagen para parametrizar');
+          return;
+        }
+        
+        // Enviar al servidor para procesar
+        const response = await fetch('/api/juntas/parametrizar', {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok) {
+          // Guardar las imágenes procesadas
+          imagenFondoNegro = result.imagen_fondo_negro;
+          imagenFondoBlanco = result.imagen_fondo_blanco;
+          
+          // Guardar datos del análisis
+          if (result.analisis && result.analisis.ok) {
+            datosAnalisis = result.analisis;
+            console.log('[junta] ✓ Análisis completo guardado');
+            console.log('[junta] Contorno principal:', datosAnalisis.contorno_principal);
+            console.log('[junta] Total agujeros:', datosAnalisis.agujeros.length);
+            console.log('[junta] Momentos de Hu:', datosAnalisis.momentos_hu);
+            
+            // Guardar imagen de visualización si viene en la respuesta
+            if (result.imagen_visualizacion) {
+              imagenVisualizacion = result.imagen_visualizacion;
+              console.log('[junta] ✓ Imagen de visualización recibida');
+              console.log('[junta] 💡 Haz click en la imagen para ver el overlay');
+            } else {
+              // Si no viene, solicitarla por separado (fallback)
+              solicitarVisualizacion();
+            }
+            
+            // Actualizar parámetros del motor
+            actualizarParametrosMotor(datosAnalisis);
+          } else {
+            datosAnalisis = null;
+            imagenVisualizacion = null;
+            console.log('[junta] ⚠️ No se pudo completar el análisis');
+            ocultarParametrosMotor();
+          }
+          
+          // Actualizar preview con imagen de fondo negro (la que se guardará)
+          document.getElementById('imagenPreviewImg').src = `data:image/jpeg;base64,${imagenFondoNegro}`;
+          
+          alert('✓ Imagen procesada correctamente');
+          console.log('[junta] Imagen procesada - Fondo detectado:', result.fondo_detectado);
+        } else {
+          alert('Error procesando imagen: ' + (result.error || 'Error desconocido'));
+        }
+      } catch (e) {
+        console.error('Error parametrizando imagen:', e);
+        alert('Error de conexión al parametrizar');
+      } finally {
+        btnParametrizar.disabled = false;
+        btnParametrizar.style.background = '#495057';
+        btnParametrizar.style.color = 'white';
+        btnParametrizar.style.border = '2px solid #dc3545';
+        btnParametrizar.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M5.5 2A1.5 1.5 0 0 1 7 3.5v9A1.5 1.5 0 0 1 5.5 14h-3A1.5 1.5 0 0 1 1 12.5v-9A1.5 1.5 0 0 1 2.5 2zm6 0A1.5 1.5 0 0 1 13 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 7 12.5v-9A1.5 1.5 0 0 1 8.5 2z"/>
+          </svg>
+          Parametrizar
+        `;
+      }
+    }
+    
+    // Event listener para el botón Parametrizar
+    document.getElementById('parametrizarBtn').addEventListener('click', parametrizarImagen);
+    
+    // Función para solicitar la imagen de visualización
+    async function solicitarVisualizacion() {
+      if (!imagenFondoBlanco || !datosAnalisis) {
+        console.log('[junta] No hay datos para generar visualización');
+        return;
+      }
+      
+      try {
+        console.log('[junta] Solicitando imagen de visualización...');
+        
+        const response = await fetch('/api/juntas/visualizar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            imagen_fondo_blanco: imagenFondoBlanco,
+            analisis: datosAnalisis
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok && result.imagen_visualizacion) {
+          imagenVisualizacion = result.imagen_visualizacion;
+          console.log('[junta] ✓ Imagen de visualización recibida');
+          console.log('[junta] 💡 Haz click en la imagen para ver el overlay');
+        } else {
+          console.log('[junta] ⚠️ No se pudo generar la visualización');
+        }
+      } catch (e) {
+        console.error('[junta] Error solicitando visualización:', e);
+      }
+    }
+    
+    // Función para toggle del overlay
+    function toggleOverlay() {
+      if (!imagenVisualizacion) {
+        console.log('[junta] No hay visualización disponible. Ejecuta "Parametrizar" primero.');
+        return;
+      }
+      
+      const imgPreview = document.getElementById('imagenPreviewImg');
+      overlayVisible = !overlayVisible;
+      
+      if (overlayVisible) {
+        // Mostrar imagen con overlay
+        imgPreview.src = `data:image/jpeg;base64,${imagenVisualizacion}`;
+        console.log('[junta] ✓ Overlay VISIBLE');
+      } else {
+        // Mostrar imagen original con elementos (muescas + textos)
+        if (imagenConMuescas) {
+          // Si tenemos imagen con elementos, mostrarla
+          imgPreview.src = `data:image/jpeg;base64,${imagenConMuescas}`;
+          muescasVisibles = true;
+          console.log('[junta] ✓ Overlay OCULTO - Mostrando imagen con elementos');
+        } else if (imagenFondoNegro) {
+          // Si tenemos la imagen en base64 (recién parametrizada)
+          imgPreview.src = `data:image/jpeg;base64,${imagenFondoNegro}`;
+          console.log('[junta] ✓ Overlay OCULTO (desde memoria)');
+        } else if (imagenOriginalUrl) {
+          // Si tenemos la URL de la imagen original guardada
+          imgPreview.src = imagenOriginalUrl;
+          console.log('[junta] ✓ Overlay OCULTO (desde servidor)');
+        } else {
+          console.log('[junta] ⚠️ No se pudo encontrar la imagen original');
+        }
+        
+        // Si hay análisis, recargar imagen con elementos por si se perdió
+        if (datosAnalisis && !imagenConMuescas && currentJuntaId) {
+          console.log('[junta] Recargando imagen con elementos...');
+          cargarImagenConMuescas(currentJuntaId);
+        }
+      }
+    }
+    
+    // Event listener para toggle con click en la imagen
+    document.getElementById('imagenPreviewImg').addEventListener('click', function() {
+      // Si estamos en modo VIEW, no permitir edición de rueda
+      if (mode === 'view' && !imagenVisualizacionUrl) {
+        console.log('[imagen] No hay visualización disponible para mostrar');
+        return;
+      }
+      
+      // Si estamos en modo EDIT y no hay rueda presionada, alternar visualización
+      if (!event.button || event.button === 0) {
+        // Click izquierdo normal
+        if (imagenVisualizacionUrl) {
+          mostrandoVisualizacion = !mostrandoVisualizacion;
+          
+          if (mostrandoVisualizacion) {
+            document.getElementById('imagenPreviewImg').src = imagenVisualizacionUrl;
+            console.log('[imagen] ✓ Mostrando imagen coloreada');
+          } else {
+            document.getElementById('imagenPreviewImg').src = imagenOriginalUrl || '';
+            console.log('[imagen] ✓ Mostrando imagen original');
+          }
+        } else {
+          console.log('[imagen] ℹ️ No hay imagen coloreada disponible');
+        }
+      }
+    });
+    
+    // Event listener para click de rueda (middle mouse button) - mover muescas
+    document.getElementById('imagenPreviewImg').addEventListener('mousedown', function(e) {
+      console.log(`[debug] mousedown event detectado - button: ${e.button}`);
+      
+      // Botón de rueda = button 1
+      if (e.button === 1) {
+        console.log('[debug] ✓ Es click de rueda (button 1)');
+        e.preventDefault();
+        
+        // Deshabilitar en modo "view"
+        if (mode === 'view') {
+          console.log('[elemento] Click de rueda deshabilitado en modo VIEW');
+          return;
+        }
+        
+        if (!datosAnalisis || !datosAnalisis.linea_referencia) {
+          console.log('[muescas] No hay análisis disponible para calcular posición');
+          return;
+        }
+        
+        // Obtener coordenadas del click relativas a la imagen
+        const rect = this.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        
+        // Obtener dimensiones reales de la imagen
+        const imgWidth = this.naturalWidth;
+        const imgHeight = this.naturalHeight;
+        const displayWidth = rect.width;
+        const displayHeight = rect.height;
+        
+        // Convertir coordenadas de display a coordenadas de imagen real
+        const scaleX = imgWidth / displayWidth;
+        const scaleY = imgHeight / displayHeight;
+        const imagenX = clickX * scaleX;
+        const imagenY = clickY * scaleY;
+        
+        // Obtener punto medio del segmento rojo (origen)
+        const puntoMedio = datosAnalisis.linea_referencia.punto_medio_px;
+        
+        if (!puntoMedio || !Array.isArray(puntoMedio) || puntoMedio.length < 2) {
+          console.log('[elemento] ❌ Punto medio no disponible o inválido:', puntoMedio);
+          return;
+        }
+        
+        const origenX = puntoMedio[0];
+        const origenY = puntoMedio[1];
+        
+        // Calcular coordenadas relativas al origen en píxeles
+        const relX_px = imagenX - origenX;
+        const relY_px = origenY - imagenY;  // Invertir Y (arriba es positivo)
+        
+        // Convertir a milímetros
+        const mm_por_pixel = datosAnalisis.parametros.mm_por_pixel;
+        const relX_mm = relX_px * mm_por_pixel;
+        const relY_mm = relY_px * mm_por_pixel;
+        
+        // Detectar qué elemento está seleccionado
+        const elementoActivo = document.querySelector('input[name="elementoActivo"]:checked').value;
+        
+        console.log(`[elemento] ✓ Click de rueda detectado - Elemento: ${elementoActivo}`);
+        console.log(`[elemento]   Posición en imagen: (${imagenX.toFixed(0)}, ${imagenY.toFixed(0)}) px`);
+        console.log(`[elemento]   Posición relativa: (${relX_px.toFixed(0)}, ${relY_px.toFixed(0)}) px`);
+        console.log(`[elemento]   Posición en mm: (${relX_mm.toFixed(1)}, ${relY_mm.toFixed(1)}) mm`);
+        
+        // Actualizar campos X e Y del elemento seleccionado
+        switch(elementoActivo) {
+          case 'muescas':
+            document.getElementById('muescaX').value = relX_mm.toFixed(1);
+            document.getElementById('muescaY').value = relY_mm.toFixed(1);
+            console.log('[muescas] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real (incluye todos los elementos)
+            actualizarMuescasEnTiempoReal();
+            break;
+            
+          case 'illinois':
+            document.getElementById('illinoisX').value = relX_mm.toFixed(1);
+            document.getElementById('illinoisY').value = relY_mm.toFixed(1);
+            console.log('[illinois] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real
+            actualizarMuescasEnTiempoReal();
+            break;
+            
+          case 'codigo':
+            document.getElementById('codigoX').value = relX_mm.toFixed(1);
+            document.getElementById('codigoY').value = relY_mm.toFixed(1);
+            console.log('[codigo] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real
+            actualizarMuescasEnTiempoReal();
+            break;
+            
+          case 'lote':
+            document.getElementById('loteX').value = relX_mm.toFixed(1);
+            document.getElementById('loteY').value = relY_mm.toFixed(1);
+            console.log('[lote] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real
+            actualizarMuescasEnTiempoReal();
+            break;
+        }
+      }
+    });
+    
+    // Función para actualizar parámetros del motor
+    function actualizarParametrosMotor(analisis) {
+      console.log('[junta] actualizarParametrosMotor llamada con:', analisis);
+      
+      if (!analisis || !analisis.ok) {
+        console.log('[junta] Análisis inválido o no OK, ocultando parámetros');
+        ocultarParametrosMotor();
+        return;
+      }
+      
+      const agujeros = analisis.agujeros || [];
+      const agujeros_grandes = agujeros.filter(a => a.clasificacion === 'Redondo Grande');
+      
+      console.log('[junta] Total agujeros:', agujeros.length);
+      console.log('[junta] Agujeros grandes:', agujeros_grandes.length);
+      
+      if (agujeros_grandes.length === 0) {
+        console.log('[junta] No hay agujeros grandes detectados, ocultando parámetros');
+        ocultarParametrosMotor();
+        return;
+      }
+      
+      // Calcular cantidad de cilindros
+      const cantidadCilindros = agujeros_grandes.length;
+      
+      // Calcular diámetro promedio de los agujeros grandes EN PÍXELES
+      // Diámetro_px = 2 × √(área_px / π)
+      let sumaDiametrosPx = 0;
+      for (const agujero of agujeros_grandes) {
+        const radio_px = Math.sqrt(agujero.area_px / Math.PI);
+        const diametro_px = 2 * radio_px;
+        sumaDiametrosPx += diametro_px;
+      }
+      const diametroPromedioPx = sumaDiametrosPx / agujeros_grandes.length;
+      
+      // Convertir a mm usando la escala actual
+      const mm_por_pixel = analisis.parametros.mm_por_pixel;
+      const diametroPromedioMm = diametroPromedioPx * mm_por_pixel;
+      
+      // Obtener distancia entre cilindros extremos
+      const lineaReferencia = analisis.linea_referencia;
+      let distanciaExtremosPx = 0;
+      let distanciaExtremosMm = 0;
+      
+      if (lineaReferencia) {
+        distanciaExtremosPx = lineaReferencia.distancia_px || 0;
+        distanciaExtremosMm = lineaReferencia.distancia_mm || 0;
+      }
+      
+      // Obtener dimensiones de la junta (bounding box del contorno principal)
+      const contornoPrincipal = analisis.contorno_principal;
+      const anchoJuntaPx = contornoPrincipal.bbox_width_px || 0;
+      const altoJuntaPx = contornoPrincipal.bbox_height_px || 0;
+      const anchoJuntaMm = anchoJuntaPx * mm_por_pixel;
+      const altoJuntaMm = altoJuntaPx * mm_por_pixel;
+      
+      // Guardar valores originales en píxeles para recalibración
+      valoresOriginales.diametro_cilindro_px = diametroPromedioPx;
+      valoresOriginales.distancia_extremos_px = distanciaExtremosPx;
+      valoresOriginales.ancho_junta_px = anchoJuntaPx;
+      valoresOriginales.alto_junta_px = altoJuntaPx;
+      valoresOriginales.mm_por_pixel = mm_por_pixel;
+      
+      // Actualizar campos
+      document.getElementById('cantidadCilindros').value = cantidadCilindros;
+      document.getElementById('diametroCilindro').value = diametroPromedioMm.toFixed(2);
+      document.getElementById('distanciaCilindrosExtremos').value = distanciaExtremosMm.toFixed(2);
+      document.getElementById('anchoJunta').value = anchoJuntaMm.toFixed(2);
+      document.getElementById('altoJunta').value = altoJuntaMm.toFixed(2);
+      
+      // Mostrar sección
+      document.getElementById('seccion-parametros').style.display = 'block';
+      
+      console.log('[junta] ✓ Parámetros del motor actualizados:');
+      console.log(`[junta]   Cantidad cilindros: ${cantidadCilindros}`);
+      console.log(`[junta]   Diámetro promedio: ${diametroPromedioMm.toFixed(2)} mm (${diametroPromedioPx.toFixed(2)} px)`);
+      console.log(`[junta]   Distancia extremos: ${distanciaExtremosMm.toFixed(2)} mm (${distanciaExtremosPx.toFixed(2)} px)`);
+      console.log(`[junta]   Ancho junta: ${anchoJuntaMm.toFixed(2)} mm (${anchoJuntaPx.toFixed(2)} px)`);
+      console.log(`[junta]   Alto junta: ${altoJuntaMm.toFixed(2)} mm (${altoJuntaPx.toFixed(2)} px)`);
+      console.log(`[junta]   Escala: ${mm_por_pixel.toFixed(4)} mm/px`);
+    }
+    
+    // Función para ocultar parámetros del motor
+    function ocultarParametrosMotor() {
+      document.getElementById('seccion-parametros').style.display = 'none';
+      document.getElementById('cantidadCilindros').value = '';
+      document.getElementById('diametroCilindro').value = '';
+      document.getElementById('distanciaCilindrosExtremos').value = '';
+      document.getElementById('anchoJunta').value = '';
+      document.getElementById('altoJunta').value = '';
+    }
+    
+    /**
+     * SISTEMA DE RECALIBRACIÓN MANUAL
+     * 
+     * Permite ajustar la escala mm/px forzando un valor conocido manualmente
+     * y recalculando todos los demás parámetros en consecuencia.
+     */
+    function recalibrarEscala(tipoMedida, valorRealMm) {
+      if (!datosAnalisis || !datosAnalisis.ok) {
+        console.log('[calibración] No hay análisis disponible para recalibrar');
+        return;
+      }
+      
+      let valorPx = null;
+      
+      // Obtener el valor en píxeles según el tipo de medida
+      switch(tipoMedida) {
+        case 'diametro_cilindro':
+          valorPx = valoresOriginales.diametro_cilindro_px;
+          break;
+        case 'distancia_extremos':
+          valorPx = valoresOriginales.distancia_extremos_px;
+          break;
+        case 'ancho_junta':
+          valorPx = valoresOriginales.ancho_junta_px;
+          break;
+        case 'alto_junta':
+          valorPx = valoresOriginales.alto_junta_px;
+          break;
+        default:
+          console.error('[calibración] Tipo de medida desconocido:', tipoMedida);
+          return;
+      }
+      
+      if (!valorPx || valorPx <= 0) {
+        console.error('[calibración] Valor en píxeles inválido:', valorPx);
+        return;
+      }
+      
+      // Calcular nueva escala: mm/px = mm_real / px_medido
+      const nuevaEscala = valorRealMm / valorPx;
+      
+      console.log(`[calibración] Recalibrando usando ${tipoMedida}:`);
+      console.log(`[calibración]   Valor real ingresado: ${valorRealMm} mm`);
+      console.log(`[calibración]   Valor medido: ${valorPx.toFixed(2)} px`);
+      console.log(`[calibración]   Escala anterior: ${valoresOriginales.mm_por_pixel.toFixed(4)} mm/px`);
+      console.log(`[calibración]   Escala nueva: ${nuevaEscala.toFixed(4)} mm/px`);
+      
+      // Actualizar escala en los datos de análisis
+      datosAnalisis.parametros.mm_por_pixel = nuevaEscala;
+      valoresOriginales.mm_por_pixel = nuevaEscala;
+      
+      // Recalcular TODOS los valores en mm con la nueva escala
+      recalcularTodosLosParametros();
+    }
+    
+    function recalcularTodosLosParametros() {
+      if (!datosAnalisis || !datosAnalisis.ok) return;
+      
+      const nuevaEscala = datosAnalisis.parametros.mm_por_pixel;
+      
+      // Recalcular diámetro de cilindro
+      if (valoresOriginales.diametro_cilindro_px) {
+        const diametroMm = valoresOriginales.diametro_cilindro_px * nuevaEscala;
+        document.getElementById('diametroCilindro').value = diametroMm.toFixed(2);
+      }
+      
+      // Recalcular distancia extremos
+      if (valoresOriginales.distancia_extremos_px) {
+        const distanciaMm = valoresOriginales.distancia_extremos_px * nuevaEscala;
+        document.getElementById('distanciaCilindrosExtremos').value = distanciaMm.toFixed(2);
+      }
+      
+      // Recalcular ancho de junta
+      if (valoresOriginales.ancho_junta_px) {
+        const anchoMm = valoresOriginales.ancho_junta_px * nuevaEscala;
+        document.getElementById('anchoJunta').value = anchoMm.toFixed(2);
+      }
+      
+      // Recalcular alto de junta
+      if (valoresOriginales.alto_junta_px) {
+        const altoMm = valoresOriginales.alto_junta_px * nuevaEscala;
+        document.getElementById('altoJunta').value = altoMm.toFixed(2);
+      }
+      
+      // Recalcular todos los datos del análisis
+      recalcularAnalisisCompleto(nuevaEscala);
+      
+      console.log('[calibración] ✓ Todos los parámetros recalculados con nueva escala');
+    }
+    
+    function recalcularAnalisisCompleto(nuevaEscala) {
+      if (!datosAnalisis || !datosAnalisis.ok) return;
+      
+      // Recalcular contorno principal
+      if (datosAnalisis.contorno_principal) {
+        const cp = datosAnalisis.contorno_principal;
+        cp.area_mm2 = cp.area_px * (nuevaEscala ** 2);
+        cp.perimetro_mm = cp.perimetro_px * nuevaEscala;
+        cp.centroide_mm = [cp.centroide_px[0] * nuevaEscala, cp.centroide_px[1] * nuevaEscala];
+        cp.bbox_width_mm = cp.bbox_width_px * nuevaEscala;
+        cp.bbox_height_mm = cp.bbox_height_px * nuevaEscala;
+      }
+      
+      // Recalcular agujeros
+      if (datosAnalisis.agujeros) {
+        for (const agujero of datosAnalisis.agujeros) {
+          agujero.area_mm2 = agujero.area_px * (nuevaEscala ** 2);
+          agujero.perimeter_mm = agujero.perimeter_px * nuevaEscala;
+        }
+      }
+      
+      // Recalcular línea de referencia
+      if (datosAnalisis.linea_referencia) {
+        const lr = datosAnalisis.linea_referencia;
+        lr.distancia_mm = lr.distancia_px * nuevaEscala;
+      }
+      
+      console.log('[calibración] ✓ Datos de análisis recalculados');
+    }
+    
+    // Event listeners para campos ajustables
+    document.getElementById('diametroCilindro').addEventListener('change', function() {
+      const nuevoValor = parseFloat(this.value);
+      if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        recalibrarEscala('diametro_cilindro', nuevoValor);
+      }
+    });
+    
+    document.getElementById('distanciaCilindrosExtremos').addEventListener('change', function() {
+      const nuevoValor = parseFloat(this.value);
+      if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        recalibrarEscala('distancia_extremos', nuevoValor);
+      }
+    });
+    
+    document.getElementById('anchoJunta').addEventListener('change', function() {
+      const nuevoValor = parseFloat(this.value);
+      if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        recalibrarEscala('ancho_junta', nuevoValor);
+      }
+    });
+    
+    document.getElementById('altoJunta').addEventListener('change', function() {
+      const nuevoValor = parseFloat(this.value);
+      if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        recalibrarEscala('alto_junta', nuevoValor);
+      }
+    });
+    
+    // Función para cargar imagen con muescas (con parámetros opcionales para tiempo real)
+    async function cargarImagenConMuescas(juntaId, parametrosCustom = null) {
+      try {
+        if (parametrosCustom) {
+          console.log('[muescas] Actualizando muescas en tiempo real...', parametrosCustom);
+        } else {
+          console.log('[muescas] Cargando imagen con muescas...');
+        }
+        
+        // Verificar que tengamos análisis
+        if (!datosAnalisis) {
+          console.log('[muescas] ⚠️ No hay análisis disponible aún');
+          return;
+        }
+        
+        let response;
+        
+        if (parametrosCustom) {
+          // POST con parámetros personalizados (tiempo real)
+          response = await fetch(`/api/juntas/${juntaId}/imagen_con_muescas`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(parametrosCustom)
+          });
+        } else {
+          // GET con parámetros de la BD
+          response = await fetch(`/api/juntas/${juntaId}/imagen_con_muescas`);
+        }
+        
+        const result = await response.json();
+        
+        console.log('[muescas] Respuesta del servidor:', result);
+        
+        if (result.ok && result.imagen_con_muescas) {
+          imagenConMuescas = result.imagen_con_muescas;
+          
+          // Mostrar imagen con muescas (solo si no hay overlay activo)
+          if (!overlayVisible) {
+            document.getElementById('imagenPreviewImg').src = `data:image/jpeg;base64,${imagenConMuescas}`;
+            muescasVisibles = true;
+            console.log('[muescas] ✓ Imagen actualizada en preview');
+          } else {
+            console.log('[muescas] ℹ️ Overlay activo, muescas guardadas pero no mostradas');
+          }
+          
+          if (parametrosCustom) {
+            console.log('[muescas] ✓ Muescas actualizadas en tiempo real');
+          } else {
+            console.log('[muescas] ✓ Imagen con muescas cargada');
+          }
+        } else {
+          console.log('[muescas] ❌ Error:', result.error);
+        }
+      } catch (e) {
+        console.error('[muescas] ❌ Excepción:', e);
+      }
+    }
+    
+    // Event listeners para actualización en tiempo real de muescas
+    let timeoutMuescas = null;
+    
+    function actualizarMuescasEnTiempoReal() {
+      if (!juntaId || !datosAnalisis) {
+        return;
+      }
+      
+      // Debounce - esperar 500ms después del último cambio
+      clearTimeout(timeoutMuescas);
+      timeoutMuescas = setTimeout(() => {
+        // Helper para parsear valores (solo convertir si NO está vacío)
+        function parseValue(elementId) {
+          const value = document.getElementById(elementId).value;
+          if (value === '' || value === null || value === undefined) {
+            return null;  // No enviar si está vacío
+          }
+          return parseFloat(value);
+        }
+        
+        const cantidad = parseInt(document.getElementById('cantidadMuescas').value) || 0;
+        const x = parseValue('muescaX');
+        const y = parseValue('muescaY');
+        const vertical = document.getElementById('muescasVertical').checked;
+        
+        // Obtener datos de otros elementos
+        const illinoisX = parseValue('illinoisX');
+        const illinoisY = parseValue('illinoisY');
+        const illinoisVertical = document.getElementById('illinoisVertical').checked;
+        
+        const codigoX = parseValue('codigoX');
+        const codigoY = parseValue('codigoY');
+        const codigoVertical = document.getElementById('codigoVertical').checked;
+        
+        const loteX = parseValue('loteX');
+        const loteY = parseValue('loteY');
+        const loteVertical = document.getElementById('loteVertical').checked;
+        
+        // Siempre llamar, incluso si cantidad es 0 (para mostrar textos)
+        cargarImagenConMuescas(juntaId, {
+          cantidad_muescas: cantidad,
+          muesca_x: x,
+          muesca_y: y,
+          vertical: vertical,
+          illinois_x: illinoisX,
+          illinois_y: illinoisY,
+          illinois_vertical: illinoisVertical,
+          codigo_x: codigoX,
+          codigo_y: codigoY,
+          codigo_vertical: codigoVertical,
+          lote_x: loteX,
+          lote_y: loteY,
+          lote_vertical: loteVertical
+        });
+      }, 500);
+    }
+    
+    // Función para habilitar/deshabilitar campos de muescas según la cantidad
+    function actualizarEstadoCamposMuescas() {
+      const cantidad = parseInt(document.getElementById('cantidadMuescas').value) || 0;
+      const deshabilitado = cantidad === 0;
+      
+      document.getElementById('muescaX').disabled = deshabilitado;
+      document.getElementById('muescaY').disabled = deshabilitado;
+      document.getElementById('muescasVertical').disabled = deshabilitado;
+      
+      if (deshabilitado) {
+        document.getElementById('muescaX').style.background = 'var(--bg-secondary)';
+        document.getElementById('muescaY').style.background = 'var(--bg-secondary)';
+      } else {
+        document.getElementById('muescaX').style.background = 'var(--bg-primary)';
+        document.getElementById('muescaY').style.background = 'var(--bg-primary)';
+      }
+    }
+    
+    // Event listeners para todos los elementos (muescas, illinois, codigo, lote)
+    document.getElementById('cantidadMuescas').addEventListener('input', function() {
+      actualizarEstadoCamposMuescas();
+      actualizarMuescasEnTiempoReal();
+    });
+    document.getElementById('muescaX').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('muescaY').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('muescasVertical').addEventListener('change', actualizarMuescasEnTiempoReal);
+    
+    document.getElementById('illinoisX').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('illinoisY').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('illinoisVertical').addEventListener('change', actualizarMuescasEnTiempoReal);
+    
+    document.getElementById('codigoX').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('codigoY').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('codigoVertical').addEventListener('change', actualizarMuescasEnTiempoReal);
+    
+    document.getElementById('loteX').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('loteY').addEventListener('input', actualizarMuescasEnTiempoReal);
+    document.getElementById('loteVertical').addEventListener('change', actualizarMuescasEnTiempoReal);
+    
+    // Función para cargar análisis guardado
+    async function cargarAnalisis(juntaId) {
+      try {
+        console.log('[junta] Cargando análisis guardado para junta ID:', juntaId);
+        
+        const response = await fetch(`/api/juntas/${juntaId}/analisis`);
+        const result = await response.json();
+        
+        console.log('[junta] Respuesta del servidor:', result);
+        
+        if (result.ok && result.analisis) {
+          datosAnalisis = result.analisis;
+          console.log('[junta] ✓ Análisis cargado desde archivo');
+          console.log('[junta] Datos del análisis:', datosAnalisis);
+          
+          // Actualizar parámetros del motor
+          console.log('[junta] Llamando a actualizarParametrosMotor...');
+          actualizarParametrosMotor(datosAnalisis);
+        } else {
+          console.log('[junta] ℹ️ No hay análisis guardado o error:', result.error);
+        }
+      } catch (e) {
+        console.error('[junta] Error cargando análisis:', e);
+      }
+    }
+    
+    // Función para cargar visualización guardada
+    async function cargarVisualizacion(juntaId) {
+      try {
+        console.log('[junta] Cargando visualización guardada...');
+        
+        const response = await fetch(`/api/juntas/${juntaId}/visualizacion`);
+        const result = await response.json();
+        
+        if (result.ok && result.imagen_visualizacion) {
+          imagenVisualizacion = result.imagen_visualizacion;
+          console.log('[junta] ✓ Visualización cargada desde archivo');
+          console.log('[junta] 💡 Haz click en la imagen para ver el overlay');
+        } else {
+          console.log('[junta] ℹ️ No hay visualización guardada');
+        }
+      } catch (e) {
+        console.error('[junta] Error cargando visualización:', e);
+      }
+    }
+    
+    async function loadJunta() {
+      if (!juntaId) {
+        // Modo creación
+        updateTitulo();
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/juntas/${juntaId}`);
+        const data = await response.json();
+        
+        if (data.ok) {
+          const junta = data.junta;
+          
+          // Separar nombre compuesto
+          const partes = junta.nombre.split('-');
+          if (partes.length === 3) {
+            document.getElementById('nombre').value = partes[0];
+            document.getElementById('modelo').value = partes[1];
+            document.getElementById('version').value = partes[2];
+          }
+          
+          updateTitulo();
+          
+          // Cargar datos adicionales (muescas)
+          if (junta.cantidad_muescas !== undefined) {
+            document.getElementById('cantidadMuescas').value = junta.cantidad_muescas;
+          }
+          
+          // Extraer coordenadas de la primera muesca desde centros_muescas
+          if (junta.centros_muescas && junta.centros_muescas.length > 0) {
+            const primerCentro = junta.centros_muescas[0].centro_mm;
+            document.getElementById('muescaX').value = primerCentro[0];
+            document.getElementById('muescaY').value = primerCentro[1];
+          }
+          
+          if (junta.muescas_vertical !== undefined) {
+            document.getElementById('muescasVertical').checked = junta.muescas_vertical;
+          }
+          
+          // Actualizar estado de campos de muescas
+          actualizarEstadoCamposMuescas();
+          
+          // Cargar datos de ILLINOIS
+          if (junta.illinois_x !== undefined && junta.illinois_x !== null) {
+            document.getElementById('illinoisX').value = junta.illinois_x;
+          }
+          if (junta.illinois_y !== undefined && junta.illinois_y !== null) {
+            document.getElementById('illinoisY').value = junta.illinois_y;
+          }
+          if (junta.illinois_vertical !== undefined) {
+            document.getElementById('illinoisVertical').checked = junta.illinois_vertical;
+          }
+          
+          // Cargar datos de Código
+          if (junta.codigo_x !== undefined && junta.codigo_x !== null) {
+            document.getElementById('codigoX').value = junta.codigo_x;
+          }
+          if (junta.codigo_y !== undefined && junta.codigo_y !== null) {
+            document.getElementById('codigoY').value = junta.codigo_y;
+          }
+          if (junta.codigo_vertical !== undefined) {
+            document.getElementById('codigoVertical').checked = junta.codigo_vertical;
+          }
+          
+          // Cargar datos de Lote
+          if (junta.lote_x !== undefined && junta.lote_x !== null) {
+            document.getElementById('loteX').value = junta.lote_x;
+          }
+          if (junta.lote_y !== undefined && junta.lote_y !== null) {
+            document.getElementById('loteY').value = junta.lote_y;
+          }
+          if (junta.lote_vertical !== undefined) {
+            document.getElementById('loteVertical').checked = junta.lote_vertical;
+          }
+          
+          // Mostrar imagen si existe
+          if (junta.imagen) {
+            // Guardar URL de la imagen original
+            imagenOriginalUrl = `/imagenes_juntas/${junta.imagen}`;
+            
+            document.getElementById('imagenPreviewImg').src = imagenOriginalUrl;
+            document.getElementById('imagenPreview').style.display = 'block';
+            document.getElementById('imagenPlaceholder').style.display = 'none';
+            
+            // Construir URL de la imagen de visualización coloreada
+            const juntaNombre = junta.nombre;
+            imagenVisualizacionUrl = `/juntas_analisis/${juntaNombre}_visualizacion.jpg`;
+            
+            // Verificar si la imagen de visualización existe (hacer un HEAD request)
+            fetch(imagenVisualizacionUrl, { method: 'HEAD' })
+              .then(response => {
+                if (response.ok) {
+                  console.log('[junta] ✓ Imagen de visualización encontrada');
+                } else {
+                  console.log('[junta] ℹ️ Imagen de visualización no disponible aún');
+                  imagenVisualizacionUrl = null;
+                }
+              })
+              .catch(() => {
+                console.log('[junta] ℹ️ Imagen de visualización no disponible');
+                imagenVisualizacionUrl = null;
+              });
+            
+            // Mostrar botón Parametrizar si hay imagen y estamos en modo edición
+            if (mode === 'edit') {
+              document.getElementById('parametrizarBtn').style.display = 'flex';
+            }
+            
+            // Cargar visualización y análisis si existe
+            if (junta.tiene_analisis) {
+              cargarVisualizacion(junta.id);
+              
+              // Cargar análisis primero, luego SIEMPRE cargar imagen con elementos
+              cargarAnalisis(junta.id).then(() => {
+                // SIEMPRE cargar imagen con elementos (muescas + textos)
+                console.log('[junta] Iniciando carga de imagen con elementos...');
+                cargarImagenConMuescas(junta.id);
+              });
+            } else {
+              console.log('[junta] No tiene análisis, no se pueden cargar muescas');
+            }
+          } else {
+            document.getElementById('imagenPreview').style.display = 'none';
+            document.getElementById('imagenPlaceholder').style.display = 'flex';
+          }
+          
+          // Deshabilitar TODOS los campos en modo ver
+          if (mode === 'view') {
+            // Datos básicos
+            document.getElementById('nombre').disabled = true;
+            document.getElementById('modelo').disabled = true;
+            document.getElementById('version').disabled = true;
+            
+            // Muescas
+            document.getElementById('cantidadMuescas').disabled = true;
+            document.getElementById('muescaX').disabled = true;
+            document.getElementById('muescaY').disabled = true;
+            document.getElementById('muescasVertical').disabled = true;
+            
+            // Illinois
+            document.getElementById('illinoisX').disabled = true;
+            document.getElementById('illinoisY').disabled = true;
+            document.getElementById('illinoisVertical').disabled = true;
+            
+            // Código
+            document.getElementById('codigoX').disabled = true;
+            document.getElementById('codigoY').disabled = true;
+            document.getElementById('codigoVertical').disabled = true;
+            
+            // Lote
+            document.getElementById('loteX').disabled = true;
+            document.getElementById('loteY').disabled = true;
+            document.getElementById('loteVertical').disabled = true;
+            
+            // Parámetros del motor (si están visibles)
+            document.getElementById('cantidadCilindros').disabled = true;
+            document.getElementById('diametroCilindro').disabled = true;
+            document.getElementById('distanciaCilindrosExtremos').disabled = true;
+            document.getElementById('anchoJunta').disabled = true;
+            document.getElementById('altoJunta').disabled = true;
+            
+            // Deshabilitar radiobuttons
+            document.getElementById('radioMuescas').disabled = true;
+            document.getElementById('radioIllinois').disabled = true;
+            document.getElementById('radioCodigo').disabled = true;
+            document.getElementById('radioLote').disabled = true;
+            
+            // Ocultar columna "Select" completa en la tabla de elementos
+            const tablaElementos = document.querySelector('#seccion-elementos table');
+            if (tablaElementos) {
+              // Ocultar header "Select"
+              const thSelect = tablaElementos.querySelector('thead tr th:first-child');
+              if (thSelect) thSelect.style.display = 'none';
+              
+              // Ocultar todas las celdas de radiobuttons
+              const tdsSelect = tablaElementos.querySelectorAll('tbody tr td:first-child');
+              tdsSelect.forEach(td => td.style.display = 'none');
+            }
+            
+            // Ocultar botones de acción
+            document.getElementById('selectImageBtn').style.display = 'none';
+            document.getElementById('parametrizarBtn').style.display = 'none';
+            document.getElementById('submitBtn').style.display = 'none';
+          }
+        }
+      } catch (e) {
+        console.error('Error cargando junta:', e);
+        alert('Error al cargar la junta');
+        volver();
+      }
+    }
+    
+    document.getElementById('juntaForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const nombre = document.getElementById('nombre').value.trim().toUpperCase();
+      const modelo = document.getElementById('modelo').value.trim();
+      const version = document.getElementById('version').value.trim();
+      
+      if (!nombre || !modelo || !version) {
+        alert('Por favor completa todos los campos del nombre');
+        return;
+      }
+      
+      const nombreCompuesto = `${nombre}-${modelo}-${version}`;
+      
+      // Crear FormData para enviar archivo
+      const formData = new FormData();
+      formData.append('nombre', nombreCompuesto);
+      
+      // Agregar datos adicionales (muescas y textos)
+      const cantidadMuescas = document.getElementById('cantidadMuescas').value;
+      const muescaX = document.getElementById('muescaX').value;
+      const muescaY = document.getElementById('muescaY').value;
+      const muescasVertical = document.getElementById('muescasVertical').checked;
+      
+      if (cantidadMuescas) formData.append('cantidadMuescas', cantidadMuescas);
+      if (muescaX) formData.append('muescaX', muescaX);
+      if (muescaY) formData.append('muescaY', muescaY);
+      formData.append('muescasVertical', muescasVertical ? 'true' : 'false');
+      
+      // Agregar datos de ILLINOIS (SIEMPRE, incluso si están vacíos)
+      const illinoisX = document.getElementById('illinoisX').value;
+      const illinoisY = document.getElementById('illinoisY').value;
+      const illinoisVertical = document.getElementById('illinoisVertical').checked;
+      
+      formData.append('illinoisX', illinoisX || '0');
+      formData.append('illinoisY', illinoisY || '0');
+      formData.append('illinoisVertical', illinoisVertical ? 'true' : 'false');
+      
+      // Agregar datos de Código (SIEMPRE, incluso si están vacíos)
+      const codigoX = document.getElementById('codigoX').value;
+      const codigoY = document.getElementById('codigoY').value;
+      const codigoVertical = document.getElementById('codigoVertical').checked;
+      
+      formData.append('codigoX', codigoX || '0');
+      formData.append('codigoY', codigoY || '0');
+      formData.append('codigoVertical', codigoVertical ? 'true' : 'false');
+      
+      // Agregar datos de Lote (SIEMPRE, incluso si están vacíos)
+      const loteX = document.getElementById('loteX').value;
+      const loteY = document.getElementById('loteY').value;
+      const loteVertical = document.getElementById('loteVertical').checked;
+      
+      formData.append('loteX', loteX || '0');
+      formData.append('loteY', loteY || '0');
+      formData.append('loteVertical', loteVertical ? 'true' : 'false');
+      
+      // Si hay imagen procesada (fondo negro), usarla; si no, usar la original
+      if (imagenFondoNegro) {
+        // Convertir base64 a Blob
+        const byteString = atob(imagenFondoNegro);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: 'image/jpeg' });
+        formData.append('imagen', blob, `${nombreCompuesto}.jpg`);
+      } else {
+        const imagenFile = document.getElementById('imagen').files[0];
+        if (imagenFile) {
+          formData.append('imagen', imagenFile);
+        }
+      }
+      
+      // Si hay datos de análisis, incluirlos
+      if (datosAnalisis) {
+        formData.append('analisis', JSON.stringify(datosAnalisis));
+        console.log('[junta] Incluyendo datos de análisis en la junta');
+      }
+      
+      try {
+        let response;
+        if (juntaId && mode === 'edit') {
+          // Actualizar junta existente
+          response = await fetch(`/api/juntas/${juntaId}`, {
+            method: 'PUT',
+            body: formData
+          });
+        } else {
+          // Crear nueva junta
+          response = await fetch('/api/juntas', {
+            method: 'POST',
+            body: formData
+          });
+        }
+        
+        const result = await response.json();
+        if (result.ok) {
+          // Mostrar mensaje de éxito
+          const mensaje = juntaId ? '✓ Junta actualizada correctamente' : '✓ Junta creada correctamente';
+          alert(mensaje);
+          
+          // Si estábamos creando (sin ID), actualizar la URL para modo edición
+          if (!juntaId && result.junta && result.junta.id) {
+            console.log('[junta] Junta creada con ID:', result.junta.id);
+            // Actualizar URL sin recargar (pasar a modo edición)
+            const newUrl = `/templates/junta.html?id=${result.junta.id}&mode=edit`;
+            window.history.pushState({}, '', newUrl);
+            // Actualizar variables globales
+            juntaId = result.junta.id;
+            currentJuntaId = result.junta.id;
+            mode = 'edit';
+            // Actualizar título
+            updateTitulo();
+          }
+          
+          // NO volver, quedarse en la página
+        } else {
+          alert('Error al guardar la junta: ' + (result.message || 'Error desconocido'));
+        }
+      } catch (e) {
+        console.error('Error guardando junta:', e);
+        alert('Error de conexión');
+      }
+    });
+    
+    function volver() {
+      window.location.href = '/templates/database.html';
+    }
+    
+    function irAEditar() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const id = urlParams.get('id');
+      if (id) {
+        window.location.href = `/templates/junta.html?id=${id}&mode=edit`;
+      }
+    }
+    
+    // Cargar datos si estamos editando o viendo
+    loadJunta();
+  </script>
+</body>
+</html>
+

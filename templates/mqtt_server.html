@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar MQTT Server</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <style>
+    body {
+      padding: 24px;
+      background: var(--bg-primary);
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .form-group label {
+      font-size: var(--font-size-sm);
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    
+    .form-group input {
+      padding: var(--space-sm) var(--space-md);
+      font-size: var(--font-size-base);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--brand-red);
+      box-shadow: 0 0 0 2px rgba(212, 20, 20, 0.1);
+    }
+    
+    .controls-row {
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+      flex-wrap: wrap;
+      margin-top: var(--space-lg);
+    }
+    
+    .message {
+      margin-top: var(--space-md);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-sm);
+      font-size: var(--font-size-sm);
+    }
+    
+    .status-indicator {
+      display: none;
+      align-items: center;
+      gap: var(--space-sm);
+      margin-top: var(--space-md);
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+    }
+    
+    .status-indicator.on {
+      display: flex;
+    }
+    
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: var(--brand-red);
+      border-radius: 50%;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+    
+    /* Animaciones para el botón InitWinC5G */
+    @keyframes blink-orange {
+      0%, 100% { background-color: #ff8c00; }
+      50% { background-color: #ffa500; }
+    }
+    
+    .btn-blinking {
+      animation: blink-orange 1s infinite;
+    }
+    
+    .btn-success {
+      background-color: #28a745 !important;
+      border-color: #28a745 !important;
+      color: white !important;
+    }
+    
+    .btn-error {
+      background-color: #dc3545 !important;
+      border-color: #dc3545 !important;
+      color: white !important;
+    }
+    
+    /* Estilos para checkbox */
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+    
+    .checkbox-label input[type="checkbox"] {
+      display: none;
+    }
+    
+    .checkmark {
+      width: 18px;
+      height: 18px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      margin-right: 12px;
+      position: relative;
+      transition: all 0.2s ease;
+    }
+    
+    .checkbox-label input[type="checkbox"]:checked + .checkmark {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+    
+    .checkbox-label input[type="checkbox"]:checked + .checkmark::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+    
+    .checkbox-description {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-left: 30px;
+      margin-top: -8px;
+      margin-bottom: 16px;
+    }
+    
+    .info-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: var(--space-md);
+      margin-top: var(--space-lg);
+    }
+    
+    .info-box h3 {
+      font-size: var(--font-size-base);
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 0 0 var(--space-sm) 0;
+    }
+    
+    .info-box p {
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      margin: 0;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="color: var(--text-primary); margin-bottom: var(--space-xl);">Configurar Servidor MQTT</h1>
+  
+  <!-- Sección: Configuración del Broker -->
+  <div class="card">
+    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-md); font-weight: 600;">Broker MQTT</h2>
+    
+    <div class="form-group">
+      <label for="txtBrokerIP">Dirección IP del Broker</label>
+      <input type="text" id="txtBrokerIP" placeholder="192.168.1.100" />
+    </div>
+    
+    <div class="form-group">
+      <label for="txtBrokerPort">Puerto</label>
+      <input type="number" id="txtBrokerPort" placeholder="1883" value="1883" />
+    </div>
+    
+    <div class="form-group">
+      <label for="txtTopicCommands">Topic de Comandos</label>
+      <input type="text" id="txtTopicCommands" placeholder="COMAU/commands" />
+    </div>
+    
+    <div class="form-group">
+      <label for="txtTopicKeyboard">Topic de Teclado</label>
+      <input type="text" id="txtTopicKeyboard" placeholder="COMAU/toRobot" />
+    </div>
+    
+    <div class="form-group">
+      <label for="txtTopicResponses">Topic de Respuestas</label>
+      <input type="text" id="txtTopicResponses" placeholder="COMAU/memoryData" />
+    </div>
+    
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" id="chkConnectOnStart" checked />
+        <span class="checkmark"></span>
+        Conectar al inicio
+      </label>
+      <div class="checkbox-description">
+        Si está activado, el sistema enviará automáticamente el comando InitWinC5G al iniciar
+      </div>
+    </div>
+    
+    <div class="controls-row">
+      <button id="btnTestConnection" class="btn btn-secondary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+        </svg>
+        <span>Probar Conexión</span>
+      </button>
+      
+      <button id="btnInitWinC5G" class="btn btn-warning">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+          <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+        </svg>
+        <span>Iniciar WinC5G</span>
+      </button>
+      
+      <button id="btnSaveConfig" class="btn btn-primary">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z"/>
+        </svg>
+        <span>Guardar</span>
+      </button>
+    </div>
+    
+    <div id="statusTest" class="status-indicator">
+      <span class="status-dot"></span>
+      <span>Probando conexión...</span>
+    </div>
+    
+    <div id="message"></div>
+  </div>
+  
+  <!-- Información adicional -->
+  <div class="info-box">
+    <h3>Información</h3>
+    <p>
+      Configurá la dirección IP y puerto del broker MQTT para habilitar la comunicación
+      con otros dispositivos. El puerto predeterminado es 1883. La conexión no utiliza cifrado ni autenticación.
+    </p>
+    <p style="margin-top: var(--space-sm);">
+      <strong>Topic de Comandos</strong>: Para recibir comandos JSON estructurados.<br>
+      <strong>Topic de Teclado</strong>: Para recibir texto plano (emulación de teclado).<br>
+      <strong>Topic de Respuestas</strong>: Para enviar respuestas y datos de análisis.
+    </p>
+  </div>
+
+  <script>
+    const txtBrokerIP = document.getElementById('txtBrokerIP');
+    const txtBrokerPort = document.getElementById('txtBrokerPort');
+    const txtTopicCommands = document.getElementById('txtTopicCommands');
+    const txtTopicKeyboard = document.getElementById('txtTopicKeyboard');
+    const txtTopicResponses = document.getElementById('txtTopicResponses');
+    const chkConnectOnStart = document.getElementById('chkConnectOnStart');
+    const btnTestConnection = document.getElementById('btnTestConnection');
+    const btnInitWinC5G = document.getElementById('btnInitWinC5G');
+    const btnSaveConfig = document.getElementById('btnSaveConfig');
+    const statusTest = document.getElementById('statusTest');
+    const messageDiv = document.getElementById('message');
+    
+    // ============================================================
+    // FUNCIONES DE UI
+    // ============================================================
+    function showMessage(text, type = 'info') {
+      messageDiv.textContent = text;
+      messageDiv.className = 'message';
+      
+      if (type === 'success') {
+        messageDiv.style.background = 'rgba(40, 167, 69, 0.1)';
+        messageDiv.style.color = '#28a745';
+        messageDiv.style.border = '1px solid #28a745';
+      } else if (type === 'error') {
+        messageDiv.style.background = 'rgba(220, 53, 69, 0.1)';
+        messageDiv.style.color = '#dc3545';
+        messageDiv.style.border = '1px solid #dc3545';
+      } else {
+        messageDiv.style.background = 'rgba(23, 162, 184, 0.1)';
+        messageDiv.style.color = '#17a2b8';
+        messageDiv.style.border = '1px solid #17a2b8';
+      }
+    }
+    
+    function setTestingStatus(isTesting) {
+      statusTest.classList.toggle('on', isTesting);
+      btnTestConnection.disabled = isTesting;
+      btnSaveConfig.disabled = isTesting;
+    }
+    
+    // ============================================================
+    // CARGAR CONFIGURACIÓN GUARDADA
+    // ============================================================
+    async function loadSavedConfig() {
+      try {
+        const response = await Common.fetchWithTimeout('/api/mqtt_config');
+        const data = await response.json();
+        
+        if (data.ok && data.config) {
+          txtBrokerIP.value = data.config.broker_ip || '';
+          txtBrokerPort.value = data.config.broker_port || 1883;
+          
+              const topics = data.config.topics || {};
+              txtTopicCommands.value = topics.commands || 'COMAU/commands';
+              txtTopicKeyboard.value = topics.keyboard || 'COMAU/toRobot';
+              txtTopicResponses.value = topics.responses || 'COMAU/memoryData';
+              
+              // Cargar estado del checkbox
+              chkConnectOnStart.checked = data.config.connect_on_start !== false;
+              
+              console.log('[mqtt_server] Config cargada:', data.config);
+        }
+      } catch (e) {
+        console.error('[mqtt_server] Error cargando config:', e);
+      }
+    }
+    
+    // ============================================================
+    // PROBAR CONEXIÓN
+    // ============================================================
+    async function testConnection() {
+      const brokerIP = txtBrokerIP.value.trim();
+      const brokerPort = parseInt(txtBrokerPort.value) || 1883;
+      
+      if (!brokerIP) {
+        showMessage('Ingresá una dirección IP válida', 'error');
+        return;
+      }
+      
+      showMessage('');
+      setTestingStatus(true);
+      
+      try {
+        const response = await Common.fetchWithTimeout('/api/mqtt_test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            broker_ip: brokerIP,
+            broker_port: brokerPort
+          })
+        }, 10000);
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          showMessage('✓ Conexión exitosa con el broker MQTT', 'success');
+        } else {
+          showMessage(data.error || 'No se pudo conectar al broker', 'error');
+        }
+        
+      } catch (e) {
+        console.error('[mqtt_server] Error probando conexión:', e);
+        showMessage('Error al intentar conectar (timeout)', 'error');
+      } finally {
+        setTestingStatus(false);
+      }
+    }
+    
+    // ============================================================
+    // GUARDAR CONFIGURACIÓN
+    // ============================================================
+    async function saveConfig() {
+        const brokerIP = txtBrokerIP.value.trim();
+        const brokerPort = parseInt(txtBrokerPort.value) || 1883;
+        const topicCommands = txtTopicCommands.value.trim();
+        const topicKeyboard = txtTopicKeyboard.value.trim();
+        const topicResponses = txtTopicResponses.value.trim();
+        const connectOnStart = chkConnectOnStart.checked;
+      
+      if (!brokerIP) {
+        showMessage('Ingresá una dirección IP válida', 'error');
+        return;
+      }
+      
+      if (!topicCommands || !topicKeyboard || !topicResponses) {
+        showMessage('Configurá todos los topics', 'error');
+        return;
+      }
+      
+      try {
+        showMessage('Guardando configuración...', 'info');
+        btnSaveConfig.disabled = true;
+        
+        const response = await Common.fetchWithTimeout('/api/mqtt_save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              broker_ip: brokerIP,
+              broker_port: brokerPort,
+              topic_commands: topicCommands,
+              topic_keyboard: topicKeyboard,
+              topic_responses: topicResponses,
+              connect_on_start: connectOnStart
+            })
+        }, 10000);
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          showMessage('✓ Configuración guardada correctamente', 'success');
+        } else {
+          showMessage(data.error || 'Error al guardar configuración', 'error');
+        }
+        
+      } catch (e) {
+        console.error('[mqtt_server] Error guardando config:', e);
+        showMessage('Error al guardar (timeout)', 'error');
+      } finally {
+        btnSaveConfig.disabled = false;
+      }
+    }
+    
+    // ============================================================
+    // INICIAR WINC5G
+    // ============================================================
+    async function initWinC5G() {
+      try {
+        // Cambiar botón a estado parpadeante naranja
+        btnInitWinC5G.classList.add('btn-blinking');
+        btnInitWinC5G.disabled = true;
+        btnInitWinC5G.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+          </svg>
+          <span>Iniciando...</span>
+        `;
+        
+        showMessage('Iniciando WinC5G... (puede tardar hasta 30 segundos)', 'info');
+        
+        // Actualizar icono MQTT a naranja parpadeante
+        updateMQTTIconStatus('waiting');
+        
+        const response = await Common.fetchWithTimeout('/api/mqtt_init_winc5g', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            command: 'InitWinC5G',
+            timestamp: new Date().toISOString(),
+            args: {},
+            request_id: `init_${Date.now()}`
+          })
+        }, 35000); // 35 segundos timeout para InitWinC5G (30s + 5s margen)
+        
+        const data = await response.json();
+        
+        // Remover animación parpadeante
+        btnInitWinC5G.classList.remove('btn-blinking');
+        
+        if (data.ok && data.status === 'success') {
+          // Éxito - botón verde
+          btnInitWinC5G.classList.add('btn-success');
+          btnInitWinC5G.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/>
+            </svg>
+            <span>✓ WinC5G Iniciado</span>
+          `;
+          showMessage('✓ WinC5G iniciado exitosamente', 'success');
+          
+          // Actualizar icono MQTT en index.html a verde
+          updateMQTTIconStatus('success');
+          
+          // El icono se mantiene verde cuando el sistema está funcionando
+          // Solo volver a gris si hay un error posterior
+          
+        } else {
+          // Error - botón rojo
+          btnInitWinC5G.classList.add('btn-error');
+          btnInitWinC5G.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+            </svg>
+            <span>✗ Error</span>
+          `;
+          showMessage(data.error || 'Error iniciando WinC5G', 'error');
+          
+          // Actualizar icono MQTT en index.html a rojo
+          updateMQTTIconStatus('error');
+          
+          // Volver a gris después de 3 segundos
+          setTimeout(() => {
+            updateMQTTIconStatus('default');
+          }, 3000);
+        }
+        
+      } catch (e) {
+        console.error('[mqtt_server] Error iniciando WinC5G:', e);
+        
+        // Error de conexión - botón rojo
+        btnInitWinC5G.classList.remove('btn-blinking');
+        btnInitWinC5G.classList.add('btn-error');
+        btnInitWinC5G.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+          </svg>
+          <span>✗ Error</span>
+        `;
+        showMessage('Error de conexión (timeout)', 'error');
+        
+        // Actualizar icono MQTT en index.html a rojo
+        updateMQTTIconStatus('error');
+        
+        // Volver a gris después de 3 segundos
+        setTimeout(() => {
+          updateMQTTIconStatus('default');
+        }, 3000);
+        
+      } finally {
+        btnInitWinC5G.disabled = false;
+        
+        // Restaurar botón después de 3 segundos
+        setTimeout(() => {
+          btnInitWinC5G.classList.remove('btn-success', 'btn-error');
+          btnInitWinC5G.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+              <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+            </svg>
+            <span>Iniciar WinC5G</span>
+          `;
+        }, 3000);
+      }
+    }
+    
+    // Función para actualizar el estado del icono MQTT en index.html
+    function updateMQTTIconStatus(status) {
+      try {
+        // Buscar el icono MQTT en la ventana padre (index.html)
+        const parentWindow = window.parent;
+        if (parentWindow && parentWindow.document) {
+          const mqttIcon = parentWindow.document.getElementById('icon-mqtt');
+          if (mqttIcon) {
+            // Remover clases de animación previas
+            mqttIcon.classList.remove('mqtt-blinking');
+            
+            if (status === 'success') {
+              mqttIcon.style.fill = '#28a745'; // Verde
+            } else if (status === 'error') {
+              mqttIcon.style.fill = '#dc3545'; // Rojo
+            } else if (status === 'waiting') {
+              mqttIcon.style.fill = '#ffc107'; // Naranja
+              mqttIcon.classList.add('mqtt-blinking'); // Parpadeo
+            } else {
+              mqttIcon.style.fill = '#666666'; // Gris (por defecto)
+            }
+          }
+        }
+      } catch (e) {
+        console.log('[mqtt_server] No se pudo actualizar icono MQTT:', e);
+      }
+    }
+    
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+    btnTestConnection.addEventListener('click', testConnection);
+    btnInitWinC5G.addEventListener('click', initWinC5G);
+    btnSaveConfig.addEventListener('click', saveConfig);
+    
+    // ============================================================
+    // INICIALIZACIÓN
+    // ============================================================
+    (async function init() {
+      await loadSavedConfig();
+    })();
+  </script>
+</body>
+</html>
+

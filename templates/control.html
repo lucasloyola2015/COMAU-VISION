@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <style>
+    body {
+      padding: 24px;
+      background: var(--bg-primary);
+    }
+    
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: var(--space-lg);
+      margin-top: var(--space-xl);
+    }
+    
+    .control-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-md);
+      padding: 32px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+    }
+    
+    .control-card:hover {
+      background: var(--surface-hover);
+      border-color: var(--border-light);
+      box-shadow: 0 0 0 2px rgba(212, 20, 20, 0.2) inset;
+      transform: translateY(-2px);
+    }
+    
+    .control-card svg {
+      width: 48px;
+      height: 48px;
+      color: var(--text-primary);
+    }
+    
+    .control-card-title {
+      font-size: var(--font-size-lg);
+      font-weight: 600;
+      color: var(--text-primary);
+      text-align: center;
+    }
+    
+    .control-card-subtitle {
+      font-size: var(--font-size-sm);
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    
+    .resultado-ok {
+      color: #22c55e;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    
+    .resultado-error {
+      color: #ef4444;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    
+    #selectorJunta:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(212, 20, 20, 0.1);
+    }
+    
+    .sugerencia-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    .sugerencia-item:last-child {
+      border-bottom: none;
+    }
+    
+    .sugerencia-item:hover {
+      background: var(--surface-hover);
+    }
+    
+    .sugerencia-item.selected {
+      background: var(--bg-secondary);
+    }
+  </style>
+</head>
+<body>
+  <h1 style="color: var(--text-primary); margin-bottom: 16px;">Panel de Control</h1>
+  
+  <div class="card">
+    <h2 style="font-size: var(--font-size-xl); margin-bottom: 12px; font-weight: 600; color: var(--text-primary);">
+      Junta de Referencia
+    </h2>
+    
+    <!-- Grid: Buscador + Miniatura -->
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start;">
+      <!-- Columna 1: Buscador -->
+      <div style="position: relative;">
+        <label for="selectorJunta" style="display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: var(--font-size-sm); font-weight: 500;">
+          Buscar Junta
+        </label>
+        <input 
+          type="text" 
+          id="selectorJunta" 
+          placeholder="🔍 Escribe para buscar..."
+          autocomplete="off"
+          style="
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--surface);
+            color: var(--text-primary);
+            font-size: var(--font-size-md);
+            transition: all 0.2s ease;
+          "
+        >
+        <div id="sugerenciasJuntas" style="
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          background: var(--surface);
+          border: 1px solid var(--border);
+          border-top: none;
+          border-radius: 0 0 var(--radius-md) var(--radius-md);
+          max-height: 180px;
+          overflow-y: auto;
+          display: none;
+          z-index: 9999;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+          pointer-events: auto;
+        "></div>
+      </div>
+      
+      <!-- Columna 2: Miniatura -->
+      <div id="miniaturaContainer" style="display: none;">
+        <img id="miniaturaJunta" src="" alt="Junta" 
+             style="width: 240px; height: 180px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #000; cursor: pointer; transition: transform 0.2s ease;"
+             onmouseover="this.style.transform='scale(1.05)'"
+             onmouseout="this.style.transform='scale(1)'">
+      </div>
+    </div>
+    
+    <div id="sinJunta" style="text-align: center; padding: 24px; color: var(--text-secondary); display: none;">
+      Selecciona una junta desde el selector
+    </div>
+    
+    <!-- Tabla Compacta -->
+    <table id="tablaComparacion" style="width: 100%; border-collapse: collapse; margin-top: 12px; font-size: var(--font-size-sm);">
+      <thead>
+        <tr style="border-bottom: 2px solid var(--border);">
+          <th style="text-align: left; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Dato</th>
+          <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Esperado</th>
+          <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Obtenido</th>
+          <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Acierto</th>
+          <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Estado</th>
+        </tr>
+      </thead>
+      <tbody style="font-size: var(--font-size-sm);">
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 6px 8px; color: var(--text-primary);">Pistones</td>
+          <td id="esperadoPistones" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="obtenidoPistones" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="aciertoPistones" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="resultadoPistones" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 6px 8px; color: var(--text-primary);">Distancia (mm)</td>
+          <td id="esperadoDistancia" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="obtenidoDistancia" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="aciertoDistancia" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="resultadoDistancia" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 6px 8px; color: var(--text-primary);">Centros</td>
+          <td id="esperadoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="obtenidoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="aciertoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="resultadoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+        </tr>
+        <tr style="border-bottom: 1px solid var(--border);">
+          <td style="padding: 6px 8px; color: var(--text-primary);">Colinealidad</td>
+          <td id="esperadoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="obtenidoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="aciertoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="resultadoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 8px; color: var(--text-primary);">Espaciado</td>
+          <td id="esperadoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="obtenidoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="aciertoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+          <td id="resultadoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <!-- Muescas inline compacto -->
+    <div id="muescasInfo" style="display: none; margin-top: 16px; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md);">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <span style="color: var(--text-secondary); font-size: var(--font-size-sm);">Muescas:</span>
+        <span id="cantidadMuescas" style="color: var(--text-primary); font-weight: 600; font-size: var(--font-size-sm);">-</span>
+      </div>
+    </div>
+    
+    <!-- Offset Vector -->
+    <div id="offsetInfo" style="display: none; margin-top: 12px; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md);">
+      <div style="margin-bottom: 8px;">
+        <span style="color: var(--text-secondary); font-size: var(--font-size-sm);">Offset Vector (ArUco → Primera Muesca):</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: var(--font-size-xs);">
+        <div style="text-align: center;">
+          <div style="color: var(--text-muted);">X (mm)</div>
+          <div id="offsetX" style="color: var(--text-primary); font-weight: 600;">-</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="color: var(--text-muted);">Y (mm)</div>
+          <div id="offsetY" style="color: var(--text-primary); font-weight: 600;">-</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="color: var(--text-muted);">Módulo (mm)</div>
+          <div id="offsetModulo" style="color: var(--text-primary); font-weight: 600;">-</div>
+        </div>
+      </div>
+    </div>
+    
+    <div id="sinMuescas" style="text-align: center; padding: 12px; color: var(--text-secondary); font-size: var(--font-size-sm); display: none;">
+      No hay muescas configuradas
+    </div>
+    
+  </div>
+  
+  <script>
+    const selectorJunta = document.getElementById('selectorJunta');
+    const sugerenciasDiv = document.getElementById('sugerenciasJuntas');
+    
+    // Junta seleccionada
+    let juntaSeleccionada = null;
+    let todasLasJuntas = [];
+    let sugerenciaSeleccionadaIndex = -1;
+    
+    // Cargar junta seleccionada
+    async function cargarJuntaSeleccionada() {
+      try {
+        const response = await fetch('/api/juntas/selected');
+        const result = await response.json();
+        
+        if (result.ok && result.junta) {
+          juntaSeleccionada = result.junta;
+          await mostrarJunta(juntaSeleccionada);
+        } else {
+          // No hay junta seleccionada - estado inicial
+          console.log('[control] No hay junta seleccionada');
+          ocultarJunta();
+        }
+      } catch (e) {
+        console.error('[control] Error cargando junta:', e);
+        ocultarJunta();
+      }
+    }
+    
+    async function mostrarJunta(junta) {
+      // Mostrar miniatura y actualizar buscador con nombre
+      document.getElementById('sinJunta').style.display = 'none';
+      document.getElementById('miniaturaContainer').style.display = 'block';
+      document.getElementById('miniaturaJunta').src = `/imagenes_juntas/${junta.imagen}`;
+      
+      // Mostrar nombre de la junta seleccionada en el buscador
+      selectorJunta.value = junta.nombre;
+      selectorJunta.style.fontWeight = '600';
+      selectorJunta.style.color = 'var(--primary)';
+      
+      // Cargar análisis detallado
+      try {
+        const response = await fetch(`/api/juntas/${junta.id}/analisis`);
+        const result = await response.json();
+        
+        if (result.ok && result.analisis) {
+          const analisis = result.analisis;
+          
+          // Valores esperados
+          const cantidadPistones = junta.resumen_analisis?.redondos_grandes || 0;
+          const distanciaEsperada = analisis.linea_referencia?.distancia_mm || 0;
+          
+          document.getElementById('esperadoPistones').textContent = cantidadPistones;
+          document.getElementById('esperadoDistancia').textContent = distanciaEsperada ? distanciaEsperada.toFixed(1) : '-';
+          
+          console.log('[control] ✓ Junta cargada:', junta.nombre);
+        }
+      } catch (e) {
+        console.error('[control] Error cargando análisis:', e);
+      }
+      
+      // Mostrar información de muescas
+      mostrarMuescas(junta);
+    }
+    
+    function mostrarMuescas(junta) {
+      const cantidadMuescas = junta.cantidad_muescas || 0;
+      
+      if (cantidadMuescas > 0) {
+        // Mostrar sección de muescas compacta
+        document.getElementById('sinMuescas').style.display = 'none';
+        document.getElementById('muescasInfo').style.display = 'block';
+        
+        // Actualizar cantidad
+        document.getElementById('cantidadMuescas').textContent = `${cantidadMuescas} muesca${cantidadMuescas !== 1 ? 's' : ''}`;
+        
+        console.log(`[control] ✓ Mostrando ${cantidadMuescas} muescas`);
+      } else {
+        // No hay muescas
+        document.getElementById('sinMuescas').style.display = 'block';
+        document.getElementById('muescasInfo').style.display = 'none';
+      }
+    }
+    
+    function ocultarJunta() {
+      document.getElementById('miniaturaContainer').style.display = 'none';
+      document.getElementById('sinJunta').style.display = 'block';
+      
+      // Limpiar buscador
+      selectorJunta.value = '';
+      selectorJunta.style.fontWeight = 'normal';
+      selectorJunta.style.color = 'var(--text-primary)';
+      
+      // Limpiar tabla
+      const campos = ['Pistones', 'Distancia'];
+      campos.forEach(campo => {
+        document.getElementById(`esperado${campo}`).textContent = '-';
+        document.getElementById(`obtenido${campo}`).textContent = '-';
+        document.getElementById(`acierto${campo}`).textContent = '-';
+        document.getElementById(`resultado${campo}`).textContent = '-';
+      });
+      
+      // Limpiar validaciones geométricas
+      document.getElementById('resultadosValidaciones').textContent = '-';
+      document.getElementById('resultadoValidacionesGlobal').textContent = '-';
+      
+      // Ocultar banner de estado
+      document.getElementById('bannerEstadoAnalisis').style.display = 'none';
+      
+      // Ocultar sección de muescas
+      document.getElementById('muescasInfo').style.display = 'none';
+      document.getElementById('sinMuescas').style.display = 'block';
+      document.getElementById('sinMuescas').textContent = 'Selecciona una junta para ver sus muescas';
+    }
+    
+    // ============================================================
+    // SELECTOR DE JUNTA CON AUTOCOMPLETADO
+    // ============================================================
+    
+    // Cargar todas las juntas
+    async function cargarTodasLasJuntas() {
+      try {
+        const response = await fetch('/api/juntas');
+        const result = await response.json();
+        
+        if (result.ok) {
+          todasLasJuntas = result.juntas || [];
+        }
+      } catch (e) {
+        console.error('[control] Error cargando juntas:', e);
+      }
+    }
+    
+    // Filtrar y mostrar sugerencias
+    function mostrarSugerencias() {
+      const filtro = selectorJunta.value.toLowerCase().trim();
+      
+      if (filtro === '') {
+        sugerenciasDiv.style.display = 'none';
+        sugerenciaSeleccionadaIndex = -1;
+        return;
+      }
+      
+      const juntasFiltradas = todasLasJuntas.filter(junta => 
+        junta.nombre.toLowerCase().includes(filtro)
+      );
+      
+      if (juntasFiltradas.length === 0) {
+        sugerenciasDiv.innerHTML = '<div style="padding: 12px 16px; color: var(--text-secondary);">No se encontraron juntas</div>';
+        sugerenciasDiv.style.display = 'block';
+        return;
+      }
+      
+      const html = juntasFiltradas.map((junta, index) => `
+        <div class="sugerencia-item" data-junta-id="${junta.id}" data-junta-nombre="${junta.nombre}" data-index="${index}">
+          <div style="font-weight: 500; color: var(--text-primary);">${junta.nombre}</div>
+        </div>
+      `).join('');
+      
+      sugerenciasDiv.innerHTML = html;
+      sugerenciasDiv.style.display = 'block';
+      sugerenciaSeleccionadaIndex = -1;
+      
+      console.log('[control] Sugerencias renderizadas:', juntasFiltradas.length, 'juntas');
+      console.log('[control] HTML generado:', html.substring(0, 200));
+    }
+    
+    // Seleccionar junta
+    async function seleccionarJunta(juntaId) {
+      try {
+        console.log('[control] Seleccionando junta ID:', juntaId);
+        
+        // Marcar como seleccionada en el servidor
+        const response = await fetch('/api/juntas/select', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: juntaId })  // ⭐ Cambiar 'junta_id' a 'id'
+        });
+        
+        const result = await response.json();
+        console.log('[control] Respuesta del servidor:', result);
+        
+        if (result.ok) {
+          // Actualizar el input con el nombre PRIMERO
+          const junta = todasLasJuntas.find(j => j.id === juntaId);
+          if (junta) {
+            selectorJunta.value = junta.nombre;
+            console.log('[control] Input actualizado con:', junta.nombre);
+          }
+          
+          // Ocultar sugerencias
+          sugerenciasDiv.style.display = 'none';
+          sugerenciaSeleccionadaIndex = -1;
+          
+          // Cargar y mostrar la junta
+          await cargarJuntaSeleccionada();
+          
+          // Notificar al dashboard que cambió la junta
+          window.parent.postMessage({ type: 'JUNTA_CHANGED', juntaId: juntaId }, '*');
+          
+          console.log('[control] ✓ Junta seleccionada completamente:', juntaId);
+        } else {
+          console.error('[control] Error en respuesta del servidor:', result);
+        }
+      } catch (e) {
+        console.error('[control] Error seleccionando junta:', e);
+      }
+    }
+    
+    // Event listeners del selector
+    selectorJunta.addEventListener('input', mostrarSugerencias);
+    
+    // Event listener en el contenedor de sugerencias (delegación de eventos)
+    sugerenciasDiv.addEventListener('click', (e) => {
+      console.log('[control] Click detectado en sugerenciasDiv, target:', e.target);
+      
+      const item = e.target.closest('.sugerencia-item');
+      console.log('[control] Item encontrado:', item);
+      
+      if (item) {
+        const juntaId = parseInt(item.dataset.juntaId);
+        console.log('[control] juntaId:', juntaId);
+        
+        if (!isNaN(juntaId)) {
+          console.log('[control] ✓ Seleccionando junta ID:', juntaId);
+          seleccionarJunta(juntaId);
+        } else {
+          console.error('[control] ✗ juntaId inválido:', item.dataset.juntaId);
+        }
+      } else {
+        console.log('[control] ✗ No se encontró .sugerencia-item');
+      }
+    });
+    
+    selectorJunta.addEventListener('keydown', (e) => {
+      const items = document.querySelectorAll('.sugerencia-item');
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        sugerenciaSeleccionadaIndex = Math.min(sugerenciaSeleccionadaIndex + 1, items.length - 1);
+        actualizarSeleccionVisual(items);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        sugerenciaSeleccionadaIndex = Math.max(sugerenciaSeleccionadaIndex - 1, -1);
+        actualizarSeleccionVisual(items);
+      } else if (e.key === 'Enter' && sugerenciaSeleccionadaIndex >= 0) {
+        e.preventDefault();
+        const juntaId = parseInt(items[sugerenciaSeleccionadaIndex].dataset.juntaId);
+        seleccionarJunta(juntaId);
+      } else if (e.key === 'Escape') {
+        sugerenciasDiv.style.display = 'none';
+        sugerenciaSeleccionadaIndex = -1;
+      }
+    });
+    
+    function actualizarSeleccionVisual(items) {
+      items.forEach((item, index) => {
+        if (index === sugerenciaSeleccionadaIndex) {
+          item.classList.add('selected');
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.classList.remove('selected');
+        }
+      });
+    }
+    
+    // Cerrar sugerencias al hacer click fuera (pero no cuando se hace click en una sugerencia)
+    document.addEventListener('click', (e) => {
+      const clickEnSugerencia = e.target.closest('.sugerencia-item');
+      
+      if (!selectorJunta.contains(e.target) && !sugerenciasDiv.contains(e.target) && !clickEnSugerencia) {
+        sugerenciasDiv.style.display = 'none';
+        sugerenciaSeleccionadaIndex = -1;
+      }
+    });
+    
+    // Doble click en miniatura → ir a vista de junta
+    document.getElementById('miniaturaJunta').addEventListener('dblclick', () => {
+      if (juntaSeleccionada) {
+        window.location.href = `/templates/junta.html?id=${juntaSeleccionada.id}&mode=view`;
+      }
+    });
+    
+    // Cargar al iniciar
+    cargarTodasLasJuntas();
+    cargarJuntaSeleccionada();
+    
+    // Escuchar mensajes del dashboard con resultados del análisis
+    window.addEventListener('message', async (event) => {
+      console.log('[control] 🔔 MENSAJE RECIBIDO:', event.data.type, event.data);
+      
+      // NO MOSTRAR BANNERS - SOLO ACTUALIZAR TABLA
+      
+      // Manejar resultados de cada intento
+      if (event.data.type === 'ANALYSIS_READY') {
+        console.log('[control] ✅ RECIBIÓ ANALYSIS_READY');
+        console.log('[control] 📥 Datos recibidos:', event.data.data);
+        if (event.data.data) {
+          console.log('[control] ✅ TIENE DATOS');
+        } else {
+          console.log('[control] ❌ NO TIENE DATOS');
+        }
+      }
+      
+      if (event.data.type === 'ANALYSIS_READY' && event.data.data) {
+        const data = event.data.data;
+        const intento = event.data.intento || 1;
+        const maxIntentos = event.data.max_intentos || 3;
+        
+        console.log(`[control] ========================================`);
+        console.log(`[control] ACTUALIZANDO TABLA - INTENTO ${intento}/${maxIntentos}`);
+        console.log(`[control] ========================================`);
+        
+        // Obtener configuración de umbrales
+        let umbralDistanciaTol = 98.0;
+        try {
+          const configResponse = await fetch('/api/vision/config');
+          const config = await configResponse.json();
+          umbralDistanciaTol = config.vision?.umbral_distancia_tolerancia || 98.0;
+        } catch (e) {
+          console.warn('[control] No se pudo cargar umbral, usando default 98%');
+        }
+        
+        // ACTUALIZAR TABLA DE COMPARACIÓN
+        console.log('[control] Junta seleccionada:', juntaSeleccionada ? 'SÍ' : 'NO');
+        console.log('[control] Datos holes:', data.holes ? 'SÍ' : 'NO');
+        
+        // Verificar que los elementos de la tabla existen
+        const elemObtenidoPistones = document.getElementById('obtenidoPistones');
+        const elemObtenidoDistancia = document.getElementById('obtenidoDistancia');
+        console.log('[control] Elemento obtenidoPistones:', elemObtenidoPistones ? 'EXISTE' : 'NO EXISTE');
+        console.log('[control] Elemento obtenidoDistancia:', elemObtenidoDistancia ? 'EXISTE' : 'NO EXISTE');
+        
+        // ═══════════════════════════════════════════════════════════════
+        // ACTUALIZAR TABLA (incluso con datos parciales)
+        // ═══════════════════════════════════════════════════════════════
+        if (juntaSeleccionada) {
+          // CANTIDAD DE PISTONES (siempre disponible)
+          if (data.holes && data.holes.total_detected !== undefined) {
+            const esperadoPistones = parseInt(document.getElementById('esperadoPistones').textContent) || 0;
+            const obtenidoPistones = data.holes.total_detected;
+            
+            console.log(`[control] → Pistones: esperado=${esperadoPistones}, obtenido=${obtenidoPistones}`);
+            document.getElementById('obtenidoPistones').textContent = obtenidoPistones;
+            
+            // Cálculo: debe ser EXACTO (100%)
+            const aciertoPistones = (esperadoPistones === obtenidoPistones) ? 100 : 0;
+            document.getElementById('aciertoPistones').textContent = aciertoPistones + '%';
+            
+            // Resultado visual
+            const resultPistonesCell = document.getElementById('resultadoPistones');
+            if (aciertoPistones === 100) {
+              resultPistonesCell.innerHTML = '<span class="resultado-ok">✓</span>';
+            } else {
+              resultPistonesCell.innerHTML = '<span class="resultado-error">✗</span>';
+            }
+            
+            console.log(`[control] ✓ Tabla actualizada: Pistones ${aciertoPistones}% ${aciertoPistones === 100 ? '✓' : '✗'}`);
+          }
+          
+          // DISTANCIA ENTRE PISTONES (puede no estar disponible en early returns)
+          if (data.holes && data.holes.distancia_extremos_mm !== undefined && data.holes.distancia_extremos_mm !== null) {
+            const esperadoDistancia = parseFloat(document.getElementById('esperadoDistancia').textContent) || 0;
+            const obtenidoDistancia = data.holes.distancia_extremos_mm;
+            
+            console.log(`[control] → Distancia: esperado=${esperadoDistancia}, obtenido=${obtenidoDistancia}`);
+            document.getElementById('obtenidoDistancia').textContent = obtenidoDistancia.toFixed(1);
+            
+            if (esperadoDistancia > 0 && obtenidoDistancia > 0) {
+              // Cálculo: tolerancia configurable
+              const aciertoDistancia = 100 - Math.abs((obtenidoDistancia - esperadoDistancia) / esperadoDistancia * 100);
+              document.getElementById('aciertoDistancia').textContent = aciertoDistancia.toFixed(1) + '%';
+              
+              // Resultado visual
+              const resultDistanciaCell = document.getElementById('resultadoDistancia');
+              if (aciertoDistancia >= umbralDistanciaTol) {
+                resultDistanciaCell.innerHTML = '<span class="resultado-ok">✓</span>';
+              } else {
+                resultDistanciaCell.innerHTML = '<span class="resultado-error">✗</span>';
+              }
+              
+              console.log(`[control] ✓ Tabla actualizada: Distancia ${aciertoDistancia.toFixed(1)}% ${aciertoDistancia >= umbralDistanciaTol ? '✓' : '✗'}`);
+            }
+          } else {
+            // Si no hay distancia (validación temprana de cantidad), mostrar "Pendiente"
+            if (data.validacion_temprana === 'cantidad_pistones') {
+              document.getElementById('obtenidoDistancia').textContent = 'Pendiente';
+              document.getElementById('aciertoDistancia').textContent = '-';
+              document.getElementById('resultadoDistancia').innerHTML = '<span style="color: var(--text-muted);">⏸</span>';
+              console.log(`[control] ⚠️ Distancia pendiente (validación temprana de cantidad falló)`);
+            }
+          }
+        } else {
+          console.warn('[control] ⚠️ No hay junta seleccionada, no se actualiza tabla');
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // ACTUALIZAR VALIDACIONES GEOMÉTRICAS
+        // ═══════════════════════════════════════════════════════════════
+        if (data.validaciones_geometricas) {
+          const valGeo = data.validaciones_geometricas;
+          
+          console.log(`[control] → Actualizando Validaciones Geométricas`);
+          
+          // 1. CENTROS MÚLTIPLES
+          const centrosDivergencia = valGeo.centros_multiples.divergencia_mm;
+          const centrosUmbral = valGeo.centros_multiples.umbral_mm;
+          const centrosOk = valGeo.centros_multiples.ok;
+          
+          document.getElementById('esperadoCentros').textContent = `${centrosUmbral}mm`;
+          document.getElementById('obtenidoCentros').textContent = `${centrosDivergencia.toFixed(2)}mm`;
+          
+          const aciertoCentros = centrosOk ? 100 : 0;
+          document.getElementById('aciertoCentros').textContent = aciertoCentros + '%';
+          
+          const resultCentrosCell = document.getElementById('resultadoCentros');
+          resultCentrosCell.innerHTML = centrosOk ? '<span class="resultado-ok">✓</span>' : '<span class="resultado-error">✗</span>';
+          
+          // 2. COLINEALIDAD
+          const colinealidadDesviacion = valGeo.colinealidad.desviacion_maxima_mm;
+          const colinealidadUmbral = valGeo.colinealidad.umbral_mm;
+          const colinealidadOk = valGeo.colinealidad.ok;
+          
+          document.getElementById('esperadoColinealidad').textContent = `${colinealidadUmbral}mm`;
+          document.getElementById('obtenidoColinealidad').textContent = `${colinealidadDesviacion.toFixed(2)}mm`;
+          
+          const aciertoColinealidad = colinealidadOk ? 100 : 0;
+          document.getElementById('aciertoColinealidad').textContent = aciertoColinealidad + '%';
+          
+          const resultColinealidadCell = document.getElementById('resultadoColinealidad');
+          resultColinealidadCell.innerHTML = colinealidadOk ? '<span class="resultado-ok">✓</span>' : '<span class="resultado-error">✗</span>';
+          
+          // 3. ESPACIADO UNIFORME
+          const espaciadoCV = valGeo.espaciado_uniforme.coeficiente_variacion;
+          const espaciadoCVMax = valGeo.espaciado_uniforme.cv_maximo;
+          const espaciadoOk = valGeo.espaciado_uniforme.ok;
+          
+          document.getElementById('esperadoEspaciado').textContent = espaciadoCVMax.toFixed(3);
+          document.getElementById('obtenidoEspaciado').textContent = espaciadoCV.toFixed(3);
+          
+          const aciertoEspaciado = espaciadoOk ? 100 : 0;
+          document.getElementById('aciertoEspaciado').textContent = aciertoEspaciado + '%';
+          
+          const resultEspaciadoCell = document.getElementById('resultadoEspaciado');
+          resultEspaciadoCell.innerHTML = espaciadoOk ? '<span class="resultado-ok">✓</span>' : '<span class="resultado-error">✗</span>';
+          
+          console.log(`[control] ✓ Validaciones geométricas actualizadas`);
+        } else {
+          // Si no hay validaciones geométricas, mostrar "Pendiente" en las 3 filas
+          console.log(`[control] ⚠️ Validaciones geométricas pendientes (early return)`);
+          
+          ['Centros', 'Colinealidad', 'Espaciado'].forEach(campo => {
+            document.getElementById(`esperado${campo}`).textContent = '-';
+            document.getElementById(`obtenido${campo}`).textContent = 'Pendiente';
+            document.getElementById(`acierto${campo}`).textContent = '-';
+            document.getElementById(`resultado${campo}`).innerHTML = '<span style="color: var(--text-muted);">⏸</span>';
+          });
+        }
+        
+        // ═══════════════════════════════════════════════════════════════
+        // ACTUALIZAR MUESCAS Y OFFSET VECTOR
+        // ═══════════════════════════════════════════════════════════════
+        if (data.muescas && data.muescas.length > 0) {
+          document.getElementById('muescasInfo').style.display = 'block';
+          document.getElementById('sinMuescas').style.display = 'none';
+          document.getElementById('cantidadMuescas').textContent = data.muescas.length;
+          console.log(`[control] ✓ Muescas actualizadas: ${data.muescas.length}`);
+        } else {
+          document.getElementById('muescasInfo').style.display = 'none';
+          document.getElementById('sinMuescas').style.display = 'block';
+          console.log(`[control] ⚠️ No hay muescas disponibles`);
+        }
+        
+        // ACTUALIZAR OFFSET VECTOR
+        if (data.offset_vector) {
+          document.getElementById('offsetInfo').style.display = 'block';
+          document.getElementById('offsetX').textContent = data.offset_vector.x_mm.toFixed(2);
+          document.getElementById('offsetY').textContent = data.offset_vector.y_mm.toFixed(2);
+          document.getElementById('offsetModulo').textContent = data.offset_vector.modulo_mm.toFixed(2);
+          console.log(`[control] ✓ Offset vector: X=${data.offset_vector.x_mm.toFixed(2)}mm, Y=${data.offset_vector.y_mm.toFixed(2)}mm, Módulo=${data.offset_vector.modulo_mm.toFixed(2)}mm`);
+        } else {
+          document.getElementById('offsetInfo').style.display = 'none';
+          console.log(`[control] ⚠️ No hay offset vector disponible`);
+        }
+        
+        // NO MOSTRAR BANNER - SOLO ACTUALIZAR TABLA
+        
+        console.log(`[control] ========================================`);
+      }
+    });
+  </script>
+</body>
+</html>
+

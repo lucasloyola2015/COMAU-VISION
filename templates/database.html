@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Base de Datos</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <style>
+    body {
+      padding: 24px;
+      background: var(--bg-primary);
+    }
+    
+    .header-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: var(--space-xl);
+    }
+    
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: visible;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    
+    thead {
+      background: var(--bg-secondary);
+    }
+    
+    th {
+      padding: var(--space-md);
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: var(--font-size-sm);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    
+    td {
+      padding: var(--space-md);
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+    
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    tbody tr {
+      position: relative;
+      z-index: 1;
+    }
+    
+    tbody tr:hover {
+      background: var(--surface-hover);
+      z-index: 2;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    .action-btn {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      color: var(--text-secondary);
+      border-radius: var(--radius-sm);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .action-btn:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+    
+    .action-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .action-btn.delete:hover {
+      background: rgba(220, 53, 69, 0.1);
+      color: var(--danger);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: var(--space-xl);
+      color: var(--text-secondary);
+    }
+    
+    #filtroJuntas:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(212, 20, 20, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="header-actions">
+    <h1 style="color: var(--text-primary); margin: 0;">Base de Datos de Juntas</h1>
+    
+    <div style="display: flex; align-items: center; gap: var(--space-md);">
+      <input 
+        type="text" 
+        id="filtroJuntas" 
+        placeholder="🔍 Filtrar por nombre..." 
+        style="
+          padding: 10px 16px;
+          border: 1px solid var(--border);
+          border-radius: var(--radius-md);
+          background: var(--surface);
+          color: var(--text-primary);
+          font-size: var(--font-size-md);
+          min-width: 250px;
+          transition: all 0.2s ease;
+        "
+      >
+      
+      <button class="btn btn-primary" onclick="nuevaJunta()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4"/>
+        </svg>
+        Nueva Junta
+      </button>
+    </div>
+  </div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60px;">ID</th>
+          <th>Nombre</th>
+          <th style="width: 140px; text-align: center;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="juntasTable">
+        <tr>
+          <td colspan="3" class="empty-state">
+            Cargando juntas...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let juntas = [];
+    
+    async function loadJuntas() {
+      try {
+        const response = await fetch('/api/juntas');
+        const data = await response.json();
+        juntas = data.juntas || [];
+        renderTable();
+      } catch (e) {
+        console.error('Error cargando juntas:', e);
+        document.getElementById('juntasTable').innerHTML = `
+          <tr>
+            <td colspan="3" class="empty-state" style="color: var(--danger);">
+              Error al cargar las juntas
+            </td>
+          </tr>
+        `;
+      }
+    }
+    
+    function renderTable(juntasFiltradas = null) {
+      const tbody = document.getElementById('juntasTable');
+      const juntasAMostrar = juntasFiltradas !== null ? juntasFiltradas : juntas;
+      
+      if (juntasAMostrar.length === 0) {
+        const mensaje = juntasFiltradas !== null && juntas.length > 0
+          ? 'No se encontraron juntas que coincidan con el filtro.'
+          : 'No hay juntas registradas. Haz clic en "Nueva Junta" para crear una.';
+        
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="3" class="empty-state">
+              ${mensaje}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tbody.innerHTML = juntasAMostrar.map(junta => `
+        <tr>
+          <td style="font-weight: 500; color: var(--text-primary);">${junta.id}</td>
+          <td style="font-weight: 500; color: var(--text-primary);">${junta.nombre}</td>
+          <td style="text-align: center;">
+            <div class="action-buttons">
+              <button class="action-btn" data-action="ver" data-junta-id="${junta.id}" title="Ver">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8M1.173 8a13 13 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5s3.879 1.168 5.168 2.457A13 13 0 0 1 14.828 8q-.086.13-.195.288c-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5s-3.879-1.168-5.168-2.457A13 13 0 0 1 1.172 8z"/>
+                  <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5M4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0"/>
+                </svg>
+              </button>
+              <button class="action-btn" data-action="editar" data-junta-id="${junta.id}" title="Editar">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325"/>
+                </svg>
+              </button>
+              <button class="action-btn" data-action="seleccionar" data-junta-id="${junta.id}" title="Seleccionar">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+                </svg>
+              </button>
+              <button class="action-btn delete" data-action="eliminar" data-junta-id="${junta.id}" title="Eliminar">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
+                  <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                  <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+      
+      // Agregar event listeners después de renderizar
+      attachActionListeners();
+    }
+    
+    function attachActionListeners() {
+      // Event delegation para botones de acción
+      document.querySelectorAll('.action-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const action = this.getAttribute('data-action');
+          const id = parseInt(this.getAttribute('data-junta-id'));
+          
+          switch(action) {
+            case 'ver':
+              verJunta(id);
+              break;
+            case 'editar':
+              editarJunta(id);
+              break;
+            case 'seleccionar':
+              seleccionarJunta(id);
+              break;
+            case 'eliminar':
+              eliminarJunta(id);
+              break;
+          }
+        });
+      });
+    }
+    
+    function filtrarJuntas() {
+      const filtro = document.getElementById('filtroJuntas').value.toLowerCase().trim();
+      
+      if (filtro === '') {
+        // Si el filtro está vacío, mostrar todas las juntas
+        renderTable();
+        return;
+      }
+      
+      // Filtrar juntas por nombre (búsqueda flexible)
+      const juntasFiltradas = juntas.filter(junta => {
+        const nombreCompleto = junta.nombre.toLowerCase();
+        return nombreCompleto.includes(filtro);
+      });
+      
+      renderTable(juntasFiltradas);
+    }
+    
+    function nuevaJunta() {
+      window.location.href = '/templates/junta.html';
+    }
+    
+    function verJunta(id) {
+      window.location.href = `/templates/junta.html?id=${id}&mode=view`;
+    }
+    
+    function editarJunta(id) {
+      window.location.href = `/templates/junta.html?id=${id}&mode=edit`;
+    }
+    
+    async function seleccionarJunta(id) {
+      try {
+        const response = await fetch('/api/juntas/select', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id })
+        });
+        const result = await response.json();
+        if (result.ok) {
+          // Redirigir al dashboard (parent es index.html)
+          window.parent.postMessage({ type: 'NAVIGATE_TO_DASHBOARD', juntaId: id }, '*');
+        } else {
+          alert('Error al seleccionar la junta');
+        }
+      } catch (e) {
+        alert('Error de conexión');
+      }
+    }
+    
+    async function eliminarJunta(id) {
+      if (!confirm('¿Estás seguro de que deseas eliminar esta junta?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/juntas/${id}`, {
+          method: 'DELETE'
+        });
+        const result = await response.json();
+        if (result.ok) {
+          await loadJuntas();
+        } else {
+          alert('Error al eliminar la junta');
+        }
+      } catch (e) {
+        alert('Error de conexión');
+      }
+    }
+    
+    // Cargar juntas al inicio
+    loadJuntas();
+    
+    // Agregar event listener al filtro
+    document.getElementById('filtroJuntas').addEventListener('input', filtrarJuntas);
+  </script>
+</body>
+</html>
+
+
+

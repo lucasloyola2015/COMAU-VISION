@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>COMAU-VISION • Illinois Automation</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/common.js"></script>
+  <script src="/static/js/index.js"></script>
+  <style>
+    /* Animación para icono MQTT parpadeante */
+    .mqtt-blinking {
+      animation: mqttBlink 1s ease-in-out infinite;
+    }
+    
+    @keyframes mqttBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+  <script>
+    // Sistema de polling para verificar estado MQTT
+    let mqttIconPolling = false;
+    
+    function updateMQTTIconStatus(status) {
+      const mqttIcon = document.getElementById('icon-mqtt');
+      if (mqttIcon) {
+        // Remover clases de animación previas
+        mqttIcon.classList.remove('mqtt-blinking');
+        
+        if (status === 'success') {
+          mqttIcon.style.fill = '#28a745'; // Verde
+        } else if (status === 'error') {
+          mqttIcon.style.fill = '#dc3545'; // Rojo
+        } else if (status === 'waiting') {
+          mqttIcon.style.fill = '#ffc107'; // Naranja
+          mqttIcon.classList.add('mqtt-blinking'); // Parpadeo
+        } else {
+          mqttIcon.style.fill = '#666666'; // Gris (por defecto)
+        }
+      }
+    }
+    
+    let lastMQTTIconStatus = 'default';
+    
+    async function checkMQTTStatus() {
+      try {
+        // Verificar estado del icono MQTT
+        const iconResponse = await fetch('/api/mqtt_icon_status');
+        const iconData = await iconResponse.json();
+        
+        if (iconData.ok && iconData.status !== lastMQTTIconStatus) {
+          console.log(`[index] Estado del icono MQTT cambiado: ${lastMQTTIconStatus} → ${iconData.status}`);
+          updateMQTTIconStatus(iconData.status);
+          lastMQTTIconStatus = iconData.status;
+        }
+        
+        // Verificar estado de conexión MQTT
+        const statusResponse = await fetch('/api/mqtt_status');
+        const statusData = await statusResponse.json();
+        
+        if (statusData.ok && !statusData.status.connected && lastMQTTIconStatus === 'success') {
+          // Si MQTT se desconecta y estaba funcionando, volver a gris
+          updateMQTTIconStatus('default');
+          lastMQTTIconStatus = 'default';
+        }
+      } catch (e) {
+        console.log('[index] Error verificando estado MQTT:', e);
+      }
+    }
+    
+    // Inicializar cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('[index] DOM cargado, inicializando eventos MQTT');
+      
+      // Verificar estado inicial del icono MQTT
+      checkMQTTStatus();
+      
+      // Inicializar eventos del icono MQTT
+      initMQTTIconEvents();
+      
+      // Inicializar eventos del icono Robot
+      initRobotIconEvents();
+      
+      // Iniciar polling cada 1 segundo para mejor responsividad
+      setInterval(checkMQTTStatus, 1000);
+    });
+    
+    // Eventos del icono MQTT - se inicializan cuando el DOM está listo
+    let mqttIconClickTimeout = null;
+    
+    function initMQTTIconEvents() {
+      const mqttIcon = document.getElementById('icon-mqtt');
+      if (!mqttIcon) {
+        console.error('[index] Icono MQTT no encontrado');
+        return;
+      }
+      
+      console.log('[index] Inicializando eventos del icono MQTT');
+      
+      mqttIcon.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('[index] Click detectado en icono MQTT');
+        
+        // Click simple - VerifyInstr
+        if (mqttIconClickTimeout === null) {
+          mqttIconClickTimeout = setTimeout(() => {
+            console.log('[index] Click simple - Enviando VerifyInstr');
+            sendVerifyInstr();
+            mqttIconClickTimeout = null;
+          }, 250); // 250ms para detectar doble click
+        }
+      });
+      
+      mqttIcon.addEventListener('dblclick', function(e) {
+        e.preventDefault();
+        console.log('[index] Doble click detectado en icono MQTT');
+        
+        // Doble click - InitWinC5G
+        clearTimeout(mqttIconClickTimeout);
+        mqttIconClickTimeout = null;
+        console.log('[index] Doble click - Enviando InitWinC5G');
+        sendInitWinC5G();
+      });
+    }
+    
+    // Función para enviar VerifyInstr
+    async function sendVerifyInstr() {
+      try {
+        console.log('[index] Iniciando envío de VerifyInstr');
+        
+        // Actualizar icono a naranja parpadeante
+        updateMQTTIconStatus('waiting');
+        
+        const response = await fetch('/api/mqtt_verify_instr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            command: 'VerifyInstr',
+            timestamp: new Date().toISOString(),
+            args: {},
+            request_id: `verify_${Date.now()}`
+          })
+        });
+        
+        console.log('[index] Respuesta recibida para VerifyInstr:', response.status);
+        const data = await response.json();
+        
+        if (data.ok && data.status === 'success') {
+          updateMQTTIconStatus('success');
+          console.log('[index] VerifyInstr exitoso');
+        } else {
+          updateMQTTIconStatus('error');
+          console.log('[index] VerifyInstr falló:', data.error);
+        }
+        
+        // Volver a gris después de 3 segundos
+        setTimeout(() => {
+          updateMQTTIconStatus('default');
+        }, 3000);
+        
+      } catch (e) {
+        console.error('[index] Error enviando VerifyInstr:', e);
+        updateMQTTIconStatus('error');
+        setTimeout(() => {
+          updateMQTTIconStatus('default');
+        }, 3000);
+      }
+    }
+    
+    // Función para enviar InitWinC5G
+    async function sendInitWinC5G() {
+      try {
+        console.log('[index] Iniciando envío de InitWinC5G');
+        
+        // Actualizar icono a naranja parpadeante
+        updateMQTTIconStatus('waiting');
+        
+        const response = await fetch('/api/mqtt_init_winc5g', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            command: 'InitWinC5G',
+            timestamp: new Date().toISOString(),
+            args: {},
+            request_id: `init_${Date.now()}`
+          })
+        });
+        
+        console.log('[index] Respuesta recibida para InitWinC5G:', response.status);
+        const data = await response.json();
+        
+        if (data.ok && data.status === 'success') {
+          updateMQTTIconStatus('success');
+          console.log('[index] InitWinC5G exitoso');
+        } else {
+          updateMQTTIconStatus('error');
+          console.log('[index] InitWinC5G falló:', data.error);
+        }
+        
+        // El icono se mantiene verde si es exitoso, o vuelve a gris después de 5 segundos si hay error
+        if (!(data.ok && data.status === 'success')) {
+          setTimeout(() => {
+            updateMQTTIconStatus('default');
+          }, 5000);
+        }
+        
+      } catch (e) {
+        console.error('[index] Error enviando InitWinC5G:', e);
+        updateMQTTIconStatus('error');
+        setTimeout(() => {
+          updateMQTTIconStatus('default');
+        }, 5000);
+      }
+    }
+    
+    // Eventos del icono Robot
+    function initRobotIconEvents() {
+      const robotIcon = document.getElementById('icon-robot');
+      if (!robotIcon) {
+        console.error('[index] Icono Robot no encontrado');
+        return;
+      }
+      
+      console.log('[index] Inicializando eventos del icono Robot');
+      
+      robotIcon.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('[index] Click detectado en icono Robot');
+        sendRobotHello();
+      });
+    }
+    
+    async function sendRobotHello() {
+      try {
+        console.log('[index] 🤖 Iniciando comando HOLA al robot');
+        
+        // Cambiar color del icono a naranja mientras se envía
+        const robotIcon = document.getElementById('icon-robot');
+        if (robotIcon) {
+          robotIcon.style.fill = '#ffc107'; // Naranja
+        }
+        
+        console.log('[index] 📤 Enviando comando HOLA...');
+        
+        const response = await fetch('/api/robot_hello', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          console.log('[index] ✅ Comando HOLA procesado');
+          console.log(`[index] 📋 Secuencia ID: ${data.sequence_id}`);
+          console.log(`[index] 📊 Estado: ${data.status}`);
+          
+          if (data.status === 'success') {
+            console.log('[index] 🎉 ¡Robot respondió HOLA correctamente!');
+            console.log(`[index] 📝 Contexto: "${data.context}"`);
+            
+            // Cambiar a verde - respuesta exitosa
+            if (robotIcon) {
+              robotIcon.style.fill = '#28a745'; // Verde
+              setTimeout(() => {
+                robotIcon.style.fill = '#666666'; // Volver a gris después de 3 segundos
+              }, 3000);
+            }
+          } else if (data.status === 'warning') {
+            console.log('[index] ⚠️ Robot respondió pero no con HOLA');
+            console.log(`[index] 📝 Contexto: "${data.context || 'Sin contexto'}"`);
+            
+            // Cambiar a amarillo - respuesta parcial
+            if (robotIcon) {
+              robotIcon.style.fill = '#ffc107'; // Amarillo
+              setTimeout(() => {
+                robotIcon.style.fill = '#666666'; // Volver a gris después de 3 segundos
+              }, 3000);
+            }
+          } else {
+            console.log('[index] ❌ No se encontró respuesta del robot');
+            console.log(`[index] 📝 Mensaje: "${data.message}"`);
+            
+            // Cambiar a rojo - sin respuesta
+            if (robotIcon) {
+              robotIcon.style.fill = '#dc3545'; // Rojo
+              setTimeout(() => {
+                robotIcon.style.fill = '#666666'; // Volver a gris después de 3 segundos
+              }, 3000);
+            }
+          }
+        } else {
+          console.error('[index] ❌ Error en comando HOLA:', data.error);
+          
+          // Cambiar a rojo - error
+          if (robotIcon) {
+            robotIcon.style.fill = '#dc3545'; // Rojo
+            setTimeout(() => {
+              robotIcon.style.fill = '#666666'; // Volver a gris después de 3 segundos
+            }, 3000);
+          }
+        }
+        
+      } catch (e) {
+        console.error('[index] ❌ Error enviando comando HOLA:', e);
+        
+        // Cambiar a rojo - error de conexión
+        const robotIcon = document.getElementById('icon-robot');
+        if (robotIcon) {
+          robotIcon.style.fill = '#dc3545'; // Rojo
+          setTimeout(() => {
+            robotIcon.style.fill = '#666666'; // Volver a gris después de 3 segundos
+          }, 3000);
+        }
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- ============================================================
+       HEADER / BARRA SUPERIOR
+       ============================================================ -->
+  <header class="topbar">
+    <!-- Logo y Título -->
+    <div class="topbar-brand">
+      <img src="/static/logo.png" alt="Illinois Automation" class="topbar-logo">
+      
+    </div>
+
+    <!-- Iconos Centrales de Estado -->
+    <div class="topbar-center">
+      <!-- Broker MQTT -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#666666" viewBox="0 0 640 640" title="Broker MQTT - Click: VerifyInstr | Doble Click: InitWinC5G" id="icon-mqtt" style="cursor: pointer;">
+        <path d="M160 144C151.2 144 144 151.2 144 160L144 322C149.1 320.7 154.5 320 160 320L480 320C485.5 320 490.9 320.7 496 322L496 160C496 151.2 488.8 144 480 144L160 144zM144 384L144 480C144 488.8 151.2 496 160 496L480 496C488.8 496 496 488.8 496 480L496 384C496 375.2 488.8 368 480 368L160 368C151.2 368 144 375.2 144 384zM96 384L96 160C96 124.7 124.7 96 160 96L480 96C515.3 96 544 124.7 544 160L544 480C544 515.3 515.3 544 480 544L160 544C124.7 544 96 515.3 96 480L96 384zM312 432C312 418.7 322.7 408 336 408C349.3 408 360 418.7 360 432C360 445.3 349.3 456 336 456C322.7 456 312 445.3 312 432zM432 408C445.3 408 456 418.7 456 432C456 445.3 445.3 456 432 456C418.7 456 408 445.3 408 432C408 418.7 418.7 408 432 408z"/>
+      </svg>
+      
+      <!-- Visión -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#666666" viewBox="0 0 640 640" title="Visión" id="icon-vision">
+        <path d="M320 96C239.2 96 174.5 132.8 127.4 176.6C80.6 220.1 49.3 272 34.4 307.7C31.1 315.6 31.1 324.4 34.4 332.3C49.3 368 80.6 420 127.4 463.4C174.5 507.1 239.2 544 320 544C400.8 544 465.5 507.2 512.6 463.4C559.4 419.9 590.7 368 605.6 332.3C608.9 324.4 608.9 315.6 605.6 307.7C590.7 272 559.4 220 512.6 176.6C465.5 132.9 400.8 96 320 96zM176 320C176 240.5 240.5 176 320 176C399.5 176 464 240.5 464 320C464 399.5 399.5 464 320 464C240.5 464 176 399.5 176 320zM320 256C320 291.3 291.3 320 256 320C244.5 320 233.7 317 224.3 311.6C223.3 322.5 224.2 333.7 227.2 344.8C240.9 396 293.6 426.4 344.8 412.7C396 399 426.4 346.3 412.7 295.1C400.5 249.4 357.2 220.3 311.6 224.3C316.9 233.6 320 244.4 320 256z"/>
+      </svg>
+      
+      <!-- Robot -->
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="#666666" viewBox="0 0 640 640" title="Robot - Click: Enviar HOLA" id="icon-robot" style="cursor: pointer;">
+        <path d="M352 64C352 46.3 337.7 32 320 32C302.3 32 288 46.3 288 64L288 128L192 128C139 128 96 171 96 224L96 448C96 501 139 544 192 544L448 544C501 544 544 501 544 448L544 224C544 171 501 128 448 128L352 128L352 64zM160 432C160 418.7 170.7 408 184 408L216 408C229.3 408 240 418.7 240 432C240 445.3 229.3 456 216 456L184 456C170.7 456 160 445.3 160 432zM280 432C280 418.7 290.7 408 304 408L336 408C349.3 408 360 418.7 360 432C360 445.3 349.3 456 336 456L304 456C290.7 456 280 445.3 280 432zM400 432C400 418.7 410.7 408 424 408L456 408C469.3 408 480 418.7 480 432C480 445.3 469.3 456 456 456L424 456C410.7 456 400 445.3 400 432zM224 240C250.5 240 272 261.5 272 288C272 314.5 250.5 336 224 336C197.5 336 176 314.5 176 288C176 261.5 197.5 240 224 240zM368 288C368 261.5 389.5 240 416 240C442.5 240 464 261.5 464 288C464 314.5 442.5 336 416 336C389.5 336 368 314.5 368 288z"/>
+      </svg>
+    </div>
+
+    <!-- Navegación -->
+    <nav class="topbar-actions">
+      <button class="btn btn-transparent nav-btn" data-page="control" title="Control Principal">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M8.707 1.5a1 1 0 0 0-1.414 0L.646 8.146a.5.5 0 0 0 .708.708L2 8.207V13.5A1.5 1.5 0 0 0 3.5 15h9a1.5 1.5 0 0 0 1.5-1.5V8.207l.646.647a.5.5 0 0 0 .708-.708L13 5.793V2.5a.5.5 0 0 0-.5-.5h-1a.5.5 0 0 0-.5.5v1.293zM13 7.207V13.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V7.207l5-5z"/>
+        </svg>
+      </button>
+      
+      <button class="btn btn-transparent nav-btn" data-page="configuracion" title="Configuración">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+          <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52zm-2.633.283c.246-.835 1.428-.835 1.674 0l.094.319a1.873 1.873 0 0 0 2.693 1.115l.291-.16c.764-.415 1.6.42 1.184 1.185l-.159.292a1.873 1.873 0 0 0 1.116 2.692l.318.094c.835.246.835 1.428 0 1.674l-.319.094a1.873 1.873 0 0 0-1.115 2.693l.16.291c.415.764-.42 1.6-1.185 1.184l-.291-.159a1.873 1.873 0 0 0-2.693 1.116l-.094.318c-.246.835-1.428.835-1.674 0l-.094-.319a1.873 1.873 0 0 0-2.692-1.115l-.292.16c-.764.415-1.6-.42-1.184-1.185l.159-.291A1.873 1.873 0 0 0 1.945 8.93l-.319-.094c-.835-.246-.835-1.428 0-1.674l.319-.094A1.873 1.873 0 0 0 3.06 4.377l-.16-.292c-.415-.764.42-1.6 1.185-1.184l.292.159a1.873 1.873 0 0 0 2.692-1.115z"/>
+        </svg>
+      </button>
+    </nav>
+  </header>
+
+  <!-- ============================================================
+       CONTENIDO PRINCIPAL - 2 PANELES
+       ============================================================ -->
+  <main class="main-container">
+    <!-- Panel Izquierdo (Navegación Dinámica) -->
+    <section class="panel panel-left">
+      <iframe id="leftFrame" 
+              src="/templates/control.html" 
+              title="Panel de Control" 
+              class="panel-frame">
+      </iframe>
+    </section>
+
+    <!-- Panel Derecho (Dashboard Fijo) -->
+    <section class="panel panel-right">
+      <iframe id="rightFrame" 
+              src="/templates/dashboard.html" 
+              title="Dashboard" 
+              class="panel-frame">
+      </iframe>
+    </section>
+  </main>
+  
+  <script>
+    // ═══════════════════════════════════════════════════════════════
+    // LISTENER PARA MENSAJES DEL IFRAME COMAU_Control
+    // ═══════════════════════════════════════════════════════════════
+    window.addEventListener('message', async (event) => {
+      console.log('[index] 🔔 Mensaje recibido del iframe:', event.data.type, event.data);
+      
+      if (event.data.type === 'REQUEST_ROBOT_TEST_ROUTINE') {
+        console.log('[index] 🤖 Solicitando rutina de prueba desde iframe...');
+        
+        try {
+          const response = await fetch('/api/robot_test_routine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+          
+          const data = await response.json();
+          console.log('[index] 📊 Datos recibidos:', data);
+          
+          // Enviar respuesta de vuelta al iframe
+          if (event.source) {
+            event.source.postMessage({
+              type: 'ROBOT_TEST_ROUTINE_RESPONSE',
+              data: data
+            }, '*');
+            console.log('[index] ✅ Respuesta enviada al iframe');
+          } else {
+            console.log('[index] ⚠️ No se puede enviar respuesta - event.source es null');
+          }
+          
+          // Si hay análisis automático, enviar mensaje directamente al dashboard
+          if (data.analisis_automatico && data.frontend_action === 'auto_click_analyze') {
+            console.log('[index] 🤖 Análisis automático detectado - enviando mensaje al dashboard');
+            
+            // Obtener referencia al iframe del dashboard
+            const dashboardFrame = document.getElementById('rightFrame');
+            if (dashboardFrame && dashboardFrame.contentWindow) {
+              dashboardFrame.contentWindow.postMessage({
+                type: 'AUTO_ANALYZE',
+                message: 'Análisis automático iniciado por rutina de prueba',
+                data: data
+              }, '*');
+              console.log('[index] ✅ Mensaje enviado directamente al dashboard');
+            } else {
+              console.log('[index] ❌ No se puede acceder al iframe del dashboard');
+            }
+          }
+          
+        } catch (error) {
+          console.log('[index] ❌ Error en rutina de prueba:', error);
+          
+          // Enviar error de vuelta al iframe
+          if (event.source) {
+            event.source.postMessage({
+              type: 'ROBOT_TEST_ROUTINE_ERROR',
+              error: error.message
+            }, '*');
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
+
