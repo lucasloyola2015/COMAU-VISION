@@ -356,7 +356,7 @@ def api_overlay_render():
         all_arucos_result = None
         if show_frame or show_tool:
             print(f"[overlay] Detección de ArUcos (método original):")
-        all_arucos_result = detect_all_arucos(cv2_frame, marker_size_mm=frame_marker_size)
+            all_arucos_result = detect_all_arucos(cv2_frame, marker_size_mm=frame_marker_size)
         else:
             print(f"[overlay] ⚡ Detección de ArUcos OMITIDA (no hay elementos que requieran detección)")
         
@@ -377,12 +377,12 @@ def api_overlay_render():
         tool_result = None
         
         if show_frame:
-        frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
+            frame_result = detect_aruco_by_id(cv2_frame, frame_aruco_id, marker_size_mm=frame_marker_size)
         else:
             print(f"[overlay] ⚡ Frame ArUco OMITIDO (show_frame=False)")
             
         if show_tool:
-        tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
+            tool_result = detect_aruco_by_id(cv2_frame, tool_aruco_id, marker_size_mm=tool_marker_size)
         else:
             print(f"[overlay] ⚡ Tool ArUco OMITIDO (show_tool=False)")
         
