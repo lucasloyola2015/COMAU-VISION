@@ -1,20 +1,35 @@
 """
-Sistema Inteligente de Overlays - COMAU-VISION
+OverlayManager - Librería Genérica de Overlays
 ==============================================
 
-Sistema completo de gestión de overlays con transformaciones dinámicas entre 
-múltiples sistemas de coordenadas.
+Librería genérica y reutilizable para gestión de overlays con transformaciones 
+dinámicas entre múltiples sistemas de coordenadas.
+
+IMPORTANTE: Esta librería es GENÉRICA y NO debe ser modificada con:
+- Elementos hardcodeados específicos del dominio
+- Funciones específicas del proyecto
+- Marcos de referencia predefinidos
+- Configuraciones específicas del negocio
 
 Características:
-- Marcos de coordenadas dinámicos (Base, Frame, Tool, YOLO, etc.)
-- Transformaciones bidireccionales automáticas
+- Marcos de coordenadas dinámicos y genéricos
+- Transformaciones bidireccionales automáticas (mm ↔ píxeles)
 - Objetos nombrados con consulta de coordenadas
 - Actualización dinámica de marcos
 - Renderizado con control granular
 - Soporte para imágenes de fondo
 - Parámetro viewTime para control de visualización
+- Soporte para coordenadas en mm y píxeles
+- Conversión automática de unidades
+
+Uso:
+- Solo define el marco "world" por defecto
+- Los marcos específicos deben definirse externamente
+- Los scripts del dominio deben usar frames_manager.py
+- Completamente reutilizable para cualquier proyecto
 
 Autor: Sistema COMAU-VISION
+Versión: 1.0 (Genérica)
 """
 
 import cv2
@@ -46,8 +61,7 @@ class CoordinateFrame:
     offset_y: float
     rotation: float  # en radianes
     px_per_mm: float  # Relación píxeles por milímetro
-    parent_frame: Optional[str] = None  # None para Base
-    is_temporary: bool = False  # Si es marco temporal para calibración
+    parent_frame: Optional[str] = None  # None para world
 
 
 @dataclass
@@ -63,32 +77,41 @@ class DrawingObject:
 
 class OverlayManager:
     """
-    Gestor principal del sistema de overlays.
+    Gestor genérico del sistema de overlays.
     
-    Maneja marcos de coordenadas, objetos de dibujo, transformaciones
-    y renderizado con control granular.
+    Librería genérica y reutilizable que maneja:
+    - Marcos de coordenadas dinámicos
+    - Objetos de dibujo con transformaciones automáticas
+    - Conversión automática mm ↔ píxeles
+    - Renderizado con control granular
+    - Soporte para coordenadas en mm y píxeles
+    
+    IMPORTANTE: Esta clase es GENÉRICA y NO debe ser modificada con:
+    - Marcos específicos del dominio
+    - Funciones específicas del proyecto
+    - Configuraciones hardcodeadas
+    
+    Los marcos específicos deben definirse en scripts externos
+    usando frames_manager.py o similar.
     """
     
     def __init__(self):
-        """Inicializar el gestor de overlays"""
+        """
+        Inicializar el gestor genérico de overlays.
+        
+        Solo define el marco "world" genérico. Los marcos específicos
+        del dominio deben definirse externamente usando frames_manager.py
+        o scripts similares.
+        """
         self.frames: Dict[str, CoordinateFrame] = {}
         self.objects: Dict[str, DrawingObject] = {}
         self.renderlists: Dict[str, List[str]] = {}
         self.backgrounds: Dict[str, np.ndarray] = {}
         
-        # Definir marco world por defecto
+        # Definir marco world por defecto (único marco genérico)
         self.define_frame("world", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
         
-        # Definir marcos base_frame, tool_frame y junta_frame por defecto
-        self.define_frame("base_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
-        self.define_frame("tool_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
-        self.define_frame("junta_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
-        
-        print(f"[OverlayManager] ✓ Marcos inicializados al inicio del sistema:")
-        print(f"  - world: offset=(0, 0), px_per_mm=1.0")
-        print(f"  - base_frame: offset=(0, 0), px_per_mm=1.0")
-        print(f"  - tool_frame: offset=(0, 0), px_per_mm=1.0")
-        print(f"  - junta_frame: offset=(0, 0), px_per_mm=1.0")
+        print(f"[OverlayManager] ✓ Marco genérico 'world' inicializado")
         
         # Configuración por defecto
         self.default_properties = {
@@ -106,7 +129,7 @@ class OverlayManager:
     
     def define_frame(self, name: str, offset: Tuple[float, float], 
                     rotation: float, px_per_mm: float = 1.0, 
-                    parent_frame: str = "world", is_temporary: bool = False) -> None:
+                    parent_frame: str = "world") -> None:
         """
         Definir un nuevo marco de coordenadas.
         
@@ -116,7 +139,6 @@ class OverlayManager:
             rotation: Rotación en radianes
             px_per_mm: Relación píxeles por milímetro
             parent_frame: Marco padre (default: "world")
-            is_temporary: Si es marco temporal para calibración
         """
         if name in self.frames:
             print(f"[OverlayManager] ⚠️ Marco '{name}' ya existe, actualizando...")
@@ -127,8 +149,7 @@ class OverlayManager:
             offset_y=offset[1],
             rotation=rotation,
             px_per_mm=px_per_mm,
-            parent_frame=parent_frame,
-            is_temporary=is_temporary
+            parent_frame=parent_frame
         )
         
         print(f"[OverlayManager] ✓ Marco '{name}' definido: offset={offset}, rotation={rotation:.3f}rad, px_per_mm={px_per_mm:.3f}")
@@ -266,10 +287,27 @@ class OverlayManager:
     
     def add_line(self, frame: str, start: Tuple[float, float], end: Tuple[float, float],
                  name: str, color: Union[str, Tuple[int, int, int]] = None, 
-                 thickness: int = None, **kwargs) -> None:
-        """Agregar línea"""
+                 thickness: int = None, units: str = "mm", **kwargs) -> None:
+        """
+        Agregar línea
+        
+        Args:
+            frame: Marco de referencia
+            start: Punto inicio
+            end: Punto fin
+            name: Nombre único
+            color: Color del objeto
+            thickness: Grosor de línea
+            units: Unidades de las coordenadas ("mm" por defecto o "px")
+        """
         if name in self.objects:
             raise ValueError(f"Objeto '{name}' ya existe")
+        
+        # Convertir coordenadas si vienen en píxeles
+        if units == "px":
+            frame_obj = self.frames[frame]
+            start = (start[0] / frame_obj.px_per_mm, start[1] / frame_obj.px_per_mm)
+            end = (end[0] / frame_obj.px_per_mm, end[1] / frame_obj.px_per_mm)
         
         # Convertir color a BGR si es string
         if isinstance(color, str):
@@ -291,14 +329,32 @@ class OverlayManager:
         )
         
         self.objects[name] = obj
-        print(f"[OverlayManager] ✓ Línea '{name}' agregada en marco '{frame}'")
+        print(f"[OverlayManager] ✓ Línea '{name}' agregada en marco '{frame}' ({units})")
     
     def add_circle(self, frame: str, center: Tuple[float, float], radius: float,
                    name: str, color: Union[str, Tuple[int, int, int]] = None,
-                   thickness: int = None, filled: bool = False, **kwargs) -> None:
-        """Agregar círculo"""
+                   thickness: int = None, filled: bool = False, units: str = "mm", **kwargs) -> None:
+        """
+        Agregar círculo
+        
+        Args:
+            frame: Marco de referencia
+            center: Centro del círculo
+            radius: Radio del círculo
+            name: Nombre único
+            color: Color del objeto
+            thickness: Grosor de línea
+            filled: Si está relleno
+            units: Unidades de las coordenadas ("mm" o "px")
+        """
         if name in self.objects:
             raise ValueError(f"Objeto '{name}' ya existe")
+        
+        # Convertir coordenadas si vienen en píxeles
+        if units == "px":
+            frame_obj = self.frames[frame]
+            center = (center[0] / frame_obj.px_per_mm, center[1] / frame_obj.px_per_mm)
+            radius = radius / frame_obj.px_per_mm
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -320,14 +376,32 @@ class OverlayManager:
         )
         
         self.objects[name] = obj
-        print(f"[OverlayManager] ✓ Círculo '{name}' agregado en marco '{frame}'")
+        print(f"[OverlayManager] ✓ Círculo '{name}' agregado en marco '{frame}' ({units})")
     
     def add_ellipse(self, frame: str, center: Tuple[float, float], axes: Tuple[float, float],
                     angle: float, name: str, color: Union[str, Tuple[int, int, int]] = None,
-                    thickness: int = None, **kwargs) -> None:
-        """Agregar elipse"""
+                    thickness: int = None, units: str = "mm", **kwargs) -> None:
+        """
+        Agregar elipse
+        
+        Args:
+            frame: Marco de referencia
+            center: Centro de la elipse
+            axes: Ejes mayor y menor
+            angle: Ángulo de rotación
+            name: Nombre único
+            color: Color del objeto
+            thickness: Grosor de línea
+            units: Unidades de las coordenadas ("mm" o "px")
+        """
         if name in self.objects:
             raise ValueError(f"Objeto '{name}' ya existe")
+        
+        # Convertir coordenadas si vienen en píxeles
+        if units == "px":
+            frame_obj = self.frames[frame]
+            center = (center[0] / frame_obj.px_per_mm, center[1] / frame_obj.px_per_mm)
+            axes = (axes[0] / frame_obj.px_per_mm, axes[1] / frame_obj.px_per_mm)
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -348,14 +422,31 @@ class OverlayManager:
         )
         
         self.objects[name] = obj
-        print(f"[OverlayManager] ✓ Elipse '{name}' agregada en marco '{frame}'")
+        print(f"[OverlayManager] ✓ Elipse '{name}' agregada en marco '{frame}' ({units})")
     
     def add_segment(self, frame: str, start: Tuple[float, float], end: Tuple[float, float],
                     name: str, color: Union[str, Tuple[int, int, int]] = None,
-                    thickness: int = None, **kwargs) -> None:
-        """Agregar segmento (línea con puntos extremos)"""
+                    thickness: int = None, units: str = "mm", **kwargs) -> None:
+        """
+        Agregar segmento (línea con puntos extremos)
+        
+        Args:
+            frame: Marco de referencia
+            start: Punto inicio
+            end: Punto fin
+            name: Nombre único
+            color: Color del objeto
+            thickness: Grosor de línea
+            units: Unidades de las coordenadas ("mm" o "px")
+        """
         if name in self.objects:
             raise ValueError(f"Objeto '{name}' ya existe")
+        
+        # Convertir coordenadas si vienen en píxeles
+        if units == "px":
+            frame_obj = self.frames[frame]
+            start = (start[0] / frame_obj.px_per_mm, start[1] / frame_obj.px_per_mm)
+            end = (end[0] / frame_obj.px_per_mm, end[1] / frame_obj.px_per_mm)
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -376,14 +467,31 @@ class OverlayManager:
         )
         
         self.objects[name] = obj
-        print(f"[OverlayManager] ✓ Segmento '{name}' agregado en marco '{frame}'")
+        print(f"[OverlayManager] ✓ Segmento '{name}' agregado en marco '{frame}' ({units})")
     
     def add_text(self, frame: str, position: Tuple[float, float], text: str,
                  name: str, color: Union[str, Tuple[int, int, int]] = None,
-                 font_scale: float = 1.0, thickness: int = None, **kwargs) -> None:
-        """Agregar texto"""
+                 font_scale: float = 1.0, thickness: int = None, units: str = "mm", **kwargs) -> None:
+        """
+        Agregar texto
+        
+        Args:
+            frame: Marco de referencia
+            position: Posición del texto
+            text: Texto a mostrar
+            name: Nombre único
+            color: Color del texto
+            font_scale: Escala de fuente
+            thickness: Grosor de línea
+            units: Unidades de las coordenadas ("mm" o "px")
+        """
         if name in self.objects:
             raise ValueError(f"Objeto '{name}' ya existe")
+        
+        # Convertir coordenadas si vienen en píxeles
+        if units == "px":
+            frame_obj = self.frames[frame]
+            position = (position[0] / frame_obj.px_per_mm, position[1] / frame_obj.px_per_mm)
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -405,7 +513,7 @@ class OverlayManager:
         )
         
         self.objects[name] = obj
-        print(f"[OverlayManager] ✓ Texto '{name}' agregado en marco '{frame}'")
+        print(f"[OverlayManager] ✓ Texto '{name}' agregado en marco '{frame}' ({units})")
     
     def add_background(self, name: str, image_path: str, adjust_container: bool = True) -> None:
         """Agregar imagen de fondo desde archivo"""
@@ -666,8 +774,7 @@ class OverlayManager:
                 'offset_y': frame.offset_y,
                 'rotation': frame.rotation,
                 'px_per_mm': frame.px_per_mm,
-                'parent_frame': frame.parent_frame,
-                'is_temporary': frame.is_temporary
+                'parent_frame': frame.parent_frame
             } for name, frame in self.frames.items()},
             'objects': {name: {
                 'type': obj.type.value,
@@ -683,30 +790,26 @@ class OverlayManager:
         
         print(f"[OverlayManager] ✓ Configuración guardada en {filepath}")
     
-    def save_persistent_config(self) -> None:
-        """Guardar configuración persistente (solo marcos no temporales)"""
-        persistent_frames = {name: frame for name, frame in self.frames.items() 
-                           if not frame.is_temporary}
-        
+    def save_persistent_config(self, filepath: str = 'overlay_frames.json') -> None:
+        """Guardar configuración persistente"""
         config = {
             'frames': {name: {
                 'offset_x': frame.offset_x,
                 'offset_y': frame.offset_y,
                 'rotation': frame.rotation,
                 'px_per_mm': frame.px_per_mm,
-                'parent_frame': frame.parent_frame,
-                'is_temporary': False
-            } for name, frame in persistent_frames.items()},
+                'parent_frame': frame.parent_frame
+            } for name, frame in self.frames.items()},
             'metadata': {
                 'last_updated': 0.0,  # TODO: usar timestamp real
                 'version': '1.0'
             }
         }
         
-        with open('overlay_frames.json', 'w', encoding='utf-8') as f:
+        with open(filepath, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
         
-        print(f"[OverlayManager] ✓ Configuración persistente guardada")
+        print(f"[OverlayManager] ✓ Configuración persistente guardada en {filepath}")
     
     def load_config(self, filepath: str) -> None:
         """Cargar configuración desde archivo JSON"""
@@ -724,8 +827,7 @@ class OverlayManager:
                 (frame_data['offset_x'], frame_data['offset_y']),
                 frame_data['rotation'],
                 frame_data.get('px_per_mm', 1.0),
-                frame_data.get('parent_frame', 'Base'),
-                frame_data.get('is_temporary', False)
+                frame_data.get('parent_frame', 'world')
             )
         
         # Cargar objetos
@@ -746,249 +848,38 @@ class OverlayManager:
         
         print(f"[OverlayManager] ✓ Configuración cargada desde {filepath}")
     
-    def load_persistent_config(self) -> None:
+    def load_persistent_config(self, filepath: str = 'overlay_frames.json') -> None:
         """Cargar configuración persistente al inicializar"""
-        if os.path.exists('overlay_frames.json'):
-            self.load_config('overlay_frames.json')
-            print(f"[OverlayManager] ✓ Configuración persistente cargada desde overlay_frames.json")
+        if os.path.exists(filepath):
+            self.load_config(filepath)
+            print(f"[OverlayManager] ✓ Configuración persistente cargada desde {filepath}")
         else:
             print(f"[OverlayManager] ⚠️ No hay configuración persistente, usando valores por defecto")
         
-        # Asegurar que base_frame y tool_frame existan con valores por defecto si no se cargaron
-        if 'base_frame' not in self.frames:
-            self.define_frame("base_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
-            print(f"[OverlayManager] ✓ Marco base_frame inicializado con valores por defecto")
-        
-        if 'tool_frame' not in self.frames:
-            self.define_frame("tool_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
-            print(f"[OverlayManager] ✓ Marco tool_frame inicializado con valores por defecto")
-        
-        if 'junta_frame' not in self.frames:
-            self.define_frame("junta_frame", offset=(0, 0), rotation=0.0, px_per_mm=1.0)
-            print(f"[OverlayManager] ✓ Marco junta_frame inicializado con valores por defecto")
-    
-    def detect_arucos_in_image(self, image: np.ndarray, frame_aruco_id: int, tool_aruco_id: int) -> Dict[str, Any]:
-        """
-        Detectar ArUcos en imagen usando OpenCV directo.
-        
-        Args:
-            image: Imagen en escala de grises
-            frame_aruco_id: ID del ArUco Frame
-            tool_aruco_id: ID del ArUco Tool
-            
-        Returns:
-            Diccionario con información de detección
-        """
-        try:
-            print(f"[OverlayManager] Detectando ArUcos en imagen {image.shape}")
-            print(f"[OverlayManager] Buscando Frame ID: {frame_aruco_id}, Tool ID: {tool_aruco_id}")
-            
-            # Configurar detector ArUco
-            aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_50)
-            parameters = cv2.aruco.DetectorParameters()
-            detector = cv2.aruco.ArucoDetector(aruco_dict, parameters)
-            
-            # Detectar marcadores
-            corners, ids, rejected = detector.detectMarkers(image)
-            
-            print(f"[OverlayManager] Resultado detección:")
-            print(f"  - corners: {len(corners) if corners is not None else 0}")
-            print(f"  - ids: {ids}")
-            print(f"  - rejected: {len(rejected) if rejected is not None else 0}")
-            
-            detected_arucos = {}
-            detected_ids = []
-            
-            if ids is not None and len(ids) > 0:
-                for i, aruco_id in enumerate(ids.flatten()):
-                    detected_ids.append(int(aruco_id))
-                    
-                    # Obtener esquinas del ArUco
-                    corner = corners[i][0]
-                    
-                    # Calcular centro
-                    center_x = np.mean(corner[:, 0])
-                    center_y = np.mean(corner[:, 1])
-                    
-                    # Calcular ángulo de rotación
-                    dx = corner[1][0] - corner[0][0]
-                    dy = corner[1][1] - corner[0][1]
-                    angle_rad = np.arctan2(dy, dx)
-                    
-                    # Calcular px_per_mm (asumiendo tamaño conocido)
-                    # TODO: usar tamaño real del marcador
-                    marker_size_mm = 42.0  # Tamaño por defecto
-                    marker_size_px = np.linalg.norm(corner[1] - corner[0])
-                    px_per_mm = marker_size_px / marker_size_mm
-                    
-                    detected_arucos[int(aruco_id)] = {
-                        'center': (float(center_x), float(center_y)),
-                        'angle_rad': float(angle_rad),
-                        'corners': corner.tolist(),
-                        'px_per_mm': float(px_per_mm)
-                    }
-            
-            # Verificar si se detectaron los ArUcos esperados
-            frame_detected = frame_aruco_id in detected_arucos
-            tool_detected = tool_aruco_id in detected_arucos
-            
-            return {
-                'detected_arucos': detected_arucos,
-                'detected_ids': detected_ids,
-                'frame_detected': frame_detected,
-                'tool_detected': tool_detected,
-                'frame_aruco_id': frame_aruco_id,
-                'tool_aruco_id': tool_aruco_id
-            }
-            
-        except Exception as e:
-            print(f"[OverlayManager] ❌ Error detectando ArUcos: {e}")
-            return {
-                'detected_arucos': {},
-                'detected_ids': [],
-                'frame_detected': False,
-                'tool_detected': False,
-                'error': str(e)
-            }
-    
-    def create_temp_frames_from_arucos(self, detection_result: Dict[str, Any]) -> None:
-        """
-        Crear marcos temporales basados en detección de ArUcos.
-        
-        Args:
-            detection_result: Resultado de detect_arucos_in_image()
-        """
-        detected_arucos = detection_result.get('detected_arucos', {})
-        frame_aruco_id = detection_result.get('frame_aruco_id', 0)
-        tool_aruco_id = detection_result.get('tool_aruco_id', 0)
-        
-        # Crear/actualizar frame temporal del Frame ArUco
-        if frame_aruco_id in detected_arucos:
-            frame_data = detected_arucos[frame_aruco_id]
-            self.define_frame(
-                "base_frame_temp",
-                offset=frame_data['center'],
-                rotation=frame_data['angle_rad'],
-                px_per_mm=frame_data['px_per_mm'],
-                is_temporary=True
-            )
-            print(f"[OverlayManager] ✓ Marco temporal 'base_frame_temp' creado desde ArUco {frame_aruco_id}")
-        
-        # Crear/actualizar frame temporal del Tool ArUco
-        if tool_aruco_id in detected_arucos:
-            tool_data = detected_arucos[tool_aruco_id]
-            self.define_frame(
-                "tool_frame_temp",
-                offset=tool_data['center'],
-                rotation=tool_data['angle_rad'],
-                px_per_mm=tool_data['px_per_mm'],
-                is_temporary=True
-            )
-            print(f"[OverlayManager] ✓ Marco temporal 'tool_frame_temp' creado desde ArUco {tool_aruco_id}")
-    
-    def create_aruco_overlay_objects(self, detection_result: Dict[str, Any]) -> None:
-        """
-        Crear objetos de overlay para ArUcos detectados.
-        
-        Args:
-            detection_result: Resultado de detect_arucos_in_image()
-        """
-        detected_arucos = detection_result.get('detected_arucos', {})
-        frame_aruco_id = detection_result.get('frame_aruco_id', 0)
-        tool_aruco_id = detection_result.get('tool_aruco_id', 0)
-        
-        # Limpiar objetos de ArUco existentes
-        aruco_objects = [name for name, obj in self.objects.items() 
-                        if obj.name.startswith('aruco_')]
-        for obj_name in aruco_objects:
-            del self.objects[obj_name]
-        
-        # Crear objetos para cada ArUco detectado
-        for aruco_id, aruco_data in detected_arucos.items():
-            center = aruco_data['center']
-            angle_rad = aruco_data['angle_rad']
-            corners = aruco_data['corners']
-            
-            # Determinar color según tipo
-            if aruco_id == frame_aruco_id:
-                color = (0, 255, 255)  # Amarillo para Frame
-                frame_name = "base_frame_temp"
-            elif aruco_id == tool_aruco_id:
-                color = (255, 0, 0)  # Azul para Tool
-                frame_name = "tool_frame_temp"
-            else:
-                color = (255, 255, 0)  # Cian para otros
-                frame_name = "world"  # Usar marco world para ArUcos no esperados
-            
-            # Dibujar contorno del ArUco
-            self.add_polygon(
-                frame_name,
-                points=corners,
-                name=f"aruco_contour_{aruco_id}",
-                color=color,
-                thickness=2
-            )
-            
-            # Dibujar ejes (líneas infinitas de borde a borde)
-            # Eje X
-            axis_length = 1000  # Largo para cubrir toda la imagen
-            x_end1 = (
-                center[0] + axis_length * np.cos(angle_rad),
-                center[1] + axis_length * np.sin(angle_rad)
-            )
-            x_end2 = (
-                center[0] - axis_length * np.cos(angle_rad),
-                center[1] - axis_length * np.sin(angle_rad)
-            )
-            
-            # Eje Y
-            y_angle_rad = angle_rad + np.pi / 2
-            y_end1 = (
-                center[0] + axis_length * np.cos(y_angle_rad),
-                center[1] + axis_length * np.sin(y_angle_rad)
-            )
-            y_end2 = (
-                center[0] - axis_length * np.cos(y_angle_rad),
-                center[1] - axis_length * np.sin(y_angle_rad)
-            )
-            
-            # Agregar líneas de ejes
-            self.add_line(
-                frame_name,
-                start=x_end2,
-                end=x_end1,
-                name=f"aruco_x_axis_{aruco_id}",
-                color=color,
-                thickness=2
-            )
-            
-            self.add_line(
-                frame_name,
-                start=y_end2,
-                end=y_end1,
-                name=f"aruco_y_axis_{aruco_id}",
-                color=color,
-                thickness=2
-            )
-            
-            # Agregar centro
-            self.add_circle(
-                frame_name,
-                center=(0, 0),  # Centro relativo al marco
-                radius=5,
-                name=f"aruco_center_{aruco_id}",
-                color=color,
-                filled=True
-            )
-            
-            print(f"[OverlayManager] ✓ Objetos de overlay creados para ArUco {aruco_id}")
+        # La librería genérica no debe asumir marcos específicos del dominio
+        # Los marcos específicos deben ser definidos por scripts externos
     
     def add_polygon(self, frame: str, points: List[Tuple[float, float]], 
                    name: str, color: Union[str, Tuple[int, int, int]] = None,
-                   thickness: int = None, **kwargs) -> None:
-        """Agregar polígono (contorno)"""
+                   thickness: int = None, units: str = "mm", **kwargs) -> None:
+        """
+        Agregar polígono (contorno)
+        
+        Args:
+            frame: Marco de referencia
+            points: Lista de puntos del polígono
+            name: Nombre único
+            color: Color del objeto
+            thickness: Grosor de línea
+            units: Unidades de las coordenadas ("mm" o "px")
+        """
         if name in self.objects:
             raise ValueError(f"Objeto '{name}' ya existe")
+        
+        # Convertir coordenadas si vienen en píxeles
+        if units == "px":
+            frame_obj = self.frames[frame]
+            points = [(p[0] / frame_obj.px_per_mm, p[1] / frame_obj.px_per_mm) for p in points]
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -1009,55 +900,52 @@ class OverlayManager:
         )
         
         self.objects[name] = obj
-        print(f"[OverlayManager] ✓ Polígono '{name}' agregado en marco '{frame}'")
+        print(f"[OverlayManager] ✓ Polígono '{name}' agregado en marco '{frame}' ({units})")
 
+
+# ============================================================
+# DOCUMENTACIÓN DE USO
+# ============================================================
+
+"""
+DOCUMENTACIÓN DE USO - OverlayManager Genérico
+==============================================
+
+IMPORTANTE: Esta librería es GENÉRICA y NO debe ser modificada.
+
+1. INICIALIZACIÓN:
+   overlay = OverlayManager()  # Solo define marco "world"
+
+2. MARCOS ESPECÍFICOS:
+   # NO agregar marcos específicos aquí
+   # Usar frames_manager.py para marcos del dominio
+   from frames_manager import init_global_frames
+   init_global_frames()
+
+3. AGREGAR OBJETOS:
+   # En milímetros (por defecto)
+   overlay.add_line("base_frame", start=(10, 20), end=(30, 20), name="linea_mm")
+   
+   # En píxeles (cuando sea necesario)
+   overlay.add_line("base_frame", start=(29.9, 59.8), end=(89.7, 59.8), name="linea_px", units="px")
+
+4. RENDERIZADO:
+   result_image, view_time = overlay.render(background_image)
+
+5. ARQUITECTURA:
+   - overlay_manager.py: Librería genérica (NO modificar)
+   - frames_manager.py: Marcos específicos del dominio
+   - Scripts del proyecto: Usar frames_manager.py
+
+NO MODIFICAR ESTA LIBRERÍA CON:
+- Marcos específicos del dominio
+- Funciones específicas del proyecto
+- Configuraciones hardcodeadas
+- Elementos específicos del negocio
+"""
 
 # ============================================================
 # FUNCIONES DE CONVENIENCIA
 # ============================================================
 
-def create_default_overlay_manager() -> OverlayManager:
-    """Crear OverlayManager con configuración por defecto"""
-    manager = OverlayManager()
-    
-    # Definir marcos comunes
-    manager.define_frame("Frame", offset=(0, 0), rotation=0.0)
-    manager.define_frame("Tool", offset=(0, 0), rotation=0.0)
-    
-    return manager
 
-
-# ============================================================
-# EJEMPLO DE USO
-# ============================================================
-
-if __name__ == "__main__":
-    # Ejemplo de uso básico
-    print("=== Ejemplo de OverlayManager ===")
-    
-    # Crear gestor
-    overlay = OverlayManager()
-    
-    # Definir marcos
-    overlay.define_frame("Frame", offset=(100, 50), rotation=0.5)
-    overlay.define_frame("Tool", offset=(200, 150), rotation=-0.3)
-    
-    # Agregar objetos
-    overlay.add_line("Tool", start=(10, 20), end=(30, 40), color="red", name="linea_tool_1")
-    overlay.add_circle("Frame", center=(15, 25), radius=5, color="blue", name="circulo_frame_1")
-    
-    # Crear renderlist
-    renderlist = overlay.create_renderlist("linea_tool_1", "circulo_frame_1")
-    
-    # Consultar coordenadas
-    coords = overlay.get_object("world", name="linea_tool_1")
-    print(f"Coordenadas en Base: {coords}")
-    
-    # Actualizar marco
-    overlay.update_frame("world", offset=(200, 250), rotation=0.4)
-    
-    # Consultar coordenadas después del cambio
-    coords2 = overlay.get_object("world", name="linea_tool_1")
-    print(f"Coordenadas después del cambio: {coords2}")
-    
-    print("=== Ejemplo completado ===")

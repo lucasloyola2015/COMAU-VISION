@@ -118,7 +118,7 @@
     
     <div class="form-row" style="margin-bottom: var(--space-lg);">
       <div style="flex: 0 0 auto;">
-        <label for="toolArucoCId">Aruco_Tool_ID</label>
+        <label for="toolArucoCId">ID</label>
         <input type="number" 
                id="toolArucoCId" 
                min="0" 
@@ -128,7 +128,7 @@
       </div>
       
       <div style="flex: 0 0 auto;">
-        <label for="toolArucoSize">Aruco_Tool_Tamaño (mm)</label>
+        <label for="toolArucoSize">Tamaño (mm)</label>
         <div style="display: flex; align-items: center; gap: 8px;">
           <input type="number" 
                  id="toolArucoSize" 
@@ -139,6 +139,26 @@
                  style="width: 100px;">
           <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #0066FF; flex-shrink: 0;" title="Tool"></div>
         </div>
+      </div>
+      
+      <div style="flex: 0 0 auto;">
+        <label for="toolMarkerBits">Bits</label>
+        <select id="toolMarkerBits" style="width: 80px;">
+          <option value="4">4x4</option>
+          <option value="5">5x5</option>
+          <option value="6">6x6</option>
+          <option value="7">7x7</option>
+        </select>
+      </div>
+      
+      <div style="flex: 0 0 auto;">
+        <label for="toolDictionary">Diccionario</label>
+        <select id="toolDictionary" style="width: 120px;">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="250">250</option>
+          <option value="1000">1000</option>
+        </select>
       </div>
       
       <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px;">
@@ -154,7 +174,7 @@
     
     <div class="form-row" style="margin-bottom: var(--space-lg);">
       <div style="flex: 0 0 auto;">
-        <label for="frameArucoCId">Aruco_Frame_ID</label>
+        <label for="frameArucoCId">ID</label>
         <input type="number" 
                id="frameArucoCId" 
                min="0" 
@@ -164,7 +184,7 @@
       </div>
       
       <div style="flex: 0 0 auto;">
-        <label for="frameArucoSize">Aruco_Frame_Tamaño (mm)</label>
+        <label for="frameArucoSize">Tamaño (mm)</label>
         <div style="display: flex; align-items: center; gap: 8px;">
           <input type="number" 
                  id="frameArucoSize" 
@@ -175,6 +195,26 @@
                  style="width: 100px;">
           <div style="width: 16px; height: 16px; border-radius: 50%; background-color: #FFD700; flex-shrink: 0;" title="Frame"></div>
         </div>
+      </div>
+      
+      <div style="flex: 0 0 auto;">
+        <label for="frameMarkerBits">Bits</label>
+        <select id="frameMarkerBits" style="width: 80px;">
+          <option value="4">4x4</option>
+          <option value="5">5x5</option>
+          <option value="6">6x6</option>
+          <option value="7">7x7</option>
+        </select>
+      </div>
+      
+      <div style="flex: 0 0 auto;">
+        <label for="frameDictionary">Diccionario</label>
+        <select id="frameDictionary" style="width: 120px;">
+          <option value="50">50</option>
+          <option value="100">100</option>
+          <option value="250">250</option>
+          <option value="1000">1000</option>
+        </select>
       </div>
       
       <div style="flex: 0 0 auto; display: flex; align-items: center; gap: 8px;">
@@ -276,8 +316,12 @@
   <script>
     const frameArucoIdInput = document.getElementById('frameArucoCId');
     const frameArucoSizeInput = document.getElementById('frameArucoSize');
+    const frameDictionarySelect = document.getElementById('frameDictionary');
+    const frameMarkerBitsSelect = document.getElementById('frameMarkerBits');
     const toolArucoIdInput = document.getElementById('toolArucoCId');
     const toolArucoSizeInput = document.getElementById('toolArucoSize');
+    const toolDictionarySelect = document.getElementById('toolDictionary');
+    const toolMarkerBitsSelect = document.getElementById('toolMarkerBits');
     const centerXInput = document.getElementById('centerX');
     const centerYInput = document.getElementById('centerY');
     const chkShowFrame = document.getElementById('chkShowFrame');
@@ -321,14 +365,23 @@
         const config = await response.json();
         
         if (config.aruco) {
-          frameArucoIdInput.value = config.aruco.frame_aruco_id || 0;
-          frameArucoSizeInput.value = config.aruco.frame_marker_size_mm || 42.0;
-          toolArucoIdInput.value = config.aruco.tool_aruco_id || 0;
-          toolArucoSizeInput.value = config.aruco.tool_marker_size_mm || 42.0;
-          centerXInput.value = config.aruco.center_x_mm || 0;
-          centerYInput.value = config.aruco.center_y_mm || 0;
-          chkShowFrame.checked = config.aruco.show_frame || false;
-          chkShowTool.checked = config.aruco.show_tool || false;
+          // Configuración Base (nueva estructura)
+          frameArucoIdInput.value = config.aruco.base?.reference_id || 0;
+          frameArucoSizeInput.value = config.aruco.base?.marker_size_mm || 42.0;
+          frameDictionarySelect.value = config.aruco.base?.dictionary_id || 50;
+          frameMarkerBitsSelect.value = config.aruco.base?.marker_bits || 4;
+          
+          // Configuración Tool (nueva estructura)
+          toolArucoIdInput.value = config.aruco.tool?.reference_id || 0;
+          toolArucoSizeInput.value = config.aruco.tool?.marker_size_mm || 42.0;
+          toolDictionarySelect.value = config.aruco.tool?.dictionary_id || 50;
+          toolMarkerBitsSelect.value = config.aruco.tool?.marker_bits || 4;
+          
+          // Configuración general
+          centerXInput.value = config.aruco.base?.center_x_mm || 0;
+          centerYInput.value = config.aruco.base?.center_y_mm || 0;
+          chkShowFrame.checked = config.aruco.base?.show_reference || false;
+          chkShowTool.checked = config.aruco.tool?.show_reference || false;
           chkShowCenter.checked = config.aruco.show_center || false;
           chkUseSaved.checked = config.aruco.use_saved_reference || false;
           
@@ -389,8 +442,12 @@
     async function applyConfig() {
       const frameArucoId = parseInt(frameArucoIdInput.value);
       const frameMarkerSize = parseFloat(frameArucoSizeInput.value);
+      const frameDictionaryId = parseInt(frameDictionarySelect.value);
+      const frameMarkerBits = parseInt(frameMarkerBitsSelect.value);
       const toolArucoId = parseInt(toolArucoIdInput.value);
       const toolMarkerSize = parseFloat(toolArucoSizeInput.value);
+      const toolDictionaryId = parseInt(toolDictionarySelect.value);
+      const toolMarkerBits = parseInt(toolMarkerBitsSelect.value);
       const centerX = parseFloat(centerXInput.value);
       const centerY = parseFloat(centerYInput.value);
       const showFrame = chkShowFrame.checked;
@@ -409,8 +466,12 @@
           body: JSON.stringify({
             frame_aruco_id: frameArucoId,
             frame_marker_size_mm: frameMarkerSize,
+            frame_dictionary_id: frameDictionaryId,
+            frame_marker_bits: frameMarkerBits,
             tool_aruco_id: toolArucoId,
             tool_marker_size_mm: toolMarkerSize,
+            tool_dictionary_id: toolDictionaryId,
+            tool_marker_bits: toolMarkerBits,
             center_x_mm: centerX,
             center_y_mm: centerY,
             show_frame: showFrame,
@@ -479,9 +540,34 @@
         btnShow.disabled = true;
         showMessage('Mostrando overlay en dashboard...', 'info');
         
+        // ✅ Recopilar datos dinámicos de la página
+        const data = {
+          // Datos de Base ArUco
+          frame_aruco_id: parseInt(frameArucoIdInput.value),
+          frame_marker_size_mm: parseFloat(frameArucoSizeInput.value),
+          frame_dictionary_id: parseInt(frameDictionarySelect.value),
+          frame_marker_bits: parseInt(frameMarkerBitsSelect.value),
+          
+          // Datos de Tool ArUco
+          tool_aruco_id: parseInt(toolArucoIdInput.value),
+          tool_marker_size_mm: parseFloat(toolArucoSizeInput.value),
+          tool_dictionary_id: parseInt(toolDictionarySelect.value),
+          tool_marker_bits: parseInt(toolMarkerBitsSelect.value),
+          
+          // Coordenadas del centro del troquel
+          center_x_mm: parseFloat(centerXInput.value),
+          center_y_mm: parseFloat(centerYInput.value),
+          
+          // Checkboxes de mostrar
+          show_frame: chkShowFrame.checked,
+          show_tool: chkShowTool.checked,
+          show_center: chkShowCenter.checked
+        };
+        
         const response = await Common.fetchWithTimeout('/api/overlay/render', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
         });
         
         const result = await response.json();

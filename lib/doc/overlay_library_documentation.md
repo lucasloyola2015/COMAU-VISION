@@ -1,25 +1,71 @@
-# OverlayManager - Documentación Completa
+# OverlayManager - Librería Genérica de Overlays
+
+## ⚠️ IMPORTANTE: LIBRERÍA GENÉRICA
+
+**Esta librería es GENÉRICA y NO debe ser modificada con:**
+- ❌ Elementos hardcodeados específicos del dominio
+- ❌ Funciones específicas del proyecto  
+- ❌ Marcos de referencia predefinidos
+- ❌ Configuraciones específicas del negocio
+
+**Para marcos específicos del dominio, usar `frames_manager.py`**
 
 ## 📋 Índice
 1. [Introducción](#introducción)
-2. [Instalación y Configuración](#instalación-y-configuración)
-3. [Conceptos Fundamentales](#conceptos-fundamentales)
-4. [API de la Librería](#api-de-la-librería)
-5. [Ejemplos Prácticos](#ejemplos-prácticos)
-6. [Casos de Uso Avanzados](#casos-de-uso-avanzados)
-7. [Troubleshooting](#troubleshooting)
+2. [Arquitectura Genérica](#arquitectura-genérica)
+3. [Instalación y Configuración](#instalación-y-configuración)
+4. [Conceptos Fundamentales](#conceptos-fundamentales)
+5. [API de la Librería](#api-de-la-librería)
+6. [Soporte para Unidades](#soporte-para-unidades)
+7. [Ejemplos Prácticos](#ejemplos-prácticos)
+8. [Troubleshooting](#troubleshooting)
 
 ## 🎯 Introducción
 
-`OverlayManager` es una librería Python diseñada para manejar sistemas de coordenadas múltiples y renderizar overlays gráficos de manera inteligente. Permite definir objetos en diferentes marcos de referencia y transformarlos automáticamente entre sistemas de coordenadas.
+`OverlayManager` es una **librería genérica y reutilizable** para manejar sistemas de coordenadas múltiples y renderizar overlays gráficos de manera inteligente. Permite definir objetos en diferentes marcos de referencia y transformarlos automáticamente entre sistemas de coordenadas.
 
 ### Características Principales
+- ✅ **Librería genérica** - Completamente reutilizable
 - ✅ **Múltiples sistemas de coordenadas** con transformaciones bidireccionales
 - ✅ **Conversión automática** de mm a píxeles usando `px_per_mm`
+- ✅ **Soporte para coordenadas en mm y píxeles**
 - ✅ **Objetos nombrados** para consultas y transformaciones
 - ✅ **Renderizado inteligente** con listas de objetos
 - ✅ **Persistencia** de configuraciones de marcos
-- ✅ **Soporte para ArUcos** y detección automática
+- ✅ **Solo define marco "world"** por defecto
+
+## 🏗️ Arquitectura Genérica
+
+### **Separación de Responsabilidades:**
+
+```
+┌─────────────────────────────────────┐
+│               overlay.py             │
+│        (Librería Genérica)           │
+│                                     │
+│ ✅ Solo define marco "world"        │
+│ ✅ Funciones genéricas              │
+│ ✅ NO marcos específicos            │
+│ ✅ NO funciones del dominio         │
+└─────────────────────────────────────┘
+                    │
+                    ▼
+┌─────────────────────────────────────┐
+│           frames_manager.py         │
+│      (Marcos Específicos)           │
+│                                     │
+│ ✅ base_frame, tool_frame, etc.     │
+│ ✅ Funciones específicas del dominio│
+│ ✅ Acceso global a marcos           │
+└─────────────────────────────────────┘
+```
+
+### **Reglas de Uso:**
+
+1. **NO modificar `overlay.py`** con elementos específicos
+2. **Usar `frames_manager.py`** para marcos del dominio
+3. **Scripts del proyecto** deben usar `frames_manager.py`
+4. **Librería genérica** para cualquier proyecto
 
 ## 🚀 Instalación y Configuración
 
@@ -34,12 +80,16 @@ from typing import Dict, List, Tuple, Union, Any
 
 ### Inicialización
 ```python
-from overlay_manager import OverlayManager
+from lib.overlay import OverlayManager
+from frames_manager import init_global_frames
 
-# Crear instancia
+# Crear instancia genérica
 overlay_manager = OverlayManager()
 
-# El marco 'Base' se crea automáticamente
+# Inicializar marcos específicos del dominio
+init_global_frames()  # Define base_frame, tool_frame, junta_frame
+
+# El marco 'world' se crea automáticamente
 # offset=(0, 0), rotation=0, px_per_mm=1.0
 ```
 
@@ -76,7 +126,7 @@ Cada objeto tiene:
 
 ### 1. Gestión de Marcos
 
-#### `define_frame(name, offset, rotation, px_per_mm, parent, is_temporary)`
+#### `define_frame(name, offset, rotation, px_per_mm, parent)`
 ```python
 # Crear marco de referencia
 overlay_manager.define_frame(
@@ -84,8 +134,7 @@ overlay_manager.define_frame(
     offset=(1284, 172),           # Posición en píxeles
     rotation=2.939,              # Rotación en radianes
     px_per_mm=2.989,            # Escala
-    parent="Base",              # Marco padre
-    is_temporary=False          # Persistente
+    parent="Base"               # Marco padre
 )
 
 # Crear marco temporal para calibración
@@ -94,8 +143,7 @@ overlay_manager.define_frame(
     offset=(500, 300),
     rotation=0.5,
     px_per_mm=3.2,
-    parent="Base",
-    is_temporary=True           # Temporal
+    parent="Base"
 )
 ```
 
@@ -110,18 +158,60 @@ overlay_manager.update_frame(
 )
 ```
 
-### 2. Objetos de Dibujo
+### 2. Soporte para Unidades
 
-#### `add_line(frame, start, end, name, color, thickness)`
+#### **Parámetro `units` en todas las funciones `add_*`**
+
+Todas las funciones de agregar objetos soportan el parámetro `units`:
+
 ```python
-# Línea horizontal
+# Coordenadas en milímetros (por defecto)
+overlay_manager.add_line(
+    frame="base_frame",
+    start=(10, 20),              # mm
+    end=(30, 20),                # mm
+    name="linea_mm",
+    units="mm"                   # Por defecto
+)
+
+# Coordenadas en píxeles (cuando sea necesario)
+overlay_manager.add_line(
+    frame="base_frame", 
+    start=(29.9, 59.8),          # px
+    end=(89.7, 59.8),            # px
+    name="linea_px",
+    units="px"                   # Conversión automática
+)
+```
+
+#### **Conversión Automática:**
+- `units="mm"` (por defecto): Coordenadas en milímetros
+- `units="px"`: Coordenadas en píxeles → se convierten a mm automáticamente
+
+### 3. Objetos de Dibujo
+
+#### `add_line(frame, start, end, name, color, thickness, units)`
+```python
+# Línea horizontal en milímetros
 overlay_manager.add_line(
     frame="Frame_ArUco",        # Marco de referencia
     start=(10, 20),            # Punto inicio (mm)
     end=(30, 20),              # Punto fin (mm)
     name="linea_horizontal",    # Nombre único
     color=(255, 0, 0),         # Rojo (BGR)
-    thickness=2                 # Grosor
+    thickness=2,               # Grosor
+    units="mm"                 # Milímetros (por defecto)
+)
+
+# Línea en píxeles
+overlay_manager.add_line(
+    frame="Frame_ArUco",
+    start=(29.9, 59.8),        # Píxeles
+    end=(89.7, 59.8),          # Píxeles
+    name="linea_px",
+    color=(0, 255, 0),
+    thickness=3,
+    units="px"                 # Píxeles → conversión automática
 )
 
 # Línea con coordenadas en píxeles
@@ -300,6 +390,40 @@ overlay_manager.save_persistent_config("frames_config.json")
 ```python
 # Cargar marcos persistentes
 overlay_manager.load_persistent_config("frames_config.json")
+```
+
+## 🎯 Uso Correcto de la Librería Genérica
+
+### **✅ Uso Correcto:**
+```python
+# 1. Importar librería genérica
+from lib.overlay import OverlayManager
+from frames_manager import init_global_frames, get_global_overlay_manager
+
+# 2. Inicializar marcos específicos del dominio
+init_global_frames()
+
+# 3. Obtener instancia global
+overlay = get_global_overlay_manager()
+
+# 4. Usar funciones genéricas
+overlay.add_line("base_frame", start=(10, 20), end=(30, 20), name="linea")
+```
+
+### **❌ Uso Incorrecto:**
+```python
+# NO modificar overlay.py con:
+# - Marcos específicos del dominio
+# - Funciones específicas del proyecto
+# - Configuraciones hardcodeadas
+# - Elementos específicos del negocio
+```
+
+### **🏗️ Arquitectura Recomendada:**
+```
+overlay.py     → Librería genérica (NO modificar)
+frames_manager.py      → Marcos específicos del dominio
+mi_script.py          → Usar frames_manager.py
 ```
 
 ## 🎯 Ejemplos Prácticos
@@ -528,6 +652,40 @@ overlay_manager.add_text(
 
 ## 🐛 Troubleshooting
 
+### ⚠️ Problemas con Librería Genérica
+
+#### **Error: "No se puede modificar overlay.py"**
+```python
+# ❌ INCORRECTO - NO hacer esto
+# Modificar overlay.py con marcos específicos
+
+# ✅ CORRECTO - Usar frames_manager.py
+from frames_manager import init_global_frames
+init_global_frames()
+```
+
+#### **Error: "Marco no encontrado"**
+```python
+# ❌ INCORRECTO - overlay.py solo tiene "world"
+overlay = OverlayManager()
+overlay.add_line("base_frame", ...)  # Error: base_frame no existe
+
+# ✅ CORRECTO - Inicializar marcos específicos
+from frames_manager import init_global_frames, get_global_overlay_manager
+init_global_frames()
+overlay = get_global_overlay_manager()
+overlay.add_line("base_frame", ...)  # OK: base_frame existe
+```
+
+#### **Error: "Unidades incorrectas"**
+```python
+# ❌ INCORRECTO - Coordenadas en píxeles sin especificar units
+overlay.add_line("base_frame", start=(29.9, 59.8), end=(89.7, 59.8), name="linea")
+
+# ✅ CORRECTO - Especificar units="px"
+overlay.add_line("base_frame", start=(29.9, 59.8), end=(89.7, 59.8), name="linea", units="px")
+```
+
 ### Problema 1: Objetos no aparecen
 **Síntomas**: Los objetos se crean pero no se ven en el renderizado
 **Causas**:
@@ -666,4 +824,41 @@ class ObjectType(Enum):
 
 ---
 
-**OverlayManager** - Sistema inteligente de overlays con transformaciones de coordenadas múltiples
+## 📋 Resumen - Librería Genérica
+
+### **✅ Características Principales:**
+- **Librería genérica** - Completamente reutilizable
+- **Solo define marco "world"** por defecto
+- **Soporte para unidades** mm y px
+- **NO modificable** con elementos específicos del dominio
+
+### **🏗️ Arquitectura:**
+```
+overlay.py     → Librería genérica (NO modificar)
+frames_manager.py      → Marcos específicos del dominio
+mi_script.py          → Usar frames_manager.py
+```
+
+### **🚀 Uso Recomendado:**
+```python
+from frames_manager import init_global_frames, get_global_overlay_manager
+
+# Inicializar marcos específicos
+init_global_frames()
+
+# Obtener instancia global
+overlay = get_global_overlay_manager()
+
+# Usar funciones genéricas
+overlay.add_line("base_frame", start=(10, 20), end=(30, 20), name="linea")
+```
+
+### **⚠️ Reglas Importantes:**
+1. **NO modificar `overlay.py`** con elementos específicos
+2. **Usar `frames_manager.py`** para marcos del dominio
+3. **Especificar `units="px"`** cuando las coordenadas estén en píxeles
+4. **Mantener la librería genérica** para reutilización
+
+---
+
+**OverlayManager** - Librería genérica de overlays con transformaciones de coordenadas múltiples

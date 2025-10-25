@@ -171,14 +171,15 @@ def analizar_frame_completo(frame):
     
     tool_result = None
     if tool_aruco_id:
-        from vision.aruco_detector import detect_aruco_by_id
-        tool_result = detect_aruco_by_id(frame, tool_aruco_id, marker_size_mm=tool_marker_size_mm)
-        if tool_result:
-            print(f"[pipeline] ✓ Tool ArUco detectado: ID={tool_result['id']}, px_per_mm={tool_result['px_per_mm']:.3f}")
-            # Agregar tool_result a datos_aruco para que esté disponible en el pipeline
-            datos_aruco['tool_result'] = tool_result
-        else:
-            print(f"[pipeline] ⚠️ Tool ArUco no detectado (ID: {tool_aruco_id})")
+        # TODO: Actualizar para usar parámetros explícitos de la librería genérica
+        # from lib.aruco import detect_aruco_by_id
+        # tool_result = detect_aruco_by_id(frame, tool_aruco_id, dictionary_id, marker_bits, marker_size_mm)
+        # if tool_result:
+        #     print(f"[pipeline] ✓ Tool ArUco detectado: ID={tool_result['id']}, px_per_mm={tool_result['px_per_mm']:.3f}")
+        #     datos_aruco['tool_result'] = tool_result
+        print(f"[pipeline] ⚠️ Detección de Tool ArUco temporalmente deshabilitada - requiere parámetros explícitos")
+    else:
+        print(f"[pipeline] ⚠️ Tool ArUco no detectado (ID: {tool_aruco_id})")
     
     # ═══════════════════════════════════════════════════════════════════
     # CORRECCIÓN DE IMAGEN (Perspectiva según configuración)
@@ -511,7 +512,7 @@ def detectar_aruco(frame):
         o None si no se detecta
     """
     
-    from vision.aruco_detector import detect_aruco_by_id
+    from lib.aruco import detect_aruco_by_id
     from vision.camera_manager import load_config
     import json
 

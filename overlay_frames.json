@@ -5,40 +5,35 @@
       "offset_y": 0,
       "rotation": 0.0,
       "px_per_mm": 1.0,
-      "parent_frame": "world",
-      "is_temporary": false
+      "parent_frame": "world"
     },
     "base_frame": {
       "offset_x": 977,
       "offset_y": 181,
       "rotation": 3.1174427601922776,
-      "px_per_mm": 2.9935886928013393,
-      "parent_frame": "Base",
-      "is_temporary": false
+      "px_per_mm": 7.2,
+      "parent_frame": "world"
     },
     "tool_frame": {
       "offset_x": 944,
       "offset_y": 836,
       "rotation": -0.024534953062735818,
       "px_per_mm": 3.28638671875,
-      "parent_frame": "Base",
-      "is_temporary": false
+      "parent_frame": "world"
     },
     "junta_frame": {
       "offset_x": 0,
       "offset_y": 0,
       "rotation": 0.0,
       "px_per_mm": 1.0,
-      "parent_frame": "world",
-      "is_temporary": false
+      "parent_frame": "world"
     },
-    "Base": {
+    "roi_frame": {
       "offset_x": 0,
       "offset_y": 0,
       "rotation": 0.0,
       "px_per_mm": 1.0,
-      "parent_frame": "Base",
-      "is_temporary": false
+      "parent_frame": "world"
     }
   },
   "metadata": {
