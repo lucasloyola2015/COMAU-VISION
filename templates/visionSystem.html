@@ -59,27 +59,71 @@
   </style>
 </head>
 <body>
-  <h1 style="color: var(--text-primary); margin-bottom: var(--space-lg);">Vision System</h1>
+  <!-- Header con título y botón de guardar -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg);">
+    <h1 style="color: var(--text-primary); margin: 0;">Vision System</h1>
+    <button id="btnSaveAll" class="btn btn-primary">
+      Guardar
+    </button>
+  </div>
   
+  <!-- Card de Configuración -->
   <div class="card">
-    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
+    <h2 style="font-size: var(--font-size-md); margin-bottom: var(--space-xs); font-weight: 600; color: var(--text-primary);">
+      Configuración
+    </h2>
+    
+    <!-- Checkboxes en 2 columnas -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm);">
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkUseBaseFrame" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkUseBaseFrame" style="font-size: var(--font-size-xs); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Usar BaseFrame Guardado
+        </label>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkUseToolFrame" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkUseToolFrame" style="font-size: var(--font-size-xs); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Usar ToolFrame Guardado
+        </label>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkUseROI" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkUseROI" style="font-size: var(--font-size-xs); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Usar ROI
+        </label>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: var(--space-sm);">
+        <input type="checkbox" id="chkUseBoundingBox" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+        <label for="chkUseBoundingBox" style="font-size: var(--font-size-xs); color: var(--text-primary); cursor: pointer; user-select: none;">
+          Usar BoundingBox Junta
+        </label>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top: var(--space-sm);">
+    <h2 style="font-size: var(--font-size-md); margin-bottom: var(--space-xs); font-weight: 600; color: var(--text-primary);">
       Modelos YOLO
     </h2>
     
-    <div class="model-item" style="padding: var(--space-sm) var(--space-md);">
-      <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-sm);">Detection</div>
+    <div class="model-item" style="padding: var(--space-xs) var(--space-sm);">
+      <div class="model-label" style="flex: 0 0 100px; font-size: var(--font-size-xs);">Detection</div>
       <div class="model-path" id="detectionPath" style="font-size: var(--font-size-xs);">No seleccionado</div>
-      <div class="model-status status-not-loaded" id="detectionStatus" style="font-size: var(--font-size-xs); padding: 2px 8px;">No cargado</div>
-      <button class="btn btn-secondary btn-sm" id="btnSelectDetection" style="padding: 4px 12px; font-size: var(--font-size-xs);">
+      <div class="model-status status-not-loaded" id="detectionStatus" style="font-size: var(--font-size-xs); padding: 1px 6px;">No cargado</div>
+      <button class="btn btn-secondary btn-sm" id="btnSelectDetection" style="padding: 2px 8px; font-size: var(--font-size-xs);">
         Seleccionar
       </button>
     </div>
     
-    <div class="model-item" style="padding: var(--space-sm) var(--space-md); margin-bottom: 0;">
-      <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-sm);">Holes</div>
+    <div class="model-item" style="padding: var(--space-xs) var(--space-sm); margin-bottom: 0;">
+      <div class="model-label" style="flex: 0 0 100px; font-size: var(--font-size-xs);">Holes</div>
       <div class="model-path" id="holesPath" style="font-size: var(--font-size-xs);">No seleccionado</div>
-      <div class="model-status status-not-loaded" id="holesStatus" style="font-size: var(--font-size-xs); padding: 2px 8px;">No cargado</div>
-      <button class="btn btn-secondary btn-sm" id="btnSelectHoles" style="padding: 4px 12px; font-size: var(--font-size-xs);">
+      <div class="model-status status-not-loaded" id="holesStatus" style="font-size: var(--font-size-xs); padding: 1px 6px;">No cargado</div>
+      <button class="btn btn-secondary btn-sm" id="btnSelectHoles" style="padding: 2px 8px; font-size: var(--font-size-xs);">
         Seleccionar
       </button>
     </div>
@@ -87,155 +131,173 @@
     <input type="file" id="fileInputDetection" accept=".pt" style="display: none;">
     <input type="file" id="fileInputHoles" accept=".pt" style="display: none;">
     
-    <!-- Opciones de visualización en grid 2 columnas -->
-    <div style="margin-top: var(--space-md); display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm) var(--space-xl);">
-      <div style="display: flex; align-items: center; gap: var(--space-sm);">
-        <input type="checkbox" id="chkEnableDetection" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
-        <label for="chkEnableDetection" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
-          Habilitar detección
-        </label>
-      </div>
-      
-      <div style="display: flex; align-items: center; gap: var(--space-sm);">
-        <input type="checkbox" id="chkShowBbox" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
-        <label for="chkShowBbox" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
-          Bounding box junta
-        </label>
-      </div>
-      
-      <div style="display: flex; align-items: center; gap: var(--space-sm);">
-        <input type="checkbox" id="chkShowContours" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
-        <label for="chkShowContours" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
-          Contornos agujeros (cyan)
-        </label>
-      </div>
-      
-      <div style="display: flex; align-items: center; gap: var(--space-sm);">
-        <input type="checkbox" id="chkShowEllipses" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
-        <label for="chkShowEllipses" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
-          Elipses OpenCV (verde) - Bordes reales del agujero azul
-        </label>
-      </div>
-      
-      <div style="display: flex; align-items: center; gap: var(--space-sm);">
-        <input type="checkbox" id="chkShowNotches" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
-        <label for="chkShowNotches" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
-          Muescas referencia (rojo)
-        </label>
-      </div>
-    </div>
     
-    <div style="margin-top: var(--space-md); display: flex; justify-content: flex-end;">
-      <button id="btnSave" class="btn btn-primary btn-sm">
-        Guardar Configuración
-      </button>
-    </div>
   </div>
   
-  <!-- Card de Umbrales de Validación -->
-  <div class="card" style="margin-top: var(--space-lg);">
-    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
-      Umbrales de Validación de Calidad
-    </h2>
-    
-    <!-- Diseño en grid compacto: 2 columnas -->
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm) var(--space-xl);">
-
-      
-      <!-- Tolerancia Distancia -->
-      <div style="display: flex; align-items: center; gap: var(--space-md);">
-        <label for="inputDistanciaTol" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
-          Tolerancia Distancia (%)
-        </label>
-        <input type="number" id="inputDistanciaTol" min="90" max="100" step="0.1" value="98.0"
-               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
-      </div>
-      
-      <!-- Umbral Centros -->
-      <div style="display: flex; align-items: center; gap: var(--space-md);">
-        <label for="inputCentrosMm" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
-          Divergencia Centros (mm)
-        </label>
-        <input type="number" id="inputCentrosMm" min="0" max="10" step="0.1" value="3.0"
-               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
-      </div>
-      
-      <!-- Umbral Colinealidad -->
-      <div style="display: flex; align-items: center; gap: var(--space-md);">
-        <label for="inputColinealidadMm" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
-          Desviación Linealidad (mm)
-        </label>
-        <input type="number" id="inputColinealidadMm" min="0" max="10" step="0.1" value="2.0"
-               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
-      </div>
-      
-      <!-- Umbral Espaciado -->
-      <div style="display: flex; align-items: center; gap: var(--space-md);">
-        <label for="inputEspaciadoCV" style="flex: 1; color: var(--text-secondary); font-weight: 500; font-size: var(--font-size-sm);">
-          Espaciado Uniforme (CV máx)
-        </label>
-        <input type="number" id="inputEspaciadoCV" min="0" step="0.01" value="0.05"
-               style="width: 80px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-primary); text-align: right;">
-      </div>
-      
-    </div>
-    
-    <div style="margin-top: var(--space-md); display: flex; justify-content: flex-end;">
-      <button id="btnSaveThresholds" class="btn btn-primary btn-sm">
-        Guardar Umbrales
-      </button>
-    </div>
-  </div>
   
   <!-- Card de Region de Interés (ROI) -->
-  <div class="card" style="margin-top: var(--space-lg);">
-    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
+  <div class="card" style="margin-top: var(--space-sm);">
+    <h2 style="font-size: var(--font-size-md); margin-bottom: var(--space-xs); font-weight: 600; color: var(--text-primary);">
       Region de Interés
     </h2>
     
-    <!-- Checkbox para habilitar ROI -->
-    <div style="margin-bottom: var(--space-md);">
-      <div style="display: flex; align-items: center; gap: var(--space-sm);">
-        <input type="checkbox" id="chkEnableROI" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--brand-red);">
-        <label for="chkEnableROI" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
-          Habilitar ROI
-        </label>
-      </div>
-    </div>
     
-    <!-- Controles ROI en grid 2 columnas -->
-    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm) var(--space-xl);">
-      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-        <label for="inputOffsetY" style="font-size: var(--font-size-sm); color: var(--text-primary); font-weight: 500;">
-          Distancia de offset Y (mm)
+    <!-- Controles ROI en grid 3 columnas compacto -->
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xs) var(--space-sm);">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputOffsetY" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          Offset Y (mm)
         </label>
         <input type="number" id="inputOffsetY" step="0.1" min="0" max="100" value="0.0" 
-               style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
       </div>
       
-      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-        <label for="inputZoomX" style="font-size: var(--font-size-sm); color: var(--text-primary); font-weight: 500;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputZoomX" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
           Zoom X (%)
         </label>
         <input type="number" id="inputZoomX" step="1" min="10" max="500" value="150" 
-               style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
       </div>
       
-      <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
-        <label for="inputZoomY" style="font-size: var(--font-size-sm); color: var(--text-primary); font-weight: 500;">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputZoomY" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
           Zoom Y (%)
         </label>
         <input type="number" id="inputZoomY" step="1" min="10" max="500" value="150" 
-               style="padding: var(--space-xs) var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-sm);">
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
       </div>
       
-      <div style="display: flex; align-items: end;">
-        <button id="btnSaveROI" class="btn btn-primary btn-sm">
-          Guardar ROI
-        </button>
-      </div>
     </div>
   </div>
+  
+  <!-- Card de Visualización -->
+  <div class="card" style="margin-top: var(--space-lg);">
+    <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
+      Visualización
+    </h2>
+    
+          <!-- Lista compacta en 2 columnas -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-sm) var(--space-lg);">
+            
+            <!-- Ejes ArUco Base -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #00d4ff, #0099cc); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,212,255,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowArucoBase" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowArucoBase" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Ejes ArUco Base
+              </label>
+            </div>
+            
+            <!-- Ejes ArUco Tool -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #ff4444, #cc0000); border-radius: 50%; box-shadow: 0 2px 4px rgba(255,68,68,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowArucoTool" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowArucoTool" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Ejes ArUco Tool
+              </label>
+            </div>
+            
+            <!-- Centro Troqueladora -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #ffdd00, #ffaa00); border-radius: 50%; box-shadow: 0 2px 4px rgba(255,221,0,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowCentroTroquel" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowCentroTroquel" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Centro Troqueladora
+              </label>
+            </div>
+            
+            <!-- Cuadro ROI -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #ff44ff, #cc00cc); border-radius: 50%; box-shadow: 0 2px 4px rgba(255,68,255,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowROI" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowROI" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Cuadro ROI
+              </label>
+            </div>
+            
+            <!-- Boundingbox YOLO Junta -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #44ff44, #00cc00); border-radius: 50%; box-shadow: 0 2px 4px rgba(68,255,68,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowBboxJunta" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowBboxJunta" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Boundingbox YOLO Junta
+              </label>
+            </div>
+            
+            <!-- Boundingbox YOLO Holes -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #ff8844, #ff6600); border-radius: 50%; box-shadow: 0 2px 4px rgba(255,136,68,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowBboxHoles" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowBboxHoles" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Boundingbox YOLO Holes
+              </label>
+            </div>
+            
+            <!-- Elipses OpenCV -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #44ff88, #00cc44); border-radius: 50%; box-shadow: 0 2px 4px rgba(68,255,136,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowElipses" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowElipses" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Elipses OpenCV
+              </label>
+            </div>
+            
+            <!-- Segmento y Centro Junta -->
+            <div style="display: flex; align-items: center; gap: var(--space-sm);">
+              <div style="width: 20px; height: 20px; background: linear-gradient(135deg, #8844ff, #6600cc); border-radius: 50%; box-shadow: 0 2px 4px rgba(136,68,255,0.3); border: 2px solid rgba(255,255,255,0.8);"></div>
+              <input type="checkbox" id="chkShowSegmentoJunta" style="width: 16px; height: 16px; cursor: pointer; accent-color: var(--brand-red);">
+              <label for="chkShowSegmentoJunta" style="font-size: var(--font-size-sm); color: var(--text-primary); cursor: pointer; user-select: none;">
+                Segmento y Centro Junta
+              </label>
+            </div>
+            
+          </div>
+  </div>
+  
+  <!-- Card de Umbrales de Validación -->
+  <div class="card" style="margin-top: var(--space-sm);">
+    <h2 style="font-size: var(--font-size-md); margin-bottom: var(--space-xs); font-weight: 600; color: var(--text-primary);">
+      Umbrales de Validación de Calidad
+    </h2>
+    
+    <!-- Controles en grid 4 columnas compacto -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-xs) var(--space-sm);">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputDistanciaTol" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          Tolerancia Distancia (%)
+        </label>
+        <input type="number" id="inputDistanciaTol" min="90" max="100" step="0.1" value="98.0" 
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputCentrosMm" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          Divergencia Centros (mm)
+        </label>
+        <input type="number" id="inputCentrosMm" min="0" max="10" step="0.1" value="3.0" 
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputColinealidadMm" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          Desviación Linealidad (mm)
+        </label>
+        <input type="number" id="inputColinealidadMm" min="0" max="10" step="0.1" value="2.0" 
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputEspaciadoCV" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          Espaciado Uniforme (CV máx)
+        </label>
+        <input type="number" id="inputEspaciadoCV" min="0" step="0.01" value="0.05" 
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+      
+    </div>
+  </div>
+  
   
   <!-- Mensaje general (compartido por ambos cards) -->
   <div id="message" style="margin-top: var(--space-lg);"></div>
@@ -249,25 +311,33 @@
     const detectionStatus = document.getElementById('detectionStatus');
     const holesPath = document.getElementById('holesPath');
     const holesStatus = document.getElementById('holesStatus');
-    const chkEnableDetection = document.getElementById('chkEnableDetection');
-    const chkShowBbox = document.getElementById('chkShowBbox');
-    const chkShowContours = document.getElementById('chkShowContours');
-    const chkShowEllipses = document.getElementById('chkShowEllipses');
-    const chkShowNotches = document.getElementById('chkShowNotches');
-    const btnSave = document.getElementById('btnSave');
-    const btnSaveThresholds = document.getElementById('btnSaveThresholds');
+    const btnSaveAll = document.getElementById('btnSaveAll');
     const messageDiv = document.getElementById('message');
     const inputDistanciaTol = document.getElementById('inputDistanciaTol');
     const inputCentrosMm = document.getElementById('inputCentrosMm');
     const inputColinealidadMm = document.getElementById('inputColinealidadMm');
     const inputEspaciadoCV = document.getElementById('inputEspaciadoCV');
     
+    // Elementos de Configuración
+    const chkUseBaseFrame = document.getElementById('chkUseBaseFrame');
+    const chkUseToolFrame = document.getElementById('chkUseToolFrame');
+    const chkUseROI = document.getElementById('chkUseROI');
+    const chkUseBoundingBox = document.getElementById('chkUseBoundingBox');
+    
     // Elementos ROI
-    const chkEnableROI = document.getElementById('chkEnableROI');
     const inputOffsetY = document.getElementById('inputOffsetY');
     const inputZoomX = document.getElementById('inputZoomX');
     const inputZoomY = document.getElementById('inputZoomY');
-    const btnSaveROI = document.getElementById('btnSaveROI');
+    
+    // Elementos de Visualización
+    const chkShowArucoBase = document.getElementById('chkShowArucoBase');
+    const chkShowArucoTool = document.getElementById('chkShowArucoTool');
+    const chkShowCentroTroquel = document.getElementById('chkShowCentroTroquel');
+    const chkShowROI = document.getElementById('chkShowROI');
+    const chkShowBboxJunta = document.getElementById('chkShowBboxJunta');
+    const chkShowBboxHoles = document.getElementById('chkShowBboxHoles');
+    const chkShowElipses = document.getElementById('chkShowElipses');
+    const chkShowSegmentoJunta = document.getElementById('chkShowSegmentoJunta');
     
     let currentDetectionPath = null;
     let currentHolesPath = null;
@@ -350,161 +420,242 @@
     });
     
     // ============================================================
-    // GUARDAR CONFIGURACIÓN
+    // GUARDAR CONFIGURACIÓN COMPLETA
     // ============================================================
-    async function saveConfig() {
-      if (!currentDetectionPath && !currentHolesPath) {
-        showMessage('Selecciona al menos un modelo', 'error');
-        return;
-      }
-      
+    async function saveAllConfig() {
       try {
-        btnSave.disabled = true;
-        showMessage('Guardando configuración...', 'info');
+        btnSaveAll.disabled = true;
+        showMessage('Guardando toda la configuración...', 'info');
         
-        const response = await Common.fetchWithTimeout('/api/vision/set_models', {
+        console.log('[visionSystem] 🚀 Guardando TODA la configuración...');
+        console.log('[visionSystem] 📊 Datos a guardar:', {
+          // Configuración
+          use_baseframe: chkUseBaseFrame.checked,
+          use_toolframe: chkUseToolFrame.checked,
+          use_roi: chkUseROI.checked,
+          use_boundingbox: chkUseBoundingBox.checked,
+          
+          // Modelos YOLO
+          detection_model: currentDetectionPath,
+          holes_model: currentHolesPath,
+          
+          // Umbrales de validación
+          umbral_distancia_tolerancia: parseFloat(inputDistanciaTol.value),
+          umbral_centros_mm: parseFloat(inputCentrosMm.value),
+          umbral_colinealidad_mm: parseFloat(inputColinealidadMm.value),
+          umbral_espaciado_cv: parseFloat(inputEspaciadoCV.value),
+          
+          // Configuración ROI
+          roi_offset_y_mm: parseFloat(inputOffsetY.value),
+          roi_zoom_x_percent: parseFloat(inputZoomX.value),
+          roi_zoom_y_percent: parseFloat(inputZoomY.value),
+          
+          // Configuración de Visualización
+          aruco_base_show: chkShowArucoBase.checked,
+          aruco_tool_show: chkShowArucoTool.checked,
+          centro_troquel_show: chkShowCentroTroquel.checked,
+          roi_show: chkShowROI.checked,
+          bbox_junta_show: chkShowBboxJunta.checked,
+          bbox_holes_show: chkShowBboxHoles.checked,
+          elipses_show: chkShowElipses.checked,
+          segmento_junta_show: chkShowSegmentoJunta.checked
+        });
+        
+        // Guardar configuración de modelos, visualización y umbrales
+        const response1 = await Common.fetchWithTimeout('/api/vision/set_models', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            // Configuración general
+            use_baseframe: chkUseBaseFrame.checked,
+            use_toolframe: chkUseToolFrame.checked,
+            use_roi: chkUseROI.checked,
+            use_boundingbox: chkUseBoundingBox.checked,
+            
+            // Modelos YOLO
             detection_model: currentDetectionPath,
             holes_model: currentHolesPath,
-            enabled: chkEnableDetection.checked,
-            show_bbox: chkShowBbox.checked,
-            show_contours: chkShowContours.checked,
-            show_ellipses: chkShowEllipses.checked,
-            show_notches: chkShowNotches.checked,
+            
+            // Umbrales de validación
             umbral_distancia_tolerancia: parseFloat(inputDistanciaTol.value),
             umbral_centros_mm: parseFloat(inputCentrosMm.value),
             umbral_colinealidad_mm: parseFloat(inputColinealidadMm.value),
-            umbral_espaciado_cv: parseFloat(inputEspaciadoCV.value)
+            umbral_espaciado_cv: parseFloat(inputEspaciadoCV.value),
+            
+            // Configuración de Visualización
+            aruco_base_show: chkShowArucoBase.checked,
+            aruco_tool_show: chkShowArucoTool.checked,
+            centro_troquel_show: chkShowCentroTroquel.checked,
+            roi_show: chkShowROI.checked,
+            bbox_junta_show: chkShowBboxJunta.checked,
+            bbox_holes_show: chkShowBboxHoles.checked,
+            elipses_show: chkShowElipses.checked,
+            segmento_junta_show: chkShowSegmentoJunta.checked
           })
         });
         
-        const data = await response.json();
-        
-        if (data.ok) {
-          showMessage('✓ Configuración guardada correctamente', 'success');
-        } else {
-          showMessage(data.error || 'Error guardando configuración', 'error');
-        }
-        
-      } catch (e) {
-        console.error('[visionSystem] Error guardando:', e);
-        showMessage('Error de conexión con el servidor', 'error');
-      } finally {
-        btnSave.disabled = false;
-      }
-    }
-    
-    // ============================================================
-    // CARGAR CONFIGURACIÓN
-    // ============================================================
-    async function loadConfig() {
-      try {
-        const response = await Common.fetchWithTimeout('/api/vision/config');
-        const config = await response.json();
-        
-        if (config.vision) {
-          if (config.vision.detection_model) {
-            currentDetectionPath = config.vision.detection_model;
-            updateModelStatus('detection', currentDetectionPath);
-          }
-          
-          if (config.vision.holes_model) {
-            currentHolesPath = config.vision.holes_model;
-            updateModelStatus('holes', currentHolesPath);
-          }
-          
-          chkEnableDetection.checked = config.vision.detection_enabled || false;
-          chkShowBbox.checked = config.vision.show_bbox || false;
-          chkShowContours.checked = config.vision.show_contours !== false; // true por defecto
-          chkShowEllipses.checked = config.vision.show_ellipses || false;
-          chkShowNotches.checked = config.vision.show_notches || false;
-          
-          // Cargar umbrales
-          inputDistanciaTol.value = config.vision.umbral_distancia_tolerancia || 98.0;
-          inputCentrosMm.value = config.vision.umbral_centros_mm || 3.0;
-          inputColinealidadMm.value = config.vision.umbral_colinealidad_mm || 2.0;
-          inputEspaciadoCV.value = config.vision.umbral_espaciado_cv || 0.05;
-          
-          // Cargar configuración ROI
-          chkEnableROI.checked = config.vision.roi_enabled || false;
-          inputOffsetY.value = config.vision.roi_offset_y_mm || 0.0;
-          inputZoomX.value = config.vision.roi_zoom_x_percent || 150;
-          inputZoomY.value = config.vision.roi_zoom_y_percent || 150;
-          
-          console.log('[ROI] 📥 Configuración ROI cargada:', {
-            enabled: chkEnableROI.checked,
-            offset_y: inputOffsetY.value,
-            zoom_x: inputZoomX.value,
-            zoom_y: inputZoomY.value
-          });
-        }
-        
-        console.log('[visionSystem] Configuración cargada:', config);
-      } catch (e) {
-        console.error('[visionSystem] Error cargando config:', e);
-      }
-    }
-    
-    // ============================================================
-    // FUNCIONES ROI
-    // ============================================================
-    async function saveROIConfig() {
-      try {
-        btnSaveROI.disabled = true;
-        showMessage('Guardando configuración ROI...', 'info');
-        
-        console.log('[ROI] 🚀 Guardando configuración ROI...');
-        console.log('[ROI] 📊 Datos ROI:', {
-          enabled: chkEnableROI.checked,
-          offset_y: parseFloat(inputOffsetY.value),
-          zoom_x: parseFloat(inputZoomX.value),
-          zoom_y: parseFloat(inputZoomY.value)
-        });
-        
-        const response = await Common.fetchWithTimeout('/api/vision/set_roi', {
+        // Guardar configuración ROI
+        const response2 = await Common.fetchWithTimeout('/api/vision/set_roi', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            roi_enabled: chkEnableROI.checked,
+            roi_enabled: chkUseROI.checked,
             roi_offset_y_mm: parseFloat(inputOffsetY.value),
             roi_zoom_x_percent: parseFloat(inputZoomX.value),
             roi_zoom_y_percent: parseFloat(inputZoomY.value)
           })
         });
         
-        const data = await response.json();
+        const data1 = await response1.json();
+        const data2 = await response2.json();
         
-        if (data.ok) {
-          showMessage('Configuración ROI guardada correctamente', 'success');
-          console.log('[ROI] ✅ Configuración ROI guardada:', data);
+        console.log('[visionSystem] 📥 Respuesta modelos:', data1);
+        console.log('[visionSystem] 📥 Respuesta ROI:', data2);
+        
+        if (data1.ok && data2.ok) {
+          showMessage('✓ Toda la configuración guardada correctamente', 'success');
+          console.log('[visionSystem] ✅ Configuración completa guardada exitosamente');
         } else {
-          showMessage(data.error || 'Error guardando configuración ROI', 'error');
-          console.error('[ROI] ❌ Error guardando ROI:', data);
+          const errors = [];
+          if (!data1.ok) errors.push('Modelos/Umbrales: ' + (data1.error || 'Error'));
+          if (!data2.ok) errors.push('ROI: ' + (data2.error || 'Error'));
+          showMessage('Error guardando: ' + errors.join(', '), 'error');
+          console.error('[visionSystem] ❌ Errores al guardar:', errors);
         }
         
       } catch (e) {
-        console.error('[ROI] ❌ Error en saveROIConfig:', e);
-        showMessage('Error de conexión guardando ROI', 'error');
+        console.error('[visionSystem] ❌ Error guardando:', e);
+        showMessage('Error de conexión con el servidor', 'error');
       } finally {
-        btnSaveROI.disabled = false;
+        btnSaveAll.disabled = false;
       }
     }
     
     // ============================================================
+    // CARGAR CONFIGURACIÓN COMPLETA
+    // ============================================================
+    async function loadConfig() {
+      try {
+        console.log('[visionSystem] 📥 Cargando TODA la configuración...');
+        const response = await Common.fetchWithTimeout('/api/vision/config');
+        const config = await response.json();
+        
+        console.log('[visionSystem] 📊 Configuración recibida:', config);
+        
+        if (config.vision) {
+          // ============================================================
+          // CARGAR CONFIGURACIÓN GENERAL
+          // ============================================================
+          chkUseBaseFrame.checked = config.vision.use_baseframe_guardado || false;
+          chkUseToolFrame.checked = config.vision.use_toolframe_guardado || false;
+          chkUseROI.checked = config.vision.use_roi || false;
+          chkUseBoundingBox.checked = config.vision.use_boundingbox || false;
+          
+          console.log('[visionSystem] ✓ Configuración general cargada:', {
+            use_baseframe: chkUseBaseFrame.checked,
+            use_toolframe: chkUseToolFrame.checked,
+            use_roi: chkUseROI.checked,
+            use_boundingbox: chkUseBoundingBox.checked
+          });
+          
+          // ============================================================
+          // CARGAR MODELOS YOLO
+          // ============================================================
+          if (config.vision.detection_model) {
+            currentDetectionPath = config.vision.detection_model;
+            updateModelStatus('detection', currentDetectionPath);
+            console.log('[visionSystem] ✓ Modelo Detection cargado:', currentDetectionPath);
+          }
+          
+          if (config.vision.holes_model) {
+            currentHolesPath = config.vision.holes_model;
+            updateModelStatus('holes', currentHolesPath);
+            console.log('[visionSystem] ✓ Modelo Holes cargado:', currentHolesPath);
+          }
+          
+          
+          // ============================================================
+          // CARGAR UMBRALES DE VALIDACIÓN
+          // ============================================================
+          inputDistanciaTol.value = config.vision.umbral_distancia_tolerancia || 98.0;
+          inputCentrosMm.value = config.vision.umbral_centros_mm || 3.0;
+          inputColinealidadMm.value = config.vision.umbral_colinealidad_mm || 2.0;
+          inputEspaciadoCV.value = config.vision.umbral_espaciado_cv || 0.05;
+          
+          console.log('[visionSystem] ✓ Umbrales de validación cargados:', {
+            distancia_tol: inputDistanciaTol.value,
+            centros_mm: inputCentrosMm.value,
+            colinealidad_mm: inputColinealidadMm.value,
+            espaciado_cv: inputEspaciadoCV.value
+          });
+          
+          // ============================================================
+          // CARGAR CONFIGURACIÓN ROI
+          // ============================================================
+          inputOffsetY.value = config.vision.roi_offset_y_mm || 0.0;
+          inputZoomX.value = config.vision.roi_zoom_x_percent || 150;
+          inputZoomY.value = config.vision.roi_zoom_y_percent || 150;
+          
+          console.log('[visionSystem] ✓ Configuración ROI cargada:', {
+            offset_y: inputOffsetY.value,
+            zoom_x: inputZoomX.value,
+            zoom_y: inputZoomY.value
+          });
+          
+          // ============================================================
+          // CARGAR CONFIGURACIÓN DE VISUALIZACIÓN
+          // ============================================================
+          // ArUco Base
+          chkShowArucoBase.checked = config.vision.aruco_base_show || false;
+          
+          // ArUco Tool
+          chkShowArucoTool.checked = config.vision.aruco_tool_show || false;
+          
+          // Centro Troqueladora
+          chkShowCentroTroquel.checked = config.vision.centro_troquel_show || false;
+          
+          // ROI
+          chkShowROI.checked = config.vision.roi_show || false;
+          
+          // Boundingbox Junta
+          chkShowBboxJunta.checked = config.vision.bbox_junta_show || false;
+          
+          // Boundingbox Holes
+          chkShowBboxHoles.checked = config.vision.bbox_holes_show || false;
+          
+          // Elipses
+          chkShowElipses.checked = config.vision.elipses_show || false;
+          
+          // Segmento Junta
+          chkShowSegmentoJunta.checked = config.vision.segmento_junta_show || false;
+          
+          console.log('[visionSystem] ✓ Configuración de visualización cargada:', {
+            aruco_base: { show: chkShowArucoBase.checked },
+            aruco_tool: { show: chkShowArucoTool.checked },
+            centro_troquel: { show: chkShowCentroTroquel.checked },
+            roi: { show: chkShowROI.checked },
+            bbox_junta: { show: chkShowBboxJunta.checked },
+            bbox_holes: { show: chkShowBboxHoles.checked },
+            elipses: { show: chkShowElipses.checked },
+            segmento_junta: { show: chkShowSegmentoJunta.checked }
+          });
+          
+          console.log('[visionSystem] ✅ TODA la configuración cargada exitosamente');
+        } else {
+          console.log('[visionSystem] ⚠️ No hay configuración de visión disponible');
+        }
+        
+      } catch (e) {
+        console.error('[visionSystem] ❌ Error cargando configuración:', e);
+        showMessage('Error cargando configuración', 'error');
+      }
+    }
+    
+    
+    // ============================================================
     // EVENT LISTENERS
     // ============================================================
-    btnSave.addEventListener('click', saveConfig);
-    
-    // Auto-aplicar cuando cambia el checkbox
-    chkEnableDetection.addEventListener('change', saveConfig);
-    
-    // Guardar umbrales (usa la misma función saveConfig)
-    btnSaveThresholds.addEventListener('click', saveConfig);
-    
-    // Guardar ROI
-    btnSaveROI.addEventListener('click', saveROIConfig);
+    btnSaveAll.addEventListener('click', saveAllConfig);
     
     // ============================================================
     // INICIALIZACIÓN

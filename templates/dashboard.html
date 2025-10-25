@@ -112,9 +112,9 @@
         
         if (!juntaSeleccionada) {
           btnAnalyze.disabled = true;
-          btnAnalyzeNew.disabled = true;
-          showMessage('⚠️ Selecciona una junta en el Panel de Control para analizar', 'error');
-          console.log('[dashboard] No hay junta seleccionada - botones deshabilitados');
+          btnAnalyzeNew.disabled = false; // Habilitar botón de análisis nuevo
+          showMessage('⚠️ Selecciona una junta en el Panel de Control para análisis tradicional', 'error');
+          console.log('[dashboard] No hay junta seleccionada - solo análisis nuevo habilitado');
         } else {
           btnAnalyze.disabled = false;
           btnAnalyzeNew.disabled = false;
@@ -123,7 +123,7 @@
       } catch (e) {
         console.error('[dashboard] Error verificando junta:', e);
         btnAnalyze.disabled = true;
-        btnAnalyzeNew.disabled = true;
+        btnAnalyzeNew.disabled = false; // Mantener análisis nuevo habilitado
       }
     }
     
@@ -370,21 +370,14 @@
     
     // Botón de análisis nuevo
     btnAnalyzeNew.addEventListener('click', async () => {
-      // Verificar nuevamente antes de analizar
-      if (!juntaSeleccionada) {
-        showMessage('⚠️ Selecciona una junta en el Panel de Control primero', 'error');
-        return;
-      }
-      
+      // El análisis nuevo no requiere junta seleccionada
       btnAnalyzeNew.disabled = true;
       
       try {
         await ejecutarAnalisisNuevo();
       } finally {
         setTimeout(() => { 
-          if (juntaSeleccionada) {
-            btnAnalyzeNew.disabled = false; 
-          }
+          btnAnalyzeNew.disabled = false; 
         }, 2500);
       }
     });

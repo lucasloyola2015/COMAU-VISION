@@ -313,6 +313,46 @@ def api_aruco_config():
         print(f"[aruco] Error en GET /api/aruco/config: {e}")
         return jsonify({'ok': False, 'error': str(e)}), 500
 
+@app.route('/api/analyze_new', methods=['POST'])
+def api_analyze_new():
+    """Endpoint para el análisis nuevo del botón 'Analizar' del dashboard"""
+    try:
+        print("[illinois-server] 🚀 /api/analyze_new - Iniciando análisis nuevo...")
+        
+        # Importar y llamar a la función del vision_manager
+        from src.vision.vision_manager import ejecutar_analisis_nuevo
+        
+        # Ejecutar análisis nuevo
+        resultado = ejecutar_analisis_nuevo()
+        
+        if not resultado.get('ok', False):
+            return jsonify(resultado), 500
+        
+        # Si hay imagen, guardarla temporalmente para mostrar en el dashboard
+        if 'image_base64' in resultado:
+            global _overlay_frame, _overlay_active_until
+            
+            # Decodificar la imagen base64
+            import base64
+            image_bytes = base64.b64decode(resultado['image_base64'])
+            
+            # Guardar frame temporalmente y activar overlay en el dashboard
+            _overlay_frame = image_bytes
+            _overlay_active_until = time.time() + (resultado.get('view_time', 3000) / 1000.0)
+            
+            print(f"[illinois-server] ✓ Imagen guardada temporalmente, se mostrará por {resultado.get('view_time', 3000)/1000:.1f} segundos")
+        
+        print(f"[illinois-server] ✓ Análisis nuevo completado: {resultado.get('mensaje', 'Sin mensaje')}")
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        print(f"[illinois-server] ❌ Error en /api/analyze_new: {e}")
+        return jsonify({
+            'ok': False,
+            'error': f'Error en análisis nuevo: {str(e)}'
+        }), 500
+
 @app.route('/api/overlay/render', methods=['POST'])
 def api_overlay_render():
     """Endpoint para renderizar overlays con ArUcos"""
@@ -695,6 +735,36 @@ def api_aruco_save_config():
             'ok': False,
             'error': str(e)
         }), 500
+
+# ============================================================
+# API VISION
+# ============================================================
+@app.route('/api/vision/config', methods=['GET'])
+def api_vision_config():
+    """Obtiene la configuración completa del sistema de visión"""
+    from src.vision.vision_manager import get_vision_config
+    result = get_vision_config()
+    return jsonify(result)
+
+@app.route('/api/vision/set_models', methods=['POST'])
+def api_vision_set_models():
+    """Guarda configuración de modelos YOLO, visualización y umbrales"""
+    from src.vision.vision_manager import set_models_config
+    data = request.get_json()
+    if data is None:
+        return jsonify({'ok': False, 'error': 'No se recibieron datos JSON'}), 400
+    result = set_models_config(data)
+    return jsonify(result)
+
+@app.route('/api/vision/set_roi', methods=['POST'])
+def api_vision_set_roi():
+    """Guarda configuración de Region de Interés (ROI)"""
+    from src.vision.vision_manager import set_roi_config
+    data = request.get_json()
+    if data is None:
+        return jsonify({'ok': False, 'error': 'No se recibieron datos JSON'}), 400
+    result = set_roi_config(data)
+    return jsonify(result)
 
 # ============================================================
 # API JUNTAS

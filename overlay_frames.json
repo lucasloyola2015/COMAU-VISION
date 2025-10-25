@@ -8,10 +8,10 @@
       "parent_frame": "world"
     },
     "base_frame": {
-      "offset_x": 1284.5,
-      "offset_y": 172.5,
-      "rotation": 2.9404656887054443,
-      "px_per_mm": 3.003399440220424,
+      "offset_x": 1019.25,
+      "offset_y": 146.0,
+      "rotation": 2.9772350788116455,
+      "px_per_mm": 2.968576921735491,
       "parent_frame": "Base"
     },
     "tool_frame": {
@@ -36,10 +36,10 @@
       "parent_frame": "world"
     },
     "base_frame_temp": {
-      "offset_x": 1284.5,
-      "offset_y": 172.5,
-      "rotation": 2.9404656887054443,
-      "px_per_mm": 3.003399440220424,
+      "offset_x": 1019.25,
+      "offset_y": 146.0,
+      "rotation": 2.9772350788116455,
+      "px_per_mm": 2.968576921735491,
       "parent_frame": "world"
     },
     "tool_frame_temp": {

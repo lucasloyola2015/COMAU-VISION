@@ -137,9 +137,63 @@
     "umbral_colinealidad_mm": 0.5,
     "umbral_espaciado_cv": 1,
     "roi_enabled": true,
-    "roi_offset_y_mm": -80.0,
-    "roi_zoom_x_percent": 110.0,
-    "roi_zoom_y_percent": 130.0
+    "roi_offset_y_mm": 20,
+    "roi_zoom_x_percent": 200,
+    "roi_zoom_y_percent": 130,
+    "use_baseframe_guardado": false,
+    "use_toolframe_guardado": true,
+    "use_roi": true,
+    "use_boundingbox": false,
+    "aruco_base_show": true,
+    "aruco_tool_show": true,
+    "centro_troquel_show": true,
+    "roi_show": true,
+    "bbox_junta_show": false,
+    "bbox_holes_show": false,
+    "elipses_show": false,
+    "segmento_junta_show": false,
+    "colors": {
+      "aruco_base": [
+        0,
+        212,
+        255
+      ],
+      "aruco_tool": [
+        255,
+        68,
+        68
+      ],
+      "centro_troquel": [
+        255,
+        221,
+        0
+      ],
+      "roi": [
+        255,
+        68,
+        255
+      ],
+      "bbox_junta": [
+        68,
+        255,
+        68
+      ],
+      "bbox_holes": [
+        255,
+        136,
+        68
+      ],
+      "elipses": [
+        68,
+        255,
+        136
+      ],
+      "segmento_junta": [
+        136,
+        68,
+        255
+      ]
+    }
   },
   "mqtt": {
     "broker_ip": "192.168.1.10",

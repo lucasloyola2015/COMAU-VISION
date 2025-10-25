@@ -155,7 +155,7 @@ class OverlayManager:
         print(f"[OverlayManager] ✓ Marco '{name}' definido: offset={offset}, rotation={rotation:.3f}rad, px_per_mm={px_per_mm:.3f}")
     
     def update_frame(self, name: str, offset: Optional[Tuple[float, float]] = None,
-                    rotation: Optional[float] = None) -> None:
+                    rotation: Optional[float] = None, px_per_mm: Optional[float] = None) -> None:
         """
         Actualizar un marco de coordenadas existente.
         
@@ -163,6 +163,7 @@ class OverlayManager:
             name: Nombre del marco a actualizar
             offset: Nuevo desplazamiento (opcional)
             rotation: Nueva rotación en radianes (opcional)
+            px_per_mm: Nueva relación píxeles por milímetro (opcional)
         """
         if name not in self.frames:
             raise ValueError(f"Marco '{name}' no existe")
@@ -176,6 +177,10 @@ class OverlayManager:
         if rotation is not None:
             frame.rotation = rotation
             print(f"[OverlayManager] ✓ Marco '{name}' actualizado: rotation={rotation:.3f}rad")
+        
+        if px_per_mm is not None:
+            frame.px_per_mm = px_per_mm
+            print(f"[OverlayManager] ✓ Marco '{name}' actualizado: px_per_mm={px_per_mm:.3f}")
     
     def get_frame(self, name: str) -> CoordinateFrame:
         """Obtener información de un marco"""

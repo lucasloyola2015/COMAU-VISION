@@ -824,6 +824,59 @@ class ObjectType(Enum):
 
 ---
 
+## 🔄 Actualización de Marcos
+
+### `update_frame(name, offset, rotation, px_per_mm)`
+
+Actualizar un marco de coordenadas existente con nuevos valores.
+
+```python
+# Actualizar solo la posición
+overlay_manager.update_frame(
+    name="base_frame",
+    offset=(100, 200)  # Nueva posición
+)
+
+# Actualizar solo la rotación
+overlay_manager.update_frame(
+    name="base_frame", 
+    rotation=1.57  # 90 grados en radianes
+)
+
+# Actualizar solo la escala
+overlay_manager.update_frame(
+    name="base_frame",
+    px_per_mm=2.5  # Nueva relación píxeles/mm
+)
+
+# Actualizar múltiples parámetros
+overlay_manager.update_frame(
+    name="base_frame",
+    offset=(150, 250),    # Nueva posición
+    rotation=0.785,       # 45 grados
+    px_per_mm=3.0         # Nueva escala
+)
+```
+
+**Parámetros:**
+- `name`: Nombre del marco a actualizar
+- `offset`: Nuevo desplazamiento (x, y) - opcional
+- `rotation`: Nueva rotación en radianes - opcional  
+- `px_per_mm`: Nueva relación píxeles por milímetro - opcional
+
+**Uso típico:**
+```python
+# Actualizar marco con datos de ArUco detectado
+overlay_manager.update_frame(
+    name="base_frame",
+    offset=aruco_position,    # Posición detectada
+    rotation=aruco_angle,     # Ángulo detectado
+    px_per_mm=aruco_scale     # Escala detectada
+)
+```
+
+---
+
 ## 📋 Resumen - Librería Genérica
 
 ### **✅ Características Principales:**
