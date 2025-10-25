@@ -157,35 +157,47 @@ def clear_aruco_objects(overlay_manager) -> None:
     print(f"[ArUcoManager] ✓ Objetos limpiados: {len(objects_to_remove)}")
     print(f"[ArUcoManager] Objetos restantes: {list(overlay_manager.objects.keys())}")
 
-def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, Any]) -> None:
+def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, Any], show_frame: bool = True, show_tool: bool = True) -> None:
     """
     Crear objetos de overlay específicos del proyecto para ArUcos detectados.
     
     Args:
         overlay_manager: Instancia de OverlayManager del proyecto
         detection_result: Resultado de detect_arucos_in_image()
+        show_frame: Si mostrar el ArUco Frame
+        show_tool: Si mostrar el ArUco Tool
     """
     detected_arucos = detection_result.get('detected_arucos', {})
     frame_aruco_id = detection_result.get('frame_aruco_id', 0)
     tool_aruco_id = detection_result.get('tool_aruco_id', 0)
     
-    # Crear objetos para cada ArUco detectado
+    # Crear objetos solo para ArUcos que deben mostrarse
     for aruco_id, aruco_data in detected_arucos.items():
         center = aruco_data['center']
         angle_rad = aruco_data['angle_rad']
         corners = aruco_data['corners']
         px_per_mm = aruco_data['px_per_mm']
         
-        # Determinar color y marco según tipo específico del proyecto
-        if aruco_id == frame_aruco_id:
+        # Determinar si este ArUco debe mostrarse
+        should_show = False
+        if aruco_id == frame_aruco_id and show_frame:
+            should_show = True
             color = FRAME_COLOR
             frame_name = FRAME_TEMP_NAME
-        elif aruco_id == tool_aruco_id:
+        elif aruco_id == tool_aruco_id and show_tool:
+            should_show = True
             color = TOOL_COLOR
             frame_name = TOOL_TEMP_NAME
-        else:
+        elif aruco_id != frame_aruco_id and aruco_id != tool_aruco_id:
+            # ArUcos no esperados siempre se muestran
+            should_show = True
             color = OTHER_COLOR
-            frame_name = "world"  # Usar marco world para ArUcos no esperados
+            frame_name = "world"
+        
+        # Solo crear objetos si debe mostrarse
+        if not should_show:
+            print(f"[ArUcoManager] ⚡ ArUco {aruco_id} OMITIDO (checkbox deshabilitado)")
+            continue
         
         # Dibujar contorno del ArUco
         overlay_manager.add_polygon(
@@ -235,28 +247,29 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
         print(f"[ArUcoManager] ✓ Objetos de overlay creados para ArUco {aruco_id}")
 
 def create_center_reference(overlay_manager, center_x: float, center_y: float, 
-                          show_base: bool, base_detected: bool) -> None:
+                          frame_aruco_id: int, is_frame_detected: bool) -> None:
     """
     Crear centro del troquel usando coordenadas dinámicas.
+    Las coordenadas son relativas al marco temporal del ArUco Base.
     
     Args:
         overlay_manager: Instancia de OverlayManager del proyecto
-        center_x: Coordenada X del centro en mm
-        center_y: Coordenada Y del centro en mm
-        show_base: Si el Base ArUco está habilitado
-        base_detected: Si el Base ArUco fue detectado
+        center_x: Coordenada X del centro en mm (relativa al base_frame_temp)
+        center_y: Coordenada Y del centro en mm (relativa al base_frame_temp)
+        frame_aruco_id: ID del ArUco Base
+        is_frame_detected: Si el ArUco Base fue detectado
     """
-    # Usar marco del Base ArUco si está disponible, sino marco base_frame
-    if show_base and base_detected:
-        frame_name = FRAME_TEMP_NAME
-        print(f"[ArUcoManager] Centro del troquel: usando marco Base ArUco ({center_x}, {center_y}) mm")
+    # Usar marco temporal del ArUco Base si está disponible
+    if is_frame_detected:
+        frame_name = FRAME_TEMP_NAME  # "base_frame_temp"
+        print(f"[ArUcoManager] Centro del troquel: usando marco base_frame_temp ({center_x}, {center_y}) mm")
     else:
-        frame_name = "base_frame"  # Usar marco base_frame en lugar de "Base"
+        frame_name = "base_frame"  # Marco base_frame como fallback
         print(f"[ArUcoManager] Centro del troquel: usando marco base_frame ({center_x}, {center_y}) mm")
     
     overlay_manager.add_circle(
         frame_name,
-        center=(center_x, center_y),  # Coordenadas en mm
+        center=(center_x, center_y),  # Coordenadas en mm relativas al marco
         radius=5.0,  # 5mm de radio
         name="center_circle",
         color=(255, 255, 0),  # Cyan
@@ -414,16 +427,14 @@ def render_overlay_with_arucos(overlay_manager, cv2_frame, frame_aruco_id, tool_
         # Limpiar objetos existentes
         clear_aruco_objects(overlay_manager)
         
-        # Detectar ArUcos si es necesario
-        detection_result = None
-        if show_frame or show_tool:
-            detection_result = detect_arucos_in_image(
-                image=cv2_frame,
-                frame_aruco_id=frame_aruco_id,
-                tool_aruco_id=tool_aruco_id,
-                frame_marker_size_mm=frame_marker_size,
-                tool_marker_size_mm=tool_marker_size
-            )
+        # Detectar ArUcos SIEMPRE (independiente de checkboxes)
+        detection_result = detect_arucos_in_image(
+            image=cv2_frame,
+            frame_aruco_id=frame_aruco_id,
+            tool_aruco_id=tool_aruco_id,
+            frame_marker_size_mm=frame_marker_size,
+            tool_marker_size_mm=tool_marker_size
+        )
         
         # Crear marcos temporales si están detectados
         if detection_result and (is_frame_detected(detection_result) or is_tool_detected(detection_result)):
@@ -432,30 +443,47 @@ def render_overlay_with_arucos(overlay_manager, cv2_frame, frame_aruco_id, tool_
         # Crear objetos de overlay
         overlay_objects = []
         
-        # Crear objetos de ArUcos solo una vez si alguno está habilitado
-        if (show_frame and is_frame_detected(detection_result)) or (show_tool and is_tool_detected(detection_result)):
-            create_aruco_overlay_objects(overlay_manager, detection_result)
-            # Recopilar objetos de ArUcos
-            aruco_objects = [name for name, obj in overlay_manager.objects.items() 
-                           if name.startswith('aruco_')]
-            print(f"[ArUcoManager] 📋 Objetos de ArUcos recopilados: {aruco_objects}")
-            overlay_objects.extend(aruco_objects)
+        # Crear objetos de ArUcos
+        create_aruco_overlay_objects(overlay_manager, detection_result, show_frame, show_tool)
+        
+        # Agregar objetos a la lista SOLO si sus checkboxes están habilitados
+        if show_frame and is_frame_detected(detection_result):
+            frame_aruco_id = detection_result.get('frame_aruco_id', 0)
+            overlay_objects.append(f"aruco_contour_{frame_aruco_id}")
+            overlay_objects.append(f"aruco_x_axis_{frame_aruco_id}")
+            overlay_objects.append(f"aruco_y_axis_{frame_aruco_id}")
+            overlay_objects.append(f"aruco_center_{frame_aruco_id}")
+            print(f"[ArUcoManager] ✓ Frame ArUco {frame_aruco_id} agregado a renderlist")
+        
+        if show_tool and is_tool_detected(detection_result):
+            tool_aruco_id = detection_result.get('tool_aruco_id', 0)
+            overlay_objects.append(f"aruco_contour_{tool_aruco_id}")
+            overlay_objects.append(f"aruco_x_axis_{tool_aruco_id}")
+            overlay_objects.append(f"aruco_y_axis_{tool_aruco_id}")
+            overlay_objects.append(f"aruco_center_{tool_aruco_id}")
+            print(f"[ArUcoManager] ✓ Tool ArUco {tool_aruco_id} agregado a renderlist")
         
         if show_center:
-            create_center_reference(overlay_manager, center_x, center_y, 
-                                   is_frame_detected(detection_result), is_tool_detected(detection_result))
+            frame_aruco_id = detection_result.get('frame_aruco_id', 0)
+            frame_detected = is_frame_detected(detection_result)
+            create_center_reference(overlay_manager, center_x, center_y, frame_aruco_id, frame_detected)
             overlay_objects.append("center_circle")
+            print(f"[ArUcoManager] ✓ Centro del troquel agregado a renderlist")
         
-        # Crear lista de renderizado
+        # Crear lista de renderizado solo si hay objetos
         if overlay_objects:
             create_renderlist(overlay_manager, overlay_objects)
+            print(f"[ArUcoManager] ✓ Renderlist creada con {len(overlay_objects)} objetos")
+        else:
+            print(f"[ArUcoManager] ⚠️ No hay objetos para renderizar - solo imagen en escala de grises")
         
         return {
             'ok': True,
             'detection_result': detection_result,
             'overlay_objects': overlay_objects,
             'frame_detected': is_frame_detected(detection_result) if detection_result else False,
-            'tool_detected': is_tool_detected(detection_result) if detection_result else False
+            'tool_detected': is_tool_detected(detection_result) if detection_result else False,
+            'has_objects': len(overlay_objects) > 0
         }
         
     except Exception as e:

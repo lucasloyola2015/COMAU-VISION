@@ -380,8 +380,10 @@
           // Configuración general
           centerXInput.value = config.aruco.base?.center_x_mm || 0;
           centerYInput.value = config.aruco.base?.center_y_mm || 0;
-          chkShowFrame.checked = config.aruco.base?.show_reference || false;
-          chkShowTool.checked = config.aruco.tool?.show_reference || false;
+          
+          // Cargar checkboxes desde la estructura correcta
+          chkShowFrame.checked = config.aruco.show_frame || config.aruco.base?.show_reference || false;
+          chkShowTool.checked = config.aruco.show_tool || config.aruco.tool?.show_reference || false;
           chkShowCenter.checked = config.aruco.show_center || false;
           chkUseSaved.checked = config.aruco.use_saved_reference || false;
           
@@ -459,39 +461,33 @@
         btnApply.disabled = true;
         showMessage('Guardando configuración...', 'info');
         
-        // Primero aplicar la configuración básica
-        const setResponse = await Common.fetchWithTimeout('/api/aruco/set_reference', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            frame_aruco_id: frameArucoId,
-            frame_marker_size_mm: frameMarkerSize,
-            frame_dictionary_id: frameDictionaryId,
-            frame_marker_bits: frameMarkerBits,
-            tool_aruco_id: toolArucoId,
-            tool_marker_size_mm: toolMarkerSize,
-            tool_dictionary_id: toolDictionaryId,
-            tool_marker_bits: toolMarkerBits,
-            center_x_mm: centerX,
-            center_y_mm: centerY,
-            show_frame: showFrame,
-            show_tool: showTool,
-            show_center: showCenter,
-            use_saved_reference: useSavedReference
-          })
-        });
+        // Guardar TODA la configuración en una sola llamada
+        const saveRequestData = {
+          // Configuración Base
+          frame_aruco_id: frameArucoId,
+          frame_marker_size_mm: frameMarkerSize,
+          frame_dictionary_id: frameDictionaryId,
+          frame_marker_bits: frameMarkerBits,
+          
+          // Configuración Tool
+          tool_aruco_id: toolArucoId,
+          tool_marker_size_mm: toolMarkerSize,
+          tool_dictionary_id: toolDictionaryId,
+          tool_marker_bits: toolMarkerBits,
+          
+          // Configuración general
+          center_x_mm: centerX,
+          center_y_mm: centerY,
+          show_frame: showFrame,
+          show_tool: showTool,
+          show_center: showCenter,
+          use_saved_reference: useSavedReference
+        };
         
-        const setData = await setResponse.json();
-        
-        if (!setData.ok) {
-          showMessage(setData.error || 'Error aplicando configuración', 'error');
-          return;
-        }
-        
-        // Luego guardar la configuración completa con objetos
         const saveResponse = await Common.fetchWithTimeout('/api/aruco/save_config', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(saveRequestData)
         });
         
         const saveData = await saveResponse.json();

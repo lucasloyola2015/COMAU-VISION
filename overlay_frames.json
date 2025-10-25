@@ -8,18 +8,18 @@
       "parent_frame": "world"
     },
     "base_frame": {
-      "offset_x": 977,
-      "offset_y": 181,
-      "rotation": 3.1174427601922776,
-      "px_per_mm": 7.2,
-      "parent_frame": "world"
+      "offset_x": 1284.5,
+      "offset_y": 172.5,
+      "rotation": 2.9404656887054443,
+      "px_per_mm": 3.003399440220424,
+      "parent_frame": "Base"
     },
     "tool_frame": {
-      "offset_x": 944,
-      "offset_y": 836,
-      "rotation": -0.024534953062735818,
-      "px_per_mm": 3.28638671875,
-      "parent_frame": "world"
+      "offset_x": 944.25,
+      "offset_y": 836.5,
+      "rotation": -0.030854402109980583,
+      "px_per_mm": 3.24154296875,
+      "parent_frame": "Base"
     },
     "junta_frame": {
       "offset_x": 0,
@@ -33,6 +33,20 @@
       "offset_y": 0,
       "rotation": 0.0,
       "px_per_mm": 1.0,
+      "parent_frame": "world"
+    },
+    "base_frame_temp": {
+      "offset_x": 1284.5,
+      "offset_y": 172.5,
+      "rotation": 2.9404656887054443,
+      "px_per_mm": 3.003399440220424,
+      "parent_frame": "world"
+    },
+    "tool_frame_temp": {
+      "offset_x": 944.25,
+      "offset_y": 836.5,
+      "rotation": -0.030854402109980583,
+      "px_per_mm": 3.24154296875,
       "parent_frame": "world"
     }
   },

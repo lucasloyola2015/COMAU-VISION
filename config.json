@@ -11,9 +11,9 @@
   "aruco": {
     "base": {
       "reference_id": 23,
-      "marker_size_mm": 70.0,
-      "center_x_mm": 35.0,
-      "center_y_mm": 35.0,
+      "marker_size_mm": 70,
+      "center_x_mm": 35,
+      "center_y_mm": 35,
       "show_reference": true,
       "dictionary_id": 50,
       "marker_bits": 6,
@@ -49,7 +49,7 @@
     },
     "tool": {
       "reference_id": 4,
-      "marker_size_mm": 50.0,
+      "marker_size_mm": 50,
       "center_x_mm": 25.0,
       "center_y_mm": 25.0,
       "show_reference": true,
@@ -87,8 +87,18 @@
     },
     "show_center": true,
     "saved_objects": {
-      "frame_objects": [],
-      "tool_objects": [],
+      "frame_objects": [
+        "aruco_contour_23",
+        "aruco_x_axis_23",
+        "aruco_y_axis_23",
+        "aruco_center_23"
+      ],
+      "tool_objects": [
+        "aruco_contour_4",
+        "aruco_x_axis_4",
+        "aruco_y_axis_4",
+        "aruco_center_4"
+      ],
       "center_objects": [
         "center_circle"
       ],
@@ -101,16 +111,16 @@
         "aruco_x_axis_4": "Eje X del Tool ArUco (ID: 4)",
         "aruco_y_axis_4": "Eje Y del Tool ArUco (ID: 4)",
         "aruco_center_4": "Centro del Tool ArUco (ID: 4)",
-        "center_circle": "C\u00edrculo del centro del troquel (10mm di\u00e1metro)"
+        "center_circle": "Círculo del centro del troquel (10mm diámetro)"
       }
     },
     "frame_aruco_id": 23,
     "frame_marker_size_mm": 70.0,
     "tool_aruco_id": 4,
     "tool_marker_size_mm": 50.0,
-    "center_x_mm": 35.0,
-    "center_y_mm": 35.0,
-    "show_frame": true,
+    "center_x_mm": 35,
+    "center_y_mm": 35,
+    "show_frame": false,
     "show_tool": true,
     "use_saved_reference": false
   },
