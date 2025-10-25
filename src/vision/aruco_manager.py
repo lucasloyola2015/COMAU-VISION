@@ -196,46 +196,51 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
         )
         
         # Dibujar ejes (líneas infinitas de borde a borde)
-        # Eje X
-        axis_length = 1000  # Largo para cubrir toda la imagen
-        x_end1 = (
-            center[0] + axis_length * np.cos(angle_rad),
-            center[1] + axis_length * np.sin(angle_rad)
+        # Convertir coordenadas de píxeles a milímetros
+        center_mm = (center[0] / px_per_mm, center[1] / px_per_mm)
+        
+        # Eje X - longitud en milímetros
+        axis_length_mm = 1000  # Largo para cubrir toda la imagen
+        x_end1_mm = (
+            center_mm[0] + axis_length_mm * np.cos(angle_rad),
+            center_mm[1] + axis_length_mm * np.sin(angle_rad)
         )
-        x_end2 = (
-            center[0] - axis_length * np.cos(angle_rad),
-            center[1] - axis_length * np.sin(angle_rad)
+        x_end2_mm = (
+            center_mm[0] - axis_length_mm * np.cos(angle_rad),
+            center_mm[1] - axis_length_mm * np.sin(angle_rad)
         )
         
         # Eje Y
         y_angle_rad = angle_rad + np.pi / 2
-        y_end1 = (
-            center[0] + axis_length * np.cos(y_angle_rad),
-            center[1] + axis_length * np.sin(y_angle_rad)
+        y_end1_mm = (
+            center_mm[0] + axis_length_mm * np.cos(y_angle_rad),
+            center_mm[1] + axis_length_mm * np.sin(y_angle_rad)
         )
-        y_end2 = (
-            center[0] - axis_length * np.cos(y_angle_rad),
-            center[1] - axis_length * np.sin(y_angle_rad)
+        y_end2_mm = (
+            center_mm[0] - axis_length_mm * np.cos(y_angle_rad),
+            center_mm[1] - axis_length_mm * np.sin(y_angle_rad)
         )
         
         # Agregar líneas de ejes
         overlay_manager.add_line(
             frame_name,
-            start=x_end2,
-            end=x_end1,
+            start=x_end2_mm,
+            end=x_end1_mm,
             name=f"aruco_x_axis_{aruco_id}",
             color=color,
             thickness=2
         )
+        print(f"[ArUcoManager] ✓ Eje X creado para ArUco {aruco_id}: {x_end2_mm} → {x_end1_mm}")
         
         overlay_manager.add_line(
             frame_name,
-            start=y_end2,
-            end=y_end1,
+            start=y_end2_mm,
+            end=y_end1_mm,
             name=f"aruco_y_axis_{aruco_id}",
             color=color,
             thickness=2
         )
+        print(f"[ArUcoManager] ✓ Eje Y creado para ArUco {aruco_id}: {y_end2_mm} → {y_end1_mm}")
         
         # Agregar centro
         overlay_manager.add_circle(
@@ -453,6 +458,7 @@ def render_overlay_with_arucos(overlay_manager, cv2_frame, frame_aruco_id, tool_
             # Recopilar objetos de ArUcos
             aruco_objects = [name for name, obj in overlay_manager.objects.items() 
                            if name.startswith('aruco_')]
+            print(f"[ArUcoManager] 📋 Objetos de ArUcos recopilados: {aruco_objects}")
             overlay_objects.extend(aruco_objects)
         
         if show_center:
