@@ -174,6 +174,7 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
         center = aruco_data['center']
         angle_rad = aruco_data['angle_rad']
         corners = aruco_data['corners']
+        px_per_mm = aruco_data['px_per_mm']
         
         # Determinar color y marco según tipo específico del proyecto
         if aruco_id == frame_aruco_id:
@@ -195,52 +196,31 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
             thickness=2
         )
         
-        # Dibujar ejes (líneas infinitas de borde a borde)
-        # Convertir coordenadas de píxeles a milímetros
-        center_mm = (center[0] / px_per_mm, center[1] / px_per_mm)
-        
-        # Eje X - longitud en milímetros
+        # Dibujar ejes usando el marco temporal del ArUco
+        # La librería maneja automáticamente las transformaciones
         axis_length_mm = 1000  # Largo para cubrir toda la imagen
-        x_end1_mm = (
-            center_mm[0] + axis_length_mm * np.cos(angle_rad),
-            center_mm[1] + axis_length_mm * np.sin(angle_rad)
-        )
-        x_end2_mm = (
-            center_mm[0] - axis_length_mm * np.cos(angle_rad),
-            center_mm[1] - axis_length_mm * np.sin(angle_rad)
-        )
         
-        # Eje Y
-        y_angle_rad = angle_rad + np.pi / 2
-        y_end1_mm = (
-            center_mm[0] + axis_length_mm * np.cos(y_angle_rad),
-            center_mm[1] + axis_length_mm * np.sin(y_angle_rad)
-        )
-        y_end2_mm = (
-            center_mm[0] - axis_length_mm * np.cos(y_angle_rad),
-            center_mm[1] - axis_length_mm * np.sin(y_angle_rad)
-        )
-        
-        # Agregar líneas de ejes
+        # Eje X - desde el centro del marco temporal
         overlay_manager.add_line(
-            frame_name,
-            start=x_end2_mm,
-            end=x_end1_mm,
+            frame_name,  # Usar el marco temporal del ArUco
+            start=(-axis_length_mm, 0),  # Coordenadas relativas al marco
+            end=(axis_length_mm, 0),
             name=f"aruco_x_axis_{aruco_id}",
             color=color,
             thickness=2
         )
-        print(f"[ArUcoManager] ✓ Eje X creado para ArUco {aruco_id}: {x_end2_mm} → {x_end1_mm}")
         
+        # Eje Y - desde el centro del marco temporal
         overlay_manager.add_line(
-            frame_name,
-            start=y_end2_mm,
-            end=y_end1_mm,
+            frame_name,  # Usar el marco temporal del ArUco
+            start=(0, -axis_length_mm),  # Coordenadas relativas al marco
+            end=(0, axis_length_mm),
             name=f"aruco_y_axis_{aruco_id}",
             color=color,
             thickness=2
         )
-        print(f"[ArUcoManager] ✓ Eje Y creado para ArUco {aruco_id}: {y_end2_mm} → {y_end1_mm}")
+        
+        print(f"[ArUcoManager] ✓ Ejes creados para ArUco {aruco_id} en marco {frame_name}")
         
         # Agregar centro
         overlay_manager.add_circle(

@@ -375,9 +375,13 @@ def api_overlay_render():
                 'error': result['error']
             }), 500
         
-        # Renderizar overlay
+        # Convertir imagen a escala de grises y luego a RGB para conservar colores de overlays
+        gray_frame = cv2.cvtColor(cv2_frame, cv2.COLOR_BGR2GRAY)
+        rgb_background = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2RGB)
+        
+        # Renderizar overlay sobre fondo en escala de grises
         result_image, view_time = overlay_manager.render(
-            background_image=cv2_frame,
+            background_image=rgb_background,
             renderlist="aruco_overlay",
             view_time=3000
         )
