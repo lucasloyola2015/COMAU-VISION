@@ -171,6 +171,36 @@
     </div>
   </div>
   
+  <!-- Card de Resolución de Análisis -->
+  <div class="card" style="margin-top: var(--space-sm);">
+    <h2 style="font-size: var(--font-size-md); margin-bottom: var(--space-xs); font-weight: 600; color: var(--text-primary);">
+      Resolución de Análisis
+    </h2>
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xs) var(--space-sm);">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="resolutionAruco" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          ArUco (%)
+        </label>
+        <input type="number" id="resolutionAruco" name="resolution_scale_aruco" min="10" max="100" step="5" value="100"
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="resolutionYolo" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          YOLO (%)
+        </label>
+        <input type="number" id="resolutionYolo" name="resolution_scale_yolo" min="10" max="100" step="5" value="100"
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="resolutionOpencv" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          OpenCV (%)
+        </label>
+        <input type="number" id="resolutionOpencv" name="resolution_scale_opencv" min="10" max="100" step="5" value="100"
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+    </div>
+  </div>
+
   <!-- Card de Visualización -->
   <div class="card" style="margin-top: var(--space-lg);">
     <h2 style="font-size: var(--font-size-lg); margin-bottom: var(--space-sm); font-weight: 600; color: var(--text-primary);">
@@ -318,6 +348,11 @@
     const inputColinealidadMm = document.getElementById('inputColinealidadMm');
     const inputEspaciadoCV = document.getElementById('inputEspaciadoCV');
     
+    // Elementos de Resolución
+    const resolutionAruco = document.getElementById('resolutionAruco');
+    const resolutionYolo = document.getElementById('resolutionYolo');
+    const resolutionOpencv = document.getElementById('resolutionOpencv');
+
     // Elementos de Configuración
     const chkUseBaseFrame = document.getElementById('chkUseBaseFrame');
     const chkUseToolFrame = document.getElementById('chkUseToolFrame');
@@ -445,6 +480,11 @@
           umbral_colinealidad_mm: parseFloat(inputColinealidadMm.value),
           umbral_espaciado_cv: parseFloat(inputEspaciadoCV.value),
           
+          // Resolución
+          resolution_scale_aruco: parseInt(resolutionAruco.value),
+          resolution_scale_yolo: parseInt(resolutionYolo.value),
+          resolution_scale_opencv: parseInt(resolutionOpencv.value),
+
           // Configuración ROI
           roi_offset_y_mm: parseFloat(inputOffsetY.value),
           roi_zoom_x_percent: parseFloat(inputZoomX.value),
@@ -482,6 +522,11 @@
             umbral_colinealidad_mm: parseFloat(inputColinealidadMm.value),
             umbral_espaciado_cv: parseFloat(inputEspaciadoCV.value),
             
+            // Resolución
+            resolution_scale_aruco: parseInt(resolutionAruco.value),
+            resolution_scale_yolo: parseInt(resolutionYolo.value),
+            resolution_scale_opencv: parseInt(resolutionOpencv.value),
+
             // Configuración de Visualización
             aruco_base_show: chkShowArucoBase.checked,
             aruco_tool_show: chkShowArucoTool.checked,
@@ -590,6 +635,19 @@
           });
           
           // ============================================================
+          // CARGAR RESOLUCIÓN
+          // ============================================================
+          resolutionAruco.value = config.vision.resolution_scale_aruco || 100;
+          resolutionYolo.value = config.vision.resolution_scale_yolo || 100;
+          resolutionOpencv.value = config.vision.resolution_scale_opencv || 100;
+
+          console.log('[visionSystem] ✓ Resolución cargada:', {
+            aruco: resolutionAruco.value,
+            yolo: resolutionYolo.value,
+            opencv: resolutionOpencv.value
+          });
+
+          // ============================================================
           // CARGAR CONFIGURACIÓN ROI
           // ============================================================
           inputOffsetY.value = config.vision.roi_offset_y_mm || 0.0;
@@ -666,6 +724,3 @@
   </script>
 </body>
 </html>
-
-
-

@@ -96,6 +96,7 @@ def dibujar_todo(frame, datos_visualizacion):
     show_contours = vision_config.get('show_contours', True)
     show_ellipses = vision_config.get('show_ellipses', False)
     show_notches = vision_config.get('show_notches', False)
+    show_segmento_junta = vision_config.get('segmento_junta_show', False)
     
     print(f"[visualizador] Configuración: aruco={show_aruco}, bbox={show_bbox}, contours={show_contours}, ellipses={show_ellipses}, notches={show_notches}")
     
@@ -125,10 +126,12 @@ def dibujar_todo(frame, datos_visualizacion):
     # ═══════════════════════════════════════════════════════════════════
     # PASO 6: Dibujar línea de referencia (SIEMPRE si existe)
     # ═══════════════════════════════════════════════════════════════════
-    if datos_visualizacion.get('linea_referencia'):
+    if show_segmento_junta and datos_visualizacion.get('linea_referencia'):
         linea = datos_visualizacion['linea_referencia']
         resultado = _dibujar_linea_referencia(resultado, linea)
-        print("[visualizador] ✓ Línea de referencia dibujada")
+        print("[visualizador] ✓ Línea de referencia dibujada (segmento_junta_show=True)")
+    else:
+        print(f"[visualizador] ✗ Línea de referencia omitida (segmento_junta_show={show_segmento_junta})")
     
     # ═══════════════════════════════════════════════════════════════════
     # PASO 7: Dibujar muescas SOLO SI está habilitado Y hay muescas
@@ -396,4 +399,3 @@ def _dibujar_linea_tool_muesca(frame, datos_aruco, primera_muesca):
         traceback.print_exc()
     
     return frame
-

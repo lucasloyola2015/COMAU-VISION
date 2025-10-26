@@ -29,7 +29,7 @@ Uso:
 - Completamente reutilizable para cualquier proyecto
 
 Autor: Sistema COMAU-VISION
-Versión: 1.0 (Genérica)
+Versión: 1.1 (Soporte para px_per_mm no uniforme)
 """
 
 import cv2
@@ -60,7 +60,7 @@ class CoordinateFrame:
     offset_x: float
     offset_y: float
     rotation: float  # en radianes
-    px_per_mm: float  # Relación píxeles por milímetro
+    px_per_mm: Union[float, Tuple[float, float]]  # Relación píxeles por milímetro (puede ser no uniforme)
     parent_frame: Optional[str] = None  # None para world
 
 
@@ -128,7 +128,7 @@ class OverlayManager:
     # ============================================================
     
     def define_frame(self, name: str, offset: Tuple[float, float], 
-                    rotation: float, px_per_mm: float = 1.0, 
+                    rotation: float, px_per_mm: Union[float, Tuple[float, float]] = 1.0, 
                     parent_frame: str = "world") -> None:
         """
         Definir un nuevo marco de coordenadas.
@@ -137,7 +137,7 @@ class OverlayManager:
             name: Nombre del marco
             offset: Desplazamiento (x, y) respecto al marco padre
             rotation: Rotación en radianes
-            px_per_mm: Relación píxeles por milímetro
+            px_per_mm: Relación píxeles por milímetro (uniforme o no)
             parent_frame: Marco padre (default: "world")
         """
         if name in self.frames:
@@ -152,10 +152,10 @@ class OverlayManager:
             parent_frame=parent_frame
         )
         
-        print(f"[OverlayManager] ✓ Marco '{name}' definido: offset={offset}, rotation={rotation:.3f}rad, px_per_mm={px_per_mm:.3f}")
+        print(f"[OverlayManager] ✓ Marco '{name}' definido: offset={offset}, rotation={rotation:.3f}rad, px_per_mm={px_per_mm}")
     
     def update_frame(self, name: str, offset: Optional[Tuple[float, float]] = None,
-                    rotation: Optional[float] = None, px_per_mm: Optional[float] = None) -> None:
+                    rotation: Optional[float] = None, px_per_mm: Optional[Union[float, Tuple[float, float]]] = None) -> None:
         """
         Actualizar un marco de coordenadas existente.
         
@@ -172,15 +172,16 @@ class OverlayManager:
         
         if offset is not None:
             frame.offset_x, frame.offset_y = offset
-            print(f"[OverlayManager] ✓ Marco '{name}' actualizado: offset={offset}")
+            print(f"[OverlayManager] ✓ Marco '{name}' actualizado: offset=({offset[0]:.1f}, {offset[1]:.1f})")
         
         if rotation is not None:
             frame.rotation = rotation
             print(f"[OverlayManager] ✓ Marco '{name}' actualizado: rotation={rotation:.3f}rad")
         
         if px_per_mm is not None:
-            frame.px_per_mm = px_per_mm
-            print(f"[OverlayManager] ✓ Marco '{name}' actualizado: px_per_mm={px_per_mm:.3f}")
+            frame.px_per_mm = px_per_mm 
+            # Imprimir sin formato específico para soportar tuplas
+            print(f"[OverlayManager] ✓ Marco '{name}' actualizado: px_per_mm={px_per_mm}")
     
     def get_frame(self, name: str) -> CoordinateFrame:
         """Obtener información de un marco"""
@@ -191,7 +192,14 @@ class OverlayManager:
     def list_frames(self) -> List[str]:
         """Listar todos los marcos definidos"""
         return list(self.frames.keys())
-    
+
+    def _get_px_per_mm_vec(self, frame_obj: CoordinateFrame) -> np.ndarray:
+        """Convierte px_per_mm a un vector numpy [x, y]"""
+        if isinstance(frame_obj.px_per_mm, (list, tuple)):
+            return np.array(frame_obj.px_per_mm, dtype=float)
+        else:
+            return np.array([frame_obj.px_per_mm, frame_obj.px_per_mm], dtype=float)
+
     # ============================================================
     # TRANSFORMACIONES DE COORDENADAS
     # ============================================================
@@ -219,9 +227,14 @@ class OverlayManager:
         # Convertir a numpy para cálculos
         point = np.array(point, dtype=float)
         
-        # PASO 1: Convertir de mm a píxeles usando px_per_mm del marco origen
-        # Las coordenadas vienen en mm, las convertimos a píxeles
-        point_px = point * from_frame_obj.px_per_mm
+        # PASO 1: Convertir de mm a píxeles.
+        # Si las unidades originales eran 'px', el objeto se guardó en "pseudo-mm"
+        # (dividiendo por px_per_mm). Este paso revierte esa operación,
+        # devolviendo el punto a su valor original en píxeles relativos al frame.
+        point_px = point
+        if from_frame_obj.name != 'world':
+            px_per_mm_vec = self._get_px_per_mm_vec(from_frame_obj)
+            point_px = point * px_per_mm_vec
         
         # PASO 2: Aplicar transformación del marco origen
         cos_rot = np.cos(from_frame_obj.rotation)
@@ -249,9 +262,10 @@ class OverlayManager:
         
         # PASO 4: Convertir de píxeles a mm usando px_per_mm del marco destino
         # Solo si el marco destino no es "world" (que siempre está en píxeles)
-        if to_frame != "world":
-            final_x = final_x / to_frame_obj.px_per_mm
-            final_y = final_y / to_frame_obj.px_per_mm
+        if to_frame != "world": 
+            to_px_per_mm_vec = self._get_px_per_mm_vec(to_frame_obj)
+            final_x = final_x / to_px_per_mm_vec[0]
+            final_y = final_y / to_px_per_mm_vec[1]
         
         return (float(final_x), float(final_y))
     
@@ -271,18 +285,34 @@ class OverlayManager:
         if from_frame == to_frame:
             return coordinates.copy()
         
+        obj_type = coordinates.get('_obj_type_for_transform', None)
         transformed = {}
-        
-        for key, value in coordinates.items():
-            if isinstance(value, (list, tuple)) and len(value) == 2:
-                # Es un punto (x, y)
-                transformed[key] = self._transform_point(value, from_frame, to_frame)
-            elif isinstance(value, list) and all(isinstance(p, (list, tuple)) and len(p) == 2 for p in value):
-                # Es una lista de puntos
-                transformed[key] = [self._transform_point(p, from_frame, to_frame) for p in value]
-            else:
-                # No es una coordenada, mantener igual
-                transformed[key] = value
+
+        if obj_type == ObjectType.ELLIPSE:
+            # Tratamiento especial para elipses
+            transformed['center'] = self._transform_point(coordinates['center'], from_frame, to_frame)
+            
+            # Los ejes (tamaño) no se rotan ni se trasladan, solo se escalan si es necesario.
+            # Como aquí trabajamos con píxeles, se mantienen igual.
+            transformed['axes'] = coordinates['axes']
+            
+            # El ángulo se suma al del frame.
+            from_frame_obj = self.frames[from_frame]
+            transformed['angle'] = coordinates['angle'] + np.degrees(from_frame_obj.rotation)
+        else:
+            # Lógica general para otros objetos
+            for key, value in coordinates.items():
+                if key == '_obj_type_for_transform': continue
+
+                if isinstance(value, (list, tuple)) and len(value) == 2 and all(isinstance(v, (int, float)) for v in value):
+                    # Es un punto (x, y)
+                    transformed[key] = self._transform_point(value, from_frame, to_frame)
+                elif isinstance(value, list) and all(isinstance(p, (list, tuple)) and len(p) == 2 for p in value):
+                    # Es una lista de puntos
+                    transformed[key] = [self._transform_point(p, from_frame, to_frame) for p in value]
+                else:
+                    # No es una coordenada, mantener igual
+                    transformed[key] = value
         
         return transformed
     
@@ -311,8 +341,9 @@ class OverlayManager:
         # Convertir coordenadas si vienen en píxeles
         if units == "px":
             frame_obj = self.frames[frame]
-            start = (start[0] / frame_obj.px_per_mm, start[1] / frame_obj.px_per_mm)
-            end = (end[0] / frame_obj.px_per_mm, end[1] / frame_obj.px_per_mm)
+            px_per_mm_vec = self._get_px_per_mm_vec(frame_obj)
+            start = (start[0] / px_per_mm_vec[0], start[1] / px_per_mm_vec[1])
+            end = (end[0] / px_per_mm_vec[0], end[1] / px_per_mm_vec[1])
         
         # Convertir color a BGR si es string
         if isinstance(color, str):
@@ -330,7 +361,7 @@ class OverlayManager:
                 'thickness': thickness or self.default_properties['thickness'],
                 **kwargs
             },
-            created_at=0.0  # TODO: usar timestamp real
+            created_at=time.time()
         )
         
         self.objects[name] = obj
@@ -358,8 +389,9 @@ class OverlayManager:
         # Convertir coordenadas si vienen en píxeles
         if units == "px":
             frame_obj = self.frames[frame]
-            center = (center[0] / frame_obj.px_per_mm, center[1] / frame_obj.px_per_mm)
-            radius = radius / frame_obj.px_per_mm
+            px_per_mm_vec = self._get_px_per_mm_vec(frame_obj)
+            center = (center[0] / px_per_mm_vec[0], center[1] / px_per_mm_vec[1])
+            radius = radius / px_per_mm_vec[0] # El radio es uniforme
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -377,7 +409,7 @@ class OverlayManager:
                 'filled': filled,
                 **kwargs
             },
-            created_at=0.0
+            created_at=time.time()
         )
         
         self.objects[name] = obj
@@ -404,9 +436,12 @@ class OverlayManager:
         
         # Convertir coordenadas si vienen en píxeles
         if units == "px":
+            # Para que la transformación funcione, debemos "simular" que están en mm
+            # dividiendo por el px_per_mm. El motor de renderizado lo revertirá.
             frame_obj = self.frames[frame]
-            center = (center[0] / frame_obj.px_per_mm, center[1] / frame_obj.px_per_mm)
-            axes = (axes[0] / frame_obj.px_per_mm, axes[1] / frame_obj.px_per_mm)
+            px_per_mm_vec = self._get_px_per_mm_vec(frame_obj)
+            center = (center[0] / px_per_mm_vec[0], center[1] / px_per_mm_vec[1])
+            axes = (axes[0] / abs(px_per_mm_vec[0]), axes[1] / abs(px_per_mm_vec[1]))
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -417,13 +452,13 @@ class OverlayManager:
             name=name,
             type=ObjectType.ELLIPSE,
             original_frame=frame,
-            coordinates={'center': center, 'axes': axes, 'angle': angle},
+            coordinates={'center': center, 'axes': axes, 'angle': angle, '_obj_type_for_transform': ObjectType.ELLIPSE},
             properties={
                 'color': color,
                 'thickness': thickness or self.default_properties['thickness'],
                 **kwargs
             },
-            created_at=0.0
+            created_at=time.time()
         )
         
         self.objects[name] = obj
@@ -450,8 +485,9 @@ class OverlayManager:
         # Convertir coordenadas si vienen en píxeles
         if units == "px":
             frame_obj = self.frames[frame]
-            start = (start[0] / frame_obj.px_per_mm, start[1] / frame_obj.px_per_mm)
-            end = (end[0] / frame_obj.px_per_mm, end[1] / frame_obj.px_per_mm)
+            px_per_mm_vec = self._get_px_per_mm_vec(frame_obj)
+            start = (start[0] / px_per_mm_vec[0], start[1] / px_per_mm_vec[1])
+            end = (end[0] / px_per_mm_vec[0], end[1] / px_per_mm_vec[1])
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -468,7 +504,7 @@ class OverlayManager:
                 'thickness': thickness or self.default_properties['thickness'],
                 **kwargs
             },
-            created_at=0.0
+            created_at=time.time()
         )
         
         self.objects[name] = obj
@@ -496,7 +532,8 @@ class OverlayManager:
         # Convertir coordenadas si vienen en píxeles
         if units == "px":
             frame_obj = self.frames[frame]
-            position = (position[0] / frame_obj.px_per_mm, position[1] / frame_obj.px_per_mm)
+            px_per_mm_vec = self._get_px_per_mm_vec(frame_obj)
+            position = (position[0] / px_per_mm_vec[0], position[1] / px_per_mm_vec[1])
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -514,7 +551,7 @@ class OverlayManager:
                 'thickness': thickness or self.default_properties['thickness'],
                 **kwargs
             },
-            created_at=0.0
+            created_at=time.time()
         )
         
         self.objects[name] = obj
@@ -806,7 +843,7 @@ class OverlayManager:
                 'parent_frame': frame.parent_frame
             } for name, frame in self.frames.items()},
             'metadata': {
-                'last_updated': 0.0,  # TODO: usar timestamp real
+                'last_updated': time.time(),
                 'version': '1.0'
             }
         }
@@ -884,7 +921,8 @@ class OverlayManager:
         # Convertir coordenadas si vienen en píxeles
         if units == "px":
             frame_obj = self.frames[frame]
-            points = [(p[0] / frame_obj.px_per_mm, p[1] / frame_obj.px_per_mm) for p in points]
+            px_per_mm_vec = self._get_px_per_mm_vec(frame_obj)
+            points = [(p[0] / px_per_mm_vec[0], p[1] / px_per_mm_vec[1]) for p in points]
         
         if isinstance(color, str):
             color = self._parse_color(color)
@@ -901,7 +939,7 @@ class OverlayManager:
                 'thickness': thickness or self.default_properties['thickness'],
                 **kwargs
             },
-            created_at=0.0
+            created_at=time.time()
         )
         
         self.objects[name] = obj
@@ -952,5 +990,4 @@ NO MODIFICAR ESTA LIBRERÍA CON:
 # ============================================================
 # FUNCIONES DE CONVENIENCIA
 # ============================================================
-
-
+import time

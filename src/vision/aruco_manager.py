@@ -33,9 +33,40 @@ OTHER_COLOR = (255, 255, 0)  # Cian para otros
 FRAME_TEMP_NAME = "base_frame_temp"
 TOOL_TEMP_NAME = "tool_frame_temp"
 
+def scale_detection_results(result: Dict[str, Any], scale_factor: float) -> Dict[str, Any]:
+    """
+    Escala las coordenadas de un resultado de detección de ArUcos.
+    
+    Args:
+        result: Diccionario con el resultado de la detección.
+        scale_factor: Factor de escala a aplicar (e.g., 0.5 para 50%).
+        
+    Returns:
+        Diccionario con el resultado y las coordenadas escaladas a 100%.
+    """
+    if scale_factor == 1.0:
+        return result
+
+    print(f"[ArUcoManager] 🔧 Escalando coordenadas de {scale_factor:.1%} a 100%")
+    detected_arucos = result.get('detected_arucos', {})
+    for aruco_id, aruco_data in detected_arucos.items():
+        # Escalar center
+        if 'center' in aruco_data:
+            aruco_data['center'] = (aruco_data['center'][0] / scale_factor, aruco_data['center'][1] / scale_factor)
+        
+        # Escalar corners
+        if 'corners' in aruco_data:
+            aruco_data['corners'] = [(c[0] / scale_factor, c[1] / scale_factor) for c in aruco_data['corners']]
+        
+        # Escalar px_per_mm
+        if 'px_per_mm' in aruco_data:
+            aruco_data['px_per_mm'] /= scale_factor
+            
+    return result
+
 def detect_arucos_in_image(image: np.ndarray, frame_aruco_id: int, tool_aruco_id: int, 
                           frame_marker_size_mm: float = 70.0, tool_marker_size_mm: float = 50.0,
-                          dictionary_id: int = 50, marker_bits: int = 4) -> Dict[str, Any]:
+                          dictionary_id: int = 50, marker_bits: int = 4, scale_factor: float = 1.0) -> Dict[str, Any]:
     """
     Detectar ArUcos en imagen usando configuración específica del proyecto.
     
@@ -47,9 +78,11 @@ def detect_arucos_in_image(image: np.ndarray, frame_aruco_id: int, tool_aruco_id
         tool_marker_size_mm: Tamaño del marcador tool en mm
         dictionary_id: ID del diccionario ArUco
         marker_bits: Tamaño de la matriz del marcador
+        scale_factor: Factor de escala de la imagen (1.0 = 100%, 0.5 = 50%)
         
     Returns:
-        Diccionario con información de detección específica del proyecto
+        Diccionario con información de detección específica del proyecto.
+        Las coordenadas SIEMPRE se devuelven en escala 100% (invariante a scale_factor).
     """
     try:
         print(f"[ArUcoManager] Detectando ArUcos específicos del proyecto")
@@ -73,6 +106,9 @@ def detect_arucos_in_image(image: np.ndarray, frame_aruco_id: int, tool_aruco_id
         
         # Usar librería genérica
         result = detect_arucos_with_config(image, aruco_configs, dictionary_id, marker_bits)
+        
+        # Escalar coordenadas de vuelta a 100% si es necesario
+        result = scale_detection_results(result, scale_factor)
         
         # Adaptar resultado a formato específico del proyecto
         frame_detected = result.get('detection_status', {}).get('frame', False)
@@ -208,9 +244,10 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
             thickness=2
         )
         
-        # Dibujar ejes usando el marco temporal del ArUco
-        # La librería maneja automáticamente las transformaciones
-        axis_length_mm = 1000  # Largo para cubrir toda la imagen
+        # Dibujar ejes usando el marco temporal del ArUco.
+        # Se definen como líneas simples en el sistema de coordenadas del ArUco,
+        # y la librería se encarga de la rotación y traslación.
+        axis_length_mm = 1000  # Un valor grande para que cruce toda la imagen
         
         # Eje X - desde el centro del marco temporal
         overlay_manager.add_line(
@@ -218,8 +255,9 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
             start=(-axis_length_mm, 0),  # Coordenadas relativas al marco
             end=(axis_length_mm, 0),
             name=f"aruco_x_axis_{aruco_id}",
-            color=color,
-            thickness=2
+            color=(0, 0, 255),  # Eje X siempre ROJO
+            thickness=2,
+            units="mm"
         )
         
         # Eje Y - desde el centro del marco temporal
@@ -228,11 +266,10 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
             start=(0, -axis_length_mm),  # Coordenadas relativas al marco
             end=(0, axis_length_mm),
             name=f"aruco_y_axis_{aruco_id}",
-            color=color,
-            thickness=2
+            color=(0, 255, 0),  # Eje Y siempre VERDE
+            thickness=2,
+            units="mm"
         )
-        
-        print(f"[ArUcoManager] ✓ Ejes creados para ArUco {aruco_id} en marco {frame_name}")
         
         # Agregar centro
         overlay_manager.add_circle(
@@ -243,6 +280,8 @@ def create_aruco_overlay_objects(overlay_manager, detection_result: Dict[str, An
             color=color,
             filled=True
         )
+        
+        print(f"[ArUcoManager] ✓ Objetos de overlay creados para ArUco {aruco_id} en marco {frame_name}")
         
         print(f"[ArUcoManager] ✓ Objetos de overlay creados para ArUco {aruco_id}")
 
@@ -319,7 +358,8 @@ def save_aruco_configuration(overlay_manager, cv2_frame, aruco_config):
         frame_marker_size_mm=frame_marker_size,
         tool_marker_size_mm=tool_marker_size,
         dictionary_id=aruco_config.get('base', {}).get('dictionary_id', 50),
-        marker_bits=aruco_config.get('base', {}).get('marker_bits', 4)
+        marker_bits=aruco_config.get('base', {}).get('marker_bits', 4),
+        scale_factor=1.0  # Siempre 100% para overlays
     )
     
     base_detected = is_frame_detected(detection_result)
@@ -433,7 +473,8 @@ def render_overlay_with_arucos(overlay_manager, cv2_frame, frame_aruco_id, tool_
             frame_aruco_id=frame_aruco_id,
             tool_aruco_id=tool_aruco_id,
             frame_marker_size_mm=frame_marker_size,
-            tool_marker_size_mm=tool_marker_size
+            tool_marker_size_mm=tool_marker_size,
+            scale_factor=1.0  # Siempre 100% para overlays
         )
         
         # Crear marcos temporales si están detectados

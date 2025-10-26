@@ -10,15 +10,11 @@ import json
 import base64
 import requests
 from datetime import datetime
-
-# Agregar src al path de Python
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
-from vision import camera_manager
-from vision import yolo_detector
+ 
+from src.vision import camera_manager
+from src.vision import yolo_detector
 from src.vision.aruco_manager import detect_arucos_in_image, is_frame_detected, is_tool_detected
-import visualizador
-import pipeline_analisis
+from src.vision.vision_manager import ejecutar_analisis_nuevo, get_vision_config, set_models_config, set_roi_config
 
 # Importar módulos de rendering
 import muescas_renderer
@@ -41,11 +37,6 @@ _shutting_down = False
 _overlay_frame = None
 _overlay_active_until = None
 
-# Variables globales para almacenar resultados del análisis
-_analisis_junta_actual = None
-_visualizacion_junta_actual = None
-_fondo_detectado_junta_actual = None
-_analisis_serializable_junta_actual = None
 
 # ============================================================
 # CONFIGURACIÓN DE FLASK
@@ -317,35 +308,29 @@ def api_aruco_config():
 def api_analyze_new():
     """Endpoint para el análisis nuevo del botón 'Analizar' del dashboard"""
     try:
-        print("[illinois-server] 🚀 /api/analyze_new - Iniciando análisis nuevo...")
-        
-        # Importar y llamar a la función del vision_manager
-        from src.vision.vision_manager import ejecutar_analisis_nuevo
-        
-        # Ejecutar análisis nuevo
         resultado = ejecutar_analisis_nuevo()
-        
+
         if not resultado.get('ok', False):
             return jsonify(resultado), 500
-        
+
         # Si hay imagen, guardarla temporalmente para mostrar en el dashboard
         if 'image_base64' in resultado:
             global _overlay_frame, _overlay_active_until
-            
+
             # Decodificar la imagen base64
             import base64
             image_bytes = base64.b64decode(resultado['image_base64'])
-            
+
             # Guardar frame temporalmente y activar overlay en el dashboard
             _overlay_frame = image_bytes
             _overlay_active_until = time.time() + (resultado.get('view_time', 3000) / 1000.0)
-            
+
             print(f"[illinois-server] ✓ Imagen guardada temporalmente, se mostrará por {resultado.get('view_time', 3000)/1000:.1f} segundos")
-        
+
         print(f"[illinois-server] ✓ Análisis nuevo completado: {resultado.get('mensaje', 'Sin mensaje')}")
-        
+
         return jsonify(resultado)
-        
+
     except Exception as e:
         print(f"[illinois-server] ❌ Error en /api/analyze_new: {e}")
         return jsonify({
@@ -742,14 +727,12 @@ def api_aruco_save_config():
 @app.route('/api/vision/config', methods=['GET'])
 def api_vision_config():
     """Obtiene la configuración completa del sistema de visión"""
-    from src.vision.vision_manager import get_vision_config
     result = get_vision_config()
     return jsonify(result)
 
 @app.route('/api/vision/set_models', methods=['POST'])
 def api_vision_set_models():
     """Guarda configuración de modelos YOLO, visualización y umbrales"""
-    from src.vision.vision_manager import set_models_config
     data = request.get_json()
     if data is None:
         return jsonify({'ok': False, 'error': 'No se recibieron datos JSON'}), 400
@@ -759,16 +742,12 @@ def api_vision_set_models():
 @app.route('/api/vision/set_roi', methods=['POST'])
 def api_vision_set_roi():
     """Guarda configuración de Region de Interés (ROI)"""
-    from src.vision.vision_manager import set_roi_config
     data = request.get_json()
     if data is None:
         return jsonify({'ok': False, 'error': 'No se recibieron datos JSON'}), 400
     result = set_roi_config(data)
     return jsonify(result)
 
-# ============================================================
-# API JUNTAS
-# ============================================================
 
 # ============================================================
 # API JUNTAS
@@ -792,6 +771,87 @@ def save_juntas(data):
     except Exception as e:
         print(f"[juntas] Error guardando juntas: {e}")
         return False
+
+@app.route('/api/juntas', methods=['GET'])
+def api_get_juntas():
+    db = load_juntas()
+    return jsonify({'ok': True, 'juntas': db.get('juntas', [])})
+
+@app.route('/api/juntas/<int:junta_id>', methods=['GET'])
+def api_get_junta(junta_id):
+    db = load_juntas()
+    junta = next((j for j in db.get('juntas', []) if j['id'] == junta_id), None)
+    if junta:
+        return jsonify({'ok': True, 'junta': junta})
+    return jsonify({'ok': False, 'error': 'Junta no encontrada'}), 404
+
+@app.route('/api/juntas/selected', methods=['GET'])
+def api_get_selected_junta():
+    """Obtiene la junta actualmente seleccionada."""
+    print("\n[SERVER] GET /api/juntas/selected - Solicitud recibida.")
+    try:
+        db = load_juntas()
+        selected_id = db.get('selected_id')
+        
+        print(f"[SERVER] ID seleccionado en juntas.json: {selected_id}")
+
+        if selected_id is None:
+            print("[SERVER] ❌ Error: No hay 'selected_id' en juntas.json.")
+            return jsonify({'ok': False, 'error': 'No hay junta seleccionada'}), 404
+        
+        junta = next((j for j in db.get('juntas', []) if j['id'] == selected_id), None)
+        
+        if junta:
+            print(f"[SERVER] ✓ Junta encontrada: ID={junta['id']}, Nombre='{junta['nombre']}'")
+            return jsonify({'ok': True, 'junta': junta})
+        else:
+            print(f"[SERVER] ❌ Error: Junta con ID {selected_id} no encontrada en la lista de juntas.")
+            return jsonify({'ok': False, 'error': f'Junta con ID {selected_id} no encontrada'}), 404
+    except Exception as e:
+        print(f"[SERVER] ❌ Excepción en api_get_selected_junta: {e}")
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/api/juntas/select', methods=['POST'])
+def api_select_junta():
+    """Selecciona una junta por su ID."""
+    data = request.get_json()
+    junta_id = data.get('id')
+    if junta_id is None:
+        return jsonify({'ok': False, 'error': 'Falta el ID de la junta'}), 400
+    
+    try:
+        db = load_juntas()
+        # Verificar que la junta exista
+        if not any(j['id'] == junta_id for j in db.get('juntas', [])):
+            return jsonify({'ok': False, 'error': f'Junta con ID {junta_id} no existe'}), 404
+            
+        db['selected_id'] = junta_id
+        save_juntas(db)
+        print(f"✓ Junta seleccionada cambiada a ID: {junta_id}")
+        return jsonify({'ok': True, 'message': f'Junta {junta_id} seleccionada'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.route('/api/juntas/<int:junta_id>/analisis', methods=['GET'])
+def api_get_junta_analisis(junta_id):
+    """Obtiene el archivo de análisis detallado de una junta."""
+    db = load_juntas()
+    junta = next((j for j in db.get('juntas', []) if j['id'] == junta_id), None)
+    if not junta:
+        return jsonify({'ok': False, 'error': 'Junta no encontrada'}), 404
+
+    analisis_filename = f"{junta['nombre']}_analisis.json"
+    analisis_path = os.path.join('juntas_analisis', analisis_filename)
+
+    if not os.path.exists(analisis_path):
+        return jsonify({'ok': False, 'error': 'Archivo de análisis no encontrado'}), 404
+
+    try:
+        with open(analisis_path, 'r', encoding='utf-8') as f:
+            analisis_data = json.load(f)
+        return jsonify({'ok': True, 'analisis': analisis_data})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
 
 # ============================================================
 # GESTIÓN DE CHROME
@@ -1019,6 +1079,12 @@ Ejemplos:
             print(f"⚠️  {message}")
     except Exception as e:
         print(f"✗ Error conectando a cámara: {e}")
+    
+    # ════════════════════════════════════════════════════════════
+    # PASO 1.6: Limpiar log de tiempos al iniciar servidor
+    # ════════════════════════════════════════════════════════════
+    from src.vision.vision_manager import _limpiar_log_tiempos
+    _limpiar_log_tiempos()
     
     # ════════════════════════════════════════════════════════════
     # PASO 1.7: Inicializar modelos YOLO (GLOBAL)

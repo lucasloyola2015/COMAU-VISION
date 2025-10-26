@@ -67,43 +67,36 @@ def analizar_con_reintentos(frame, max_intentos=3):
         - datos: Diccionario con resultados del análisis
     """
     
-    print(f"[pipeline] ═══════════════════════════════════════════════════════")
-    print(f"[pipeline] Iniciando análisis con reintentos (máx: {max_intentos})")
-    print(f"[pipeline] ═══════════════════════════════════════════════════════")
-    
+    ultima_imagen = None
     ultimos_datos = None
     
     for intento in range(1, max_intentos + 1):
-        print(f"\n[pipeline] ─────────────────────────────────────────────────")
-        print(f"[pipeline] 🔄 INTENTO {intento}/{max_intentos}")
-        print(f"[pipeline] ─────────────────────────────────────────────────")
-        
         exito, imagen, datos = analizar_frame_completo(frame)
         
-        # SIEMPRE guardar datos (para mostrar en tabla, incluso si falla)
-        ultimos_datos = datos
+        # Guardar última imagen y datos (para mostrar si todo falla)
+        if imagen:
+            ultima_imagen = imagen
+            ultimos_datos = datos
         
         if exito:
-            print(f"[pipeline] ✅ ANÁLISIS EXITOSO en intento {intento}")
-            print(f"[pipeline] ═══════════════════════════════════════════════════════")
+            print(f"[pipeline] ✓ Análisis exitoso en intento {intento}")
             return True, imagen, datos
         
-        print(f"[pipeline] ❌ Intento {intento} falló: {datos.get('error', 'Error desconocido')}")
+        print(f"[pipeline] ✗ Intento {intento} falló, reintentando...")
     
-    # Todos los intentos fallaron - NO devolver imagen
-    print(f"\n[pipeline] ═══════════════════════════════════════════════════════")
-    print(f"[pipeline] ❌ ANÁLISIS FALLIDO después de {max_intentos} intentos")
-    print(f"[pipeline] → Sin imagen (solo datos para tabla)")
-    print(f"[pipeline] ═══════════════════════════════════════════════════════")
+    # Todos los intentos fallaron
+    # PERO devolvemos la última imagen para DEBUG VISUAL
+    print(f"[pipeline] ❌ Análisis falló después de {max_intentos} intentos")
+    print(f"[pipeline] → Devolviendo última imagen para debug visual")
     
-    return False, None, ultimos_datos
+    return False, ultima_imagen, ultimos_datos
 
 
 # ============================================================
 # FUNCIÓN PRINCIPAL - ANÁLISIS COMPLETO
 # ============================================================
 
-def analizar_frame_completo(frame):
+def analizar_frame_completo(frame, callback_progreso=None):
     """
     Ejecuta el pipeline completo de análisis en un frame.
     
@@ -118,6 +111,8 @@ def analizar_frame_completo(frame):
     
     Args:
         frame: Imagen RGB de OpenCV
+        callback_progreso: Función opcional para enviar progreso al frontend
+                          callback_progreso(datos_parciales)
     
     Returns:
         (exito: bool, imagen_procesada: bytes, datos: dict)
@@ -423,23 +418,18 @@ def analizar_frame_completo(frame):
         print(f"[pipeline] ✗ Muescas omitidas (análisis no exitoso)")
     
     # ═══════════════════════════════════════════════════════════════════
-    # PASO 7: Dibujar overlay y codificar SOLO SI ES EXITOSO
+    # PASO 7: Dibujar overlay SIEMPRE (incluso si falló) para DEBUG VISUAL
     # ═══════════════════════════════════════════════════════════════════
-    # ⚠️  Solo generar imagen si el análisis fue exitoso
+    # ⚠️  IMPORTANTE: El overlay se dibuja SIEMPRE para ver qué salió mal
+    # - Si pasó todo: dibuja con muescas
+    # - Si falló: dibuja sin muescas (debug visual)
     
-    if analisis_exitoso:
-        import visualizador
-        # Usar frame original para overlay (mantener perspectiva original para visualización)
-        imagen_con_overlays = visualizador.dibujar_todo(frame, datos_visualizacion)
-        print(f"[pipeline] ✓ Overlay dibujado (análisis exitoso)")
-        
-        # Codificar imagen a JPEG
-        _, buffer = cv2.imencode('.jpg', imagen_con_overlays, [cv2.IMWRITE_JPEG_QUALITY, 95])
-        imagen_bytes = buffer.tobytes()
-    else:
-        # No generar imagen si el análisis falló
-        imagen_bytes = None
-        print(f"[pipeline] ✗ Sin imagen (análisis falló)")
+    import visualizador
+    imagen_con_overlays = visualizador.dibujar_todo(frame, datos_visualizacion)
+    
+    # PASO 8: Codificar imagen a JPEG
+    _, buffer = cv2.imencode('.jpg', imagen_con_overlays, [cv2.IMWRITE_JPEG_QUALITY, 95])
+    imagen_bytes = buffer.tobytes()
     
     # ═══════════════════════════════════════════════════════════════════
     # PASO 9: Preparar datos completos de salida
@@ -470,18 +460,20 @@ def analizar_frame_completo(frame):
     if datos_visualizacion.get('coords_tool'):
         datos_completos['coords_tool'] = datos_visualizacion['coords_tool']
     
+    # Enviar progreso final al frontend
+    if callback_progreso:
+        callback_progreso(datos_completos)
+    
     # ═══════════════════════════════════════════════════════════════════
     # PASO 10: Retornar resultado
     # ═══════════════════════════════════════════════════════════════════
     # SIEMPRE retorna imagen (incluso si falló) para debug visual
+    # El flag 'analisis_exitoso' indica si se debe reintentar o no
     
     if analisis_exitoso:
-        print(f"[pipeline] ✓ Retornando resultado EXITOSO (con muescas)")
         return True, imagen_bytes, datos_completos
     else:
-        # Agregar mensaje de error específico
-        datos_completos['error'] = 'Validaciones geométricas fallaron'
-        print(f"[pipeline] ✗ Retornando resultado FALLIDO (sin muescas, para debug)")
+        # Retorna imagen para debug, pero marca como falla para reintento
         return False, imagen_bytes, datos_completos
 
 
@@ -1278,4 +1270,3 @@ def _cargar_analisis_junta(nombre_junta):
     except Exception as e:
         print(f"[pipeline] Error cargando análisis: {e}")
         return {}
-

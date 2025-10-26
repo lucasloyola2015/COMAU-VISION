@@ -245,6 +245,45 @@
     
   </div>
   
+  <!-- Card de Información Adicional -->
+  <div class="card" id="infoAdicionalCard" style="margin-top: 16px; display: none;">
+    <h2 style="font-size: var(--font-size-xl); margin-bottom: 12px; font-weight: 600; color: var(--text-primary);">
+      Información Adicional
+    </h2>
+    
+    <!-- Dimensiones y Cantidad de Muescas -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+      <div>
+        <div style="color: var(--text-secondary); font-size: var(--font-size-sm);">Dimensiones (mm)</div>
+        <div id="infoDimensiones" style="font-size: var(--font-size-lg); font-weight: 600; color: var(--text-primary);">-</div>
+      </div>
+      <div>
+        <div style="color: var(--text-secondary); font-size: var(--font-size-sm);">Cantidad de Muescas</div>
+        <div id="infoCantidadMuescas" style="font-size: var(--font-size-lg); font-weight: 600; color: var(--text-primary);">-</div>
+      </div>
+    </div>
+    
+    <!-- Coordenadas de Muescas -->
+    <div id="infoMuescasContainer" style="display: none;">
+      <h3 style="font-size: var(--font-size-md); margin-top: 16px; margin-bottom: 8px; color: var(--text-primary);">Coordenadas de Muescas (mm)</h3>
+      <table id="tablaMuescas" style="width: 100%; border-collapse: collapse; font-size: var(--font-size-sm);">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--border);">
+            <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">ID</th>
+            <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">X</th>
+            <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Y</th>
+          </tr>
+        </thead>
+        <tbody id="bodyTablaMuescas">
+          <!-- Las filas se insertarán aquí dinámicamente -->
+        </tbody>
+      </table>
+    </div>
+    <div id="noMuescasAdicional" style="display: none; text-align: center; padding: 12px; color: var(--text-secondary); font-size: var(--font-size-sm);">
+      Esta junta no tiene muescas configuradas.
+    </div>
+  </div>
+  
   <script>
     const selectorJunta = document.getElementById('selectorJunta');
     const sugerenciasDiv = document.getElementById('sugerenciasJuntas');
@@ -257,31 +296,35 @@
     // Cargar junta seleccionada
     async function cargarJuntaSeleccionada() {
       try {
+        console.log('[control] 🚀 Iniciando cargarJuntaSeleccionada...');
         const response = await fetch('/api/juntas/selected');
+        console.log('[control] 📥 Respuesta del fetch:', response);
         const result = await response.json();
-        
+        console.log('[control] 📦 Datos JSON recibidos:', result);
+
         if (result.ok && result.junta) {
+          console.log('[control] ✓ Junta válida recibida. Mostrando datos para:', result.junta.nombre);
           juntaSeleccionada = result.junta;
-          await mostrarJunta(juntaSeleccionada);
+          await mostrarJunta(juntaSeleccionada, true); // <-- CORRECCIÓN: Añadido 'true'
         } else {
           // No hay junta seleccionada - estado inicial
-          console.log('[control] No hay junta seleccionada');
+          console.log('[control] ⚠️ No hay junta seleccionada o hubo un error en la respuesta:', result.error);
           ocultarJunta();
         }
       } catch (e) {
-        console.error('[control] Error cargando junta:', e);
+        console.error('[control] ❌ Error CRÍTICO en cargarJuntaSeleccionada:', e);
         ocultarJunta();
       }
     }
     
-    async function mostrarJunta(junta) {
+    async function mostrarJunta(junta, esSeleccionInicial = false) {
       // Mostrar miniatura y actualizar buscador con nombre
       document.getElementById('sinJunta').style.display = 'none';
       document.getElementById('miniaturaContainer').style.display = 'block';
       document.getElementById('miniaturaJunta').src = `/imagenes_juntas/${junta.imagen}`;
       
       // Mostrar nombre de la junta seleccionada en el buscador
-      selectorJunta.value = junta.nombre;
+      if (esSeleccionInicial) selectorJunta.value = junta.nombre;
       selectorJunta.style.fontWeight = '600';
       selectorJunta.style.color = 'var(--primary)';
       
@@ -290,7 +333,7 @@
         const response = await fetch(`/api/juntas/${junta.id}/analisis`);
         const result = await response.json();
         
-        if (result.ok && result.analisis) {
+        if (result.ok && result.analisis && result.analisis.ok) {
           const analisis = result.analisis;
           
           // Valores esperados
@@ -299,7 +342,7 @@
           
           document.getElementById('esperadoPistones').textContent = cantidadPistones;
           document.getElementById('esperadoDistancia').textContent = distanciaEsperada ? distanciaEsperada.toFixed(1) : '-';
-          
+
           console.log('[control] ✓ Junta cargada:', junta.nombre);
         }
       } catch (e) {
@@ -307,7 +350,7 @@
       }
       
       // Mostrar información de muescas
-      mostrarMuescas(junta);
+      mostrarInfoAdicional(junta);
     }
     
     function mostrarMuescas(junta) {
@@ -329,6 +372,46 @@
       }
     }
     
+    function mostrarInfoAdicional(junta) {
+      const infoCard = document.getElementById('infoAdicionalCard');
+      infoCard.style.display = 'block';
+
+      // 1. Dimensiones de la junta
+      const contorno = junta.contorno_principal;
+      const ancho = contorno?.bbox_width_mm || 0;
+      const alto = contorno?.bbox_height_mm || 0;
+      document.getElementById('infoDimensiones').textContent = `${ancho.toFixed(1)} x ${alto.toFixed(1)} mm`;
+
+      // 2. Cantidad de muescas
+      const cantidadMuescas = junta.cantidad_muescas || 0;
+      document.getElementById('infoCantidadMuescas').textContent = cantidadMuescas;
+
+      // 3. Coordenadas de muescas
+      const muescasContainer = document.getElementById('infoMuescasContainer');
+      const noMuescasMsg = document.getElementById('noMuescasAdicional');
+      const tablaBody = document.getElementById('bodyTablaMuescas');
+      tablaBody.innerHTML = ''; // Limpiar tabla
+
+      if (cantidadMuescas > 0 && junta.centros_muescas) {
+        muescasContainer.style.display = 'block';
+        noMuescasMsg.style.display = 'none';
+
+        junta.centros_muescas.forEach(muesca => {
+          const [x, y] = muesca.centro_mm;
+          const row = `
+            <tr style="border-bottom: 1px solid var(--border);">
+              <td style="text-align: center; padding: 6px 8px;">${muesca.id}</td>
+              <td style="text-align: center; padding: 6px 8px;">${x.toFixed(1)}</td>
+              <td style="text-align: center; padding: 6px 8px;">${y.toFixed(1)}</td>
+            </tr>`;
+          tablaBody.innerHTML += row;
+        });
+      } else {
+        muescasContainer.style.display = 'none';
+        noMuescasMsg.style.display = 'block';
+      }
+    }
+
     function ocultarJunta() {
       document.getElementById('miniaturaContainer').style.display = 'none';
       document.getElementById('sinJunta').style.display = 'block';
@@ -358,6 +441,9 @@
       document.getElementById('muescasInfo').style.display = 'none';
       document.getElementById('sinMuescas').style.display = 'block';
       document.getElementById('sinMuescas').textContent = 'Selecciona una junta para ver sus muescas';
+
+      // Ocultar card de información adicional
+      document.getElementById('infoAdicionalCard').style.display = 'none';
     }
     
     // ============================================================
@@ -440,7 +526,7 @@
           sugerenciaSeleccionadaIndex = -1;
           
           // Cargar y mostrar la junta
-          await cargarJuntaSeleccionada();
+          await mostrarJunta(junta); // Usar la 'junta' del bucle, no 'result.junta'
           
           // Notificar al dashboard que cambió la junta
           window.parent.postMessage({ type: 'JUNTA_CHANGED', juntaId: juntaId }, '*');
@@ -738,4 +824,3 @@
   </script>
 </body>
 </html>
-
