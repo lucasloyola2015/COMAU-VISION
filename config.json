@@ -111,7 +111,7 @@
         "aruco_x_axis_4": "Eje X del Tool ArUco (ID: 4)",
         "aruco_y_axis_4": "Eje Y del Tool ArUco (ID: 4)",
         "aruco_center_4": "Centro del Tool ArUco (ID: 4)",
-        "center_circle": "Círculo del centro del troquel (10mm diámetro)"
+        "center_circle": "C\u00c3\u00adrculo del centro del troquel (10mm di\u00c3\u00a1metro)"
       }
     },
     "frame_aruco_id": 23,
@@ -196,7 +196,10 @@
         68,
         255
       ]
-    }
+    },
+    "use_baseframe": false,
+    "use_toolframe": false,
+    "vision_server_path": "C:\\Users\\loyol\\Documents\\Illinois Automation\\Proyecto Final\\ROBOT\\vision_service.py"
   },
   "mqtt": {
     "broker_ip": "192.168.1.10",

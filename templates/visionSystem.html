@@ -107,31 +107,41 @@
   
   <div class="card" style="margin-top: var(--space-sm);">
     <h2 style="font-size: var(--font-size-md); margin-bottom: var(--space-xs); font-weight: 600; color: var(--text-primary);">
-      Modelos YOLO
+      Vision Server
     </h2>
     
     <div class="model-item" style="padding: var(--space-xs) var(--space-sm);">
-      <div class="model-label" style="flex: 0 0 100px; font-size: var(--font-size-xs);">Detection</div>
-      <div class="model-path" id="detectionPath" style="font-size: var(--font-size-xs);">No seleccionado</div>
-      <div class="model-status status-not-loaded" id="detectionStatus" style="font-size: var(--font-size-xs); padding: 1px 6px;">No cargado</div>
-      <button class="btn btn-secondary btn-sm" id="btnSelectDetection" style="padding: 2px 8px; font-size: var(--font-size-xs);">
-        Seleccionar
+      <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-xs);">Servidor Python</div>
+      <input type="text" id="visionServerPathInput" placeholder="C:\ruta\completa\a\tu\servidor.py" 
+             style="flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-family: 'Consolas', monospace;">
+      <div class="model-status status-not-loaded" id="visionServerStatus" style="font-size: var(--font-size-xs); padding: 1px 6px;">Offline</div>
+      <button class="btn btn-secondary btn-sm" id="btnSelectVisionServer" style="padding: 2px 8px; font-size: var(--font-size-xs);">
+        Buscar
       </button>
     </div>
     
-    <div class="model-item" style="padding: var(--space-xs) var(--space-sm); margin-bottom: 0;">
-      <div class="model-label" style="flex: 0 0 100px; font-size: var(--font-size-xs);">Holes</div>
-      <div class="model-path" id="holesPath" style="font-size: var(--font-size-xs);">No seleccionado</div>
-      <div class="model-status status-not-loaded" id="holesStatus" style="font-size: var(--font-size-xs); padding: 1px 6px;">No cargado</div>
-      <button class="btn btn-secondary btn-sm" id="btnSelectHoles" style="padding: 2px 8px; font-size: var(--font-size-xs);">
-        Seleccionar
-      </button>
+    <div style="margin-top: var(--space-sm); padding: var(--space-sm); background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);">
+        <div style="width: 12px; height: 12px; border-radius: 50%; background: #dc3545;" id="statusIndicator"></div>
+        <span style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 600;" id="statusText">Servidor Offline</span>
+      </div>
+      <div style="font-size: var(--font-size-xs); color: var(--text-secondary); margin-bottom: var(--space-sm);" id="statusDescription">
+        El servidor de visión no está ejecutándose. Se iniciará automáticamente cuando sea necesario.
+      </div>
+      <div style="display: flex; gap: var(--space-xs);">
+        <button class="btn btn-primary btn-sm" id="btnStartServer" style="padding: 4px 12px; font-size: var(--font-size-xs);">
+          Iniciar Ahora
+        </button>
+        <button class="btn btn-secondary btn-sm" id="btnStopServer" style="padding: 4px 12px; font-size: var(--font-size-xs);" disabled>
+          Detener
+        </button>
+        <button class="btn btn-outline btn-sm" id="btnRestartServer" style="padding: 4px 12px; font-size: var(--font-size-xs);">
+          Reiniciar
+        </button>
+      </div>
     </div>
     
-    <input type="file" id="fileInputDetection" accept=".pt" style="display: none;">
-    <input type="file" id="fileInputHoles" accept=".pt" style="display: none;">
-    
-    
+    <input type="file" id="fileInputVisionServer" accept=".py" style="display: none;">
   </div>
   
   
@@ -333,14 +343,17 @@
   <div id="message" style="margin-top: var(--space-lg);"></div>
 
   <script>
-    const btnSelectDetection = document.getElementById('btnSelectDetection');
-    const btnSelectHoles = document.getElementById('btnSelectHoles');
-    const fileInputDetection = document.getElementById('fileInputDetection');
-    const fileInputHoles = document.getElementById('fileInputHoles');
-    const detectionPath = document.getElementById('detectionPath');
-    const detectionStatus = document.getElementById('detectionStatus');
-    const holesPath = document.getElementById('holesPath');
-    const holesStatus = document.getElementById('holesStatus');
+    // Vision Server elements
+    const btnSelectVisionServer = document.getElementById('btnSelectVisionServer');
+    const visionServerPathInput = document.getElementById('visionServerPathInput');
+    const visionServerStatus = document.getElementById('visionServerStatus');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const statusText = document.getElementById('statusText');
+    const statusDescription = document.getElementById('statusDescription');
+    const btnStartServer = document.getElementById('btnStartServer');
+    const btnStopServer = document.getElementById('btnStopServer');
+    const btnRestartServer = document.getElementById('btnRestartServer');
+    
     const btnSaveAll = document.getElementById('btnSaveAll');
     const messageDiv = document.getElementById('message');
     const inputDistanciaTol = document.getElementById('inputDistanciaTol');
@@ -374,8 +387,9 @@
     const chkShowElipses = document.getElementById('chkShowElipses');
     const chkShowSegmentoJunta = document.getElementById('chkShowSegmentoJunta');
     
-    let currentDetectionPath = null;
-    let currentHolesPath = null;
+    let currentVisionServerPath = null;
+    let visionServerProcess = null;
+    let visionServerCheckInterval = null;
     
     // ============================================================
     // FUNCIONES DE UI
@@ -401,58 +415,184 @@
       }
     }
     
-    function updateModelStatus(type, path) {
-      if (type === 'detection') {
-        if (path && path !== 'No seleccionado') {
-          detectionPath.textContent = path;
-          detectionStatus.textContent = 'Configurado';
-          detectionStatus.className = 'model-status status-loaded';
-        } else {
-          detectionPath.textContent = 'No seleccionado';
-          detectionStatus.textContent = 'No cargado';
-          detectionStatus.className = 'model-status status-not-loaded';
-        }
-      } else if (type === 'holes') {
-        if (path && path !== 'No seleccionado') {
-          holesPath.textContent = path;
-          holesStatus.textContent = 'Configurado';
-          holesStatus.className = 'model-status status-loaded';
-        } else {
-          holesPath.textContent = 'No seleccionado';
-          holesStatus.textContent = 'No cargado';
-          holesStatus.className = 'model-status status-not-loaded';
-        }
+    function updateVisionServerStatus(status, path = null) {
+      if (path) {
+        visionServerPathInput.value = path;
+        currentVisionServerPath = path;
+      }
+      
+      if (status === 'online') {
+        visionServerStatus.textContent = 'Online';
+        visionServerStatus.className = 'model-status status-loaded';
+        statusIndicator.style.background = '#28a745';
+        statusText.textContent = 'Servidor Online';
+        statusDescription.textContent = 'El servidor de visión está ejecutándose correctamente.';
+        btnStartServer.disabled = true;
+        btnStopServer.disabled = false;
+      } else if (status === 'starting') {
+        visionServerStatus.textContent = 'Iniciando';
+        visionServerStatus.className = 'model-status status-not-loaded';
+        statusIndicator.style.background = '#ffc107';
+        statusText.textContent = 'Iniciando Servidor';
+        statusDescription.textContent = 'El servidor de visión se está iniciando, por favor espere...';
+        btnStartServer.disabled = true;
+        btnStopServer.disabled = true;
+      } else {
+        visionServerStatus.textContent = 'Offline';
+        visionServerStatus.className = 'model-status status-not-loaded';
+        statusIndicator.style.background = '#dc3545';
+        statusText.textContent = 'Servidor Offline';
+        statusDescription.textContent = 'El servidor de visión no está ejecutándose. Se iniciará automáticamente cuando sea necesario.';
+        btnStartServer.disabled = false;
+        btnStopServer.disabled = true;
       }
     }
     
     // ============================================================
-    // SELECCIÓN DE ARCHIVO
+    // CONFIGURACIÓN DE RUTA VISION SERVER
     // ============================================================
-    btnSelectDetection.addEventListener('click', () => {
-      fileInputDetection.click();
+    btnSelectVisionServer.addEventListener('click', () => {
+      // Abrir diálogo para seleccionar archivo
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.py';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          // Solo mostrar el nombre del archivo, el usuario debe escribir la ruta completa
+          const fileName = file.name;
+          showMessage(`Archivo seleccionado: ${fileName}. Ahora escribe la ruta completa en el campo de texto.`, 'info');
+          
+          // Sugerir una ruta común (el usuario puede editarla)
+          const suggestedPath = `C:\\ruta\\completa\\a\\${fileName}`;
+          visionServerPathInput.value = suggestedPath;
+          visionServerPathInput.focus();
+          visionServerPathInput.select(); // Seleccionar el texto para que sea fácil de reemplazar
+        }
+      };
+      input.click();
     });
     
-    btnSelectHoles.addEventListener('click', () => {
-      fileInputHoles.click();
-    });
-    
-    fileInputDetection.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        currentDetectionPath = file.name;
-        updateModelStatus('detection', file.name);
-        showMessage('Modelo de detección seleccionado. Presiona "Guardar" para aplicar.', 'info');
+    // Actualizar la ruta cuando el usuario escriba en el input
+    visionServerPathInput.addEventListener('input', (e) => {
+      currentVisionServerPath = e.target.value.trim();
+      if (currentVisionServerPath) {
+        updateVisionServerStatus('offline', currentVisionServerPath);
+        console.log('[visionSystem] 📝 Ruta actualizada:', currentVisionServerPath);
       }
     });
     
-    fileInputHoles.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        currentHolesPath = file.name;
-        updateModelStatus('holes', file.name);
-        showMessage('Modelo de agujeros seleccionado. Presiona "Guardar" para aplicar.', 'info');
+    // ============================================================
+    // FUNCIONES DEL VISION SERVER
+    // ============================================================
+    async function checkVisionServerStatus() {
+      try {
+        const response = await fetch('/api/vision_icon_status');
+        const data = await response.json();
+        
+        if (data.ok && data.status === 'success') {
+          updateVisionServerStatus('online');
+        } else {
+          updateVisionServerStatus('offline');
+        }
+      } catch (e) {
+        updateVisionServerStatus('offline');
       }
-    });
+    }
+    
+    function isValidPath(path) {
+      // Verificar que la ruta sea absoluta (Windows o Unix)
+      return path && (path.includes(':\\') || path.startsWith('/') || path.startsWith('C:\\'));
+    }
+    
+    async function startVisionServer() {
+      if (!currentVisionServerPath) {
+        showMessage('Primero escribe la ruta completa del servidor de visión', 'error');
+        return;
+      }
+      
+      if (!isValidPath(currentVisionServerPath)) {
+        showMessage('La ruta debe ser completa (ej: C:\\ruta\\completa\\servidor.py)', 'error');
+        return;
+      }
+      
+      try {
+        updateVisionServerStatus('starting');
+        showMessage('Iniciando servidor de visión...', 'info');
+        
+        console.log('[visionSystem] 🚀 Iniciando servidor con ruta:', currentVisionServerPath);
+        
+        const response = await fetch('/api/vision_server/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: currentVisionServerPath })
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          showMessage('Servidor de visión iniciado correctamente', 'success');
+          // Esperar 5 segundos y verificar estado
+          setTimeout(() => {
+            checkVisionServerStatus();
+            startVisionServerMonitoring();
+          }, 5000);
+        } else {
+          updateVisionServerStatus('offline');
+          showMessage('Error iniciando servidor: ' + (data.error || 'Error desconocido'), 'error');
+        }
+      } catch (e) {
+        updateVisionServerStatus('offline');
+        showMessage('Error de conexión al iniciar servidor', 'error');
+      }
+    }
+    
+    async function stopVisionServer() {
+      try {
+        showMessage('Deteniendo servidor de visión...', 'info');
+        
+        const response = await fetch('/api/vision_server/stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.ok) {
+          updateVisionServerStatus('offline');
+          showMessage('Servidor de visión detenido', 'success');
+          stopVisionServerMonitoring();
+        } else {
+          showMessage('Error deteniendo servidor: ' + (data.error || 'Error desconocido'), 'error');
+        }
+      } catch (e) {
+        showMessage('Error de conexión al detener servidor', 'error');
+      }
+    }
+    
+    async function restartVisionServer() {
+      await stopVisionServer();
+      setTimeout(() => {
+        startVisionServer();
+      }, 2000);
+    }
+    
+    function startVisionServerMonitoring() {
+      if (visionServerCheckInterval) {
+        clearInterval(visionServerCheckInterval);
+      }
+      
+      visionServerCheckInterval = setInterval(() => {
+        checkVisionServerStatus();
+      }, 3000); // Verificar cada 3 segundos
+    }
+    
+    function stopVisionServerMonitoring() {
+      if (visionServerCheckInterval) {
+        clearInterval(visionServerCheckInterval);
+        visionServerCheckInterval = null;
+      }
+    }
     
     // ============================================================
     // GUARDAR CONFIGURACIÓN COMPLETA
@@ -470,9 +610,8 @@
           use_roi: chkUseROI.checked,
           use_boundingbox: chkUseBoundingBox.checked,
           
-          // Modelos YOLO
-          detection_model: currentDetectionPath,
-          holes_model: currentHolesPath,
+          // Vision Server
+          vision_server_path: visionServerPathInput.value.trim(),
           
           // Umbrales de validación
           umbral_distancia_tolerancia: parseFloat(inputDistanciaTol.value),
@@ -512,9 +651,8 @@
             use_roi: chkUseROI.checked,
             use_boundingbox: chkUseBoundingBox.checked,
             
-            // Modelos YOLO
-            detection_model: currentDetectionPath,
-            holes_model: currentHolesPath,
+            // Vision Server
+            vision_server_path: currentVisionServerPath,
             
             // Umbrales de validación
             umbral_distancia_tolerancia: parseFloat(inputDistanciaTol.value),
@@ -604,18 +742,13 @@
           });
           
           // ============================================================
-          // CARGAR MODELOS YOLO
+          // CARGAR VISION SERVER
           // ============================================================
-          if (config.vision.detection_model) {
-            currentDetectionPath = config.vision.detection_model;
-            updateModelStatus('detection', currentDetectionPath);
-            console.log('[visionSystem] ✓ Modelo Detection cargado:', currentDetectionPath);
-          }
-          
-          if (config.vision.holes_model) {
-            currentHolesPath = config.vision.holes_model;
-            updateModelStatus('holes', currentHolesPath);
-            console.log('[visionSystem] ✓ Modelo Holes cargado:', currentHolesPath);
+          if (config.vision.vision_server_path) {
+            currentVisionServerPath = config.vision.vision_server_path;
+            visionServerPathInput.value = currentVisionServerPath;
+            updateVisionServerStatus('offline', currentVisionServerPath);
+            console.log('[visionSystem] ✓ Servidor de visión cargado:', currentVisionServerPath);
           }
           
           
@@ -714,12 +847,17 @@
     // EVENT LISTENERS
     // ============================================================
     btnSaveAll.addEventListener('click', saveAllConfig);
+    btnStartServer.addEventListener('click', startVisionServer);
+    btnStopServer.addEventListener('click', stopVisionServer);
+    btnRestartServer.addEventListener('click', restartVisionServer);
     
     // ============================================================
     // INICIALIZACIÓN
     // ============================================================
     (async function init() {
       await loadConfig();
+      await checkVisionServerStatus();
+      startVisionServerMonitoring();
     })();
   </script>
 </body>

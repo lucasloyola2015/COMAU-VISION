@@ -82,7 +82,7 @@
       const leftFrame = document.getElementById('leftFrame');
       const rightFrame = document.getElementById('rightFrame');
       
-      if (event.data.type === 'ANALYSIS_READY' || event.data.type === 'ANALYSIS_SUCCESS' || event.data.type === 'ANALYSIS_FAILED') {
+      if (event.data.type === 'ANALYSIS_READY' || event.data.type === 'ANALYSIS_SUCCESS' || event.data.type === 'ANALYSIS_FAILED' || event.data.type === 'TRAJECTORY_DATA') {
         // Mensaje del dashboard → control
         if (leftFrame && leftFrame.contentWindow) {
           leftFrame.contentWindow.postMessage(event.data, '*');

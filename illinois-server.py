@@ -14,7 +14,7 @@ from datetime import datetime
 from src.vision import camera_manager
 from src.vision import yolo_detector
 from src.vision.aruco_manager import detect_arucos_in_image, is_frame_detected, is_tool_detected
-from src.vision.vision_manager import ejecutar_analisis_nuevo, get_vision_config, set_models_config, set_roi_config
+from src.vision.vision_manager import server_test
 
 # Importar módulos de rendering
 import muescas_renderer
@@ -45,6 +45,46 @@ app = Flask(__name__,
             static_folder='static',
             static_url_path='/static',
             template_folder='templates')
+
+# Variable global para el proceso del servidor de visión
+vision_server_process = None
+
+# ============================================================
+# MANEJO DE SEÑALES Y LIMPIEZA AL CERRAR
+# ============================================================
+import signal
+import atexit
+
+def cleanup_vision_server():
+    """Limpia el servidor de visión al cerrar la aplicación"""
+    global vision_server_process
+    if vision_server_process and vision_server_process.poll() is None:
+        print(f"[illinois-server] 🧹 Limpiando servidor de visión (PID: {vision_server_process.pid})")
+        try:
+            vision_server_process.terminate()
+            vision_server_process.wait(timeout=3)
+            print(f"[illinois-server] ✅ Servidor de visión detenido correctamente")
+        except subprocess.TimeoutExpired:
+            print(f"[illinois-server] ⚠️ Forzando terminación del servidor de visión")
+            vision_server_process.kill()
+            vision_server_process.wait()
+        except Exception as e:
+            print(f"[illinois-server] ❌ Error deteniendo servidor de visión: {e}")
+        finally:
+            vision_server_process = None
+
+def signal_handler(signum, frame):
+    """Manejador de señales para limpieza"""
+    print(f"\n[illinois-server] 🛑 Señal {signum} recibida, cerrando aplicación...")
+    cleanup_vision_server()
+    exit(0)
+
+# Registrar manejadores de señales
+signal.signal(signal.SIGINT, signal_handler)   # Ctrl+C
+signal.signal(signal.SIGTERM, signal_handler)  # Terminación del sistema
+
+# Registrar función de limpieza al salir
+atexit.register(cleanup_vision_server)
 
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 1
 
@@ -304,39 +344,6 @@ def api_aruco_config():
         print(f"[aruco] Error en GET /api/aruco/config: {e}")
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@app.route('/api/analyze_new', methods=['POST'])
-def api_analyze_new():
-    """Endpoint para el análisis nuevo del botón 'Analizar' del dashboard"""
-    try:
-        resultado = ejecutar_analisis_nuevo()
-
-        if not resultado.get('ok', False):
-            return jsonify(resultado), 500
-
-        # Si hay imagen, guardarla temporalmente para mostrar en el dashboard
-        if 'image_base64' in resultado:
-            global _overlay_frame, _overlay_active_until
-
-            # Decodificar la imagen base64
-            import base64
-            image_bytes = base64.b64decode(resultado['image_base64'])
-
-            # Guardar frame temporalmente y activar overlay en el dashboard
-            _overlay_frame = image_bytes
-            _overlay_active_until = time.time() + (resultado.get('view_time', 3000) / 1000.0)
-
-            print(f"[illinois-server] ✓ Imagen guardada temporalmente, se mostrará por {resultado.get('view_time', 3000)/1000:.1f} segundos")
-
-        print(f"[illinois-server] ✓ Análisis nuevo completado: {resultado.get('mensaje', 'Sin mensaje')}")
-
-        return jsonify(resultado)
-
-    except Exception as e:
-        print(f"[illinois-server] ❌ Error en /api/analyze_new: {e}")
-        return jsonify({
-            'ok': False,
-            'error': f'Error en análisis nuevo: {str(e)}'
-        }), 500
 
 @app.route('/api/overlay/render', methods=['POST'])
 def api_overlay_render():
@@ -724,30 +731,608 @@ def api_aruco_save_config():
 # ============================================================
 # API VISION
 # ============================================================
+
+@app.route('/api/server_test', methods=['POST'])
+def api_server_test():
+    """Endpoint para el botón de prueba del Dashboard"""
+    try:
+        resultado = server_test()
+        
+        if not resultado.get('ok', False):
+            return jsonify(resultado), 500
+
+        print(f"[illinois-server] ✓ server_test completado: {resultado.get('mensaje', 'Sin mensaje')}")
+        return jsonify(resultado)
+
+    except Exception as e:
+        print(f"[illinois-server] ❌ Error en /api/server_test: {e}")
+        return jsonify({
+            'ok': False,
+            'error': f'Error en server_test: {str(e)}'
+        }), 500
+
+
+# ============================================================
+# API MQTT
+# ============================================================
+
+@app.route('/api/mqtt_icon_status', methods=['GET'])
+def api_mqtt_icon_status():
+    """Endpoint para obtener el estado del icono MQTT"""
+    try:
+        from mqtt_manager import get_mqtt_manager
+        
+        manager = get_mqtt_manager()
+        state = manager.state.value
+        connected = manager.connected
+        
+        # Mapear estado a icono
+        icon_map = {
+            'disconnected': 'default',
+            'connecting': 'waiting',
+            'connected': 'success',
+            'error': 'error',
+            'stopping': 'waiting'
+        }
+        
+        return jsonify({
+            'ok': True,
+            'status': icon_map.get(state, 'default'),
+            'icon': icon_map.get(state, 'default'),
+            'connected': connected,
+            'state': state
+        })
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/vision_icon_status', methods=['GET'])
+def api_vision_icon_status():
+    """Endpoint para verificar el estado del servidor de visión en puerto 8000"""
+    try:
+        import requests
+        
+        # Verificar si el servidor de visión en puerto 8000 está respondiendo
+        vision_server_url = "http://127.0.0.1:8000"
+        
+        try:
+            # Hacer una petición simple al servidor de visión con timeout de 2 segundos
+            response = requests.get(f"{vision_server_url}/", timeout=2)
+            
+            if response.status_code == 200:
+                return jsonify({
+                    'ok': True,
+                    'status': 'success',  # Verde - Servidor de visión respondiendo
+                    'server_status': 'online',
+                    'message': 'Servidor de visión funcionando correctamente',
+                    'vision_server_url': vision_server_url,
+                    'response_code': response.status_code,
+                    'timestamp': time.time()
+                })
+            else:
+                return jsonify({
+                    'ok': False,
+                    'status': 'error',  # Rojo - Servidor responde pero con error
+                    'server_status': 'error',
+                    'message': f'Servidor de visión responde con código {response.status_code}',
+                    'vision_server_url': vision_server_url,
+                    'response_code': response.status_code,
+                    'timestamp': time.time()
+                })
+                
+        except requests.exceptions.ConnectTimeout:
+            return jsonify({
+                'ok': False,
+                'status': 'error',  # Rojo - Timeout de conexión
+                'server_status': 'offline',
+                'message': 'Timeout conectando al servidor de visión',
+                'vision_server_url': vision_server_url,
+                'timestamp': time.time()
+            })
+        except requests.exceptions.ConnectionError:
+            return jsonify({
+                'ok': False,
+                'status': 'error',  # Rojo - No se puede conectar
+                'server_status': 'offline',
+                'message': 'No se puede conectar al servidor de visión',
+                'vision_server_url': vision_server_url,
+                'timestamp': time.time()
+            })
+        except Exception as e:
+            return jsonify({
+                'ok': False,
+                'status': 'error',  # Rojo - Error general
+                'server_status': 'offline',
+                'message': f'Error verificando servidor de visión: {str(e)}',
+                'vision_server_url': vision_server_url,
+                'timestamp': time.time()
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e),
+            'status': 'error',
+            'server_status': 'offline'
+        }), 500
+
+@app.route('/api/robot_hello', methods=['POST'])
+def api_robot_hello():
+    """Endpoint para enviar comando HOLA al robot COMAU via MQTT"""
+    try:
+        from mqtt_manager import get_mqtt_manager
+        
+        # Obtener el manager MQTT
+        mqtt_manager = get_mqtt_manager()
+        
+        print(f"[illinois-server] 🔍 Estado MQTT: connected={mqtt_manager.connected}, state={mqtt_manager.state}")
+        
+        # Verificar si MQTT está conectado
+        if not mqtt_manager.connected:
+            print(f"[illinois-server] ❌ MQTT no conectado - estado: {mqtt_manager.state}")
+            return jsonify({
+                'ok': False,
+                'error': 'MQTT no conectado',
+                'status': 'error',
+                'message': 'No se puede comunicar con el robot - MQTT desconectado'
+            }), 500
+        
+        # Crear comando VerifyInstr para verificar comunicación con el robot
+        import time
+        import uuid
+        
+        request_id = f"hello_{int(time.time())}_{str(uuid.uuid4())[:8]}"
+        
+        command = {
+            "command": "VerifyInstr",
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "args": {},
+            "request_id": request_id
+        }
+        
+        print(f"[illinois-server] 🤖 Enviando comando VerifyInstr al robot (ID: {request_id})")
+        print(f"[illinois-server] 📤 Comando: {command}")
+        
+        # Enviar comando y esperar respuesta
+        response = mqtt_manager.send_command_and_wait(command, timeout=10)
+        
+        print(f"[illinois-server] 📥 Respuesta recibida: {response}")
+        
+        if response:
+            # Procesar respuesta del robot
+            if response.get('status') == 'success':
+                if response.get('found', False):
+                    # Robot responde y tiene "Instr:" - comunicación exitosa
+                    return jsonify({
+                        'ok': True,
+                        'status': 'success',
+                        'sequence_id': request_id,
+                        'context': f"Instr: encontrado en bloque Drive (addr: {response.get('block_address', 'N/A')})",
+                        'message': 'Robot COMAU responde correctamente - Instr: detectado',
+                        'robot_status': 'active',
+                        'instr_found': True,
+                        'block_address': response.get('block_address'),
+                        'block_size': response.get('block_size')
+                    })
+                else:
+                    # Robot responde pero no tiene "Instr:" - robot inactivo
+                    return jsonify({
+                        'ok': True,
+                        'status': 'warning',
+                        'sequence_id': request_id,
+                        'context': response.get('message', 'Bloque Drive no encontrado'),
+                        'message': 'Robot COMAU responde pero no está activo - Instr: no detectado',
+                        'robot_status': 'inactive',
+                        'instr_found': False
+                    })
+            else:
+                # Error en la respuesta del robot
+                return jsonify({
+                    'ok': True,
+                    'status': 'error',
+                    'sequence_id': request_id,
+                    'context': response.get('error_message', 'Error desconocido'),
+                    'message': f"Error del robot: {response.get('error_message', 'Error desconocido')}",
+                    'robot_status': 'error',
+                    'error_code': response.get('error_code', 'UNKNOWN_ERROR')
+                })
+        else:
+            # No hay respuesta del robot
+            return jsonify({
+                'ok': True,
+                'status': 'error',
+                'sequence_id': request_id,
+                'context': 'Sin respuesta del robot',
+                'message': 'Robot COMAU no responde - timeout o error de comunicación',
+                'robot_status': 'no_response'
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e),
+            'status': 'error',
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
 @app.route('/api/vision/config', methods=['GET'])
 def api_vision_config():
-    """Obtiene la configuración completa del sistema de visión"""
-    result = get_vision_config()
-    return jsonify(result)
+    """Endpoint para obtener la configuración de visión"""
+    try:
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        
+        return jsonify({
+            'ok': True,
+            'vision': config.get('vision', {})
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/vision/set_models', methods=['POST'])
 def api_vision_set_models():
-    """Guarda configuración de modelos YOLO, visualización y umbrales"""
-    data = request.get_json()
-    if data is None:
-        return jsonify({'ok': False, 'error': 'No se recibieron datos JSON'}), 400
-    result = set_models_config(data)
-    return jsonify(result)
+    """Endpoint para guardar configuración de modelos y visualización"""
+    try:
+        data = request.get_json()
+        
+        # Cargar configuración actual
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        
+        # Actualizar configuración de visión
+        if 'vision' not in config:
+            config['vision'] = {}
+            
+        # Actualizar campos
+        for key, value in data.items():
+            config['vision'][key] = value
+        
+        # Guardar configuración
+        with open('config.json', 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        return jsonify({
+            'ok': True,
+            'message': 'Configuración guardada correctamente'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/vision/set_roi', methods=['POST'])
 def api_vision_set_roi():
-    """Guarda configuración de Region de Interés (ROI)"""
-    data = request.get_json()
-    if data is None:
-        return jsonify({'ok': False, 'error': 'No se recibieron datos JSON'}), 400
-    result = set_roi_config(data)
-    return jsonify(result)
+    """Endpoint para guardar configuración ROI"""
+    try:
+        data = request.get_json()
+        
+        # Cargar configuración actual
+        with open('config.json', 'r') as f:
+            config = json.load(f)
+        
+        # Actualizar configuración de visión
+        if 'vision' not in config:
+            config['vision'] = {}
+            
+        # Actualizar campos ROI
+        for key, value in data.items():
+            config['vision'][key] = value
+        
+        # Guardar configuración
+        with open('config.json', 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        return jsonify({
+            'ok': True,
+            'message': 'Configuración ROI guardada correctamente'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
 
+@app.route('/api/vision_server/start', methods=['POST'])
+def api_vision_server_start():
+    """Endpoint para iniciar el servidor de visión"""
+    try:
+        import subprocess
+        import os
+        import signal
+        
+        data = request.get_json()
+        print(f"[illinois-server] 📥 Datos recibidos: {data}")
+        
+        vision_server_path = data.get('path')
+        
+        if not vision_server_path:
+            print(f"[illinois-server] ❌ No se proporcionó ruta del servidor")
+            return jsonify({
+                'ok': False,
+                'error': 'Ruta del servidor de visión no proporcionada'
+            }), 400
+        
+        # Verificar si el archivo existe
+        full_path = os.path.abspath(vision_server_path)
+        print(f"[illinois-server] 🔍 Ruta completa: {full_path}")
+        print(f"[illinois-server] 🔍 Directorio actual: {os.getcwd()}")
+        
+        if not os.path.exists(vision_server_path):
+            print(f"[illinois-server] ❌ Archivo no encontrado: {vision_server_path}")
+            return jsonify({
+                'ok': False,
+                'error': f'Archivo no encontrado: {vision_server_path}'
+            }), 400
+        
+        print(f"[illinois-server] ✅ Archivo encontrado: {vision_server_path}")
+        print(f"[illinois-server] 🚀 Iniciando servidor de visión: {vision_server_path}")
+        
+        # Iniciar el proceso Python
+        try:
+            print(f"[illinois-server] 📝 Comando a ejecutar: python {vision_server_path}")
+            print(f"[illinois-server] 📁 Directorio de trabajo: {os.getcwd()}")
+            
+            # Verificar que el archivo existe y es ejecutable
+            if not os.path.exists(vision_server_path):
+                print(f"[illinois-server] ❌ Archivo no existe: {vision_server_path}")
+                return jsonify({
+                    'ok': False,
+                    'error': f'Archivo no existe: {vision_server_path}'
+                }), 400
+            
+            print(f"[illinois-server] ✅ Archivo existe, iniciando proceso...")
+            
+            # Obtener el directorio del script de visión
+            vision_server_dir = os.path.dirname(os.path.abspath(vision_server_path))
+            print(f"[illinois-server] 📁 Directorio del script de visión: {vision_server_dir}")
+            
+            process = subprocess.Popen(
+                ['python', vision_server_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                cwd=vision_server_dir,  # ← Ejecutar desde el directorio del script
+                text=True,
+                creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0
+            )
+            
+            # Guardar el PID para poder detenerlo después
+            global vision_server_process
+            vision_server_process = process
+            
+            print(f"[illinois-server] ✅ Servidor de visión iniciado con PID: {process.pid}")
+            
+            # Esperar un poco para que el proceso se inicie
+            import time
+            time.sleep(1)
+            
+            # Verificar si el proceso sigue ejecutándose
+            if process.poll() is not None:
+                print(f"[illinois-server] ❌ El proceso terminó inmediatamente con código: {process.returncode}")
+                # Leer la salida para ver el error
+                try:
+                    stdout, stderr = process.communicate(timeout=1)
+                    if stdout:
+                        print(f"[illinois-server] 📤 STDOUT: {stdout}")
+                    if stderr:
+                        print(f"[illinois-server] ❌ STDERR: {stderr}")
+                except:
+                    pass
+                return jsonify({
+                    'ok': False,
+                    'error': f'El proceso terminó inmediatamente. Código de salida: {process.returncode}'
+                }), 500
+            else:
+                print(f"[illinois-server] ✅ Proceso ejecutándose correctamente (PID: {process.pid})")
+            
+            return jsonify({
+                'ok': True,
+                'message': 'Servidor de visión iniciado correctamente',
+                'path': vision_server_path,
+                'pid': process.pid
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'ok': False,
+                'error': f'Error iniciando proceso: {str(e)}'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/vision_server/stop', methods=['POST'])
+def api_vision_server_stop():
+    """Endpoint para detener el servidor de visión"""
+    try:
+        import signal
+        
+        print(f"[illinois-server] 🛑 Deteniendo servidor de visión")
+        
+        global vision_server_process
+        if vision_server_process and vision_server_process.poll() is None:
+            # El proceso está ejecutándose, terminarlo
+            try:
+                vision_server_process.terminate()
+                vision_server_process.wait(timeout=5)  # Esperar hasta 5 segundos
+                print(f"[illinois-server] ✅ Servidor de visión detenido (PID: {vision_server_process.pid})")
+            except subprocess.TimeoutExpired:
+                # Si no termina en 5 segundos, forzar terminación
+                vision_server_process.kill()
+                vision_server_process.wait()
+                print(f"[illinois-server] ⚠️ Servidor de visión forzado a terminar (PID: {vision_server_process.pid})")
+            
+            vision_server_process = None
+            
+            return jsonify({
+                'ok': True,
+                'message': 'Servidor de visión detenido correctamente'
+            })
+        else:
+            return jsonify({
+                'ok': True,
+                'message': 'Servidor de visión no estaba ejecutándose'
+            })
+        
+    except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/mqtt_config', methods=['GET'])
+def api_mqtt_config():
+    """Endpoint para obtener la configuración MQTT actual"""
+    try:
+        from mqtt_manager import get_mqtt_manager
+        
+        manager = get_mqtt_manager()
+        config = manager.get_config()
+        
+        return jsonify({
+            'ok': True,
+            'config': config
+        })
+    except Exception as e:
+        print(f"[illinois-server] Error en /api/mqtt_config: {e}")
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/mqtt_test', methods=['POST'])
+def api_mqtt_test():
+    """Endpoint para probar la conexión con un broker MQTT"""
+    try:
+        from mqtt_manager import get_mqtt_manager
+        
+        data = request.get_json()
+        broker_ip = data.get('broker_ip')
+        broker_port = data.get('broker_port', 1883)
+        
+        if not broker_ip:
+            return jsonify({
+                'ok': False,
+                'error': 'broker_ip es requerido'
+            }), 400
+        
+        manager = get_mqtt_manager()
+        success, message = manager.test_connection(broker_ip, broker_port, timeout=10)
+        
+        return jsonify({
+            'ok': success,
+            'message': message
+        })
+    except Exception as e:
+        print(f"[illinois-server] Error en /api/mqtt_test: {e}")
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/mqtt_save', methods=['POST'])
+def api_mqtt_save():
+    """Endpoint para guardar la configuración MQTT"""
+    try:
+        from mqtt_manager import get_mqtt_manager
+        
+        data = request.get_json()
+        broker_ip = data.get('broker_ip')
+        broker_port = data.get('broker_port', 1883)
+        topic_commands = data.get('topic_commands', 'COMAU/commands')
+        topic_keyboard = data.get('topic_keyboard', 'COMAU/toRobot')
+        topic_responses = data.get('topic_responses', 'COMAU/memoryData')
+        connect_on_start = data.get('connect_on_start', True)
+        
+        if not broker_ip:
+            return jsonify({
+                'ok': False,
+                'error': 'broker_ip es requerido'
+            }), 400
+        
+        manager = get_mqtt_manager()
+        success = manager.save_config(
+            broker_ip=broker_ip,
+            broker_port=broker_port,
+            topic_commands=topic_commands,
+            topic_keyboard=topic_keyboard,
+            topic_responses=topic_responses,
+            connect_on_start=connect_on_start
+        )
+        
+        if success:
+            return jsonify({
+                'ok': True,
+                'message': 'Configuración MQTT guardada correctamente'
+            })
+        else:
+            return jsonify({
+                'ok': False,
+                'error': 'Error al guardar la configuración'
+            }), 500
+            
+    except Exception as e:
+        print(f"[illinois-server] Error en /api/mqtt_save: {e}")
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/mqtt_init_winc5g', methods=['POST'])
+def api_mqtt_init_winc5g():
+    """Endpoint para inicializar WinC5G via MQTT"""
+    try:
+        from mqtt_manager import get_mqtt_manager
+        
+        data = request.get_json()
+        command_data = {
+            'command': 'InitWinC5G',
+            'timestamp': data.get('timestamp', ''),
+            'args': data.get('args', {}),
+            'request_id': data.get('request_id', f'init_{int(time.time())}')
+        }
+        
+        manager = get_mqtt_manager()
+        
+        if not manager.connected:
+            return jsonify({
+                'ok': False,
+                'error': 'No hay conexión MQTT activa'
+            }), 400
+        
+        # Enviar comando y esperar respuesta
+        response = manager.send_command_and_wait(command_data, timeout=30)
+        
+        if response:
+            return jsonify({
+                'ok': True,
+                'status': response.get('status'),
+                'message': response.get('message', 'Comando ejecutado'),
+                'data': response
+            })
+        else:
+            return jsonify({
+                'ok': False,
+                'error': 'Timeout esperando respuesta del comando'
+            }), 408
+            
+    except Exception as e:
+        print(f"[illinois-server] Error en /api/mqtt_init_winc5g: {e}")
+        return jsonify({
+            'ok': False,
+            'error': str(e)
+        }), 500
 
 # ============================================================
 # API JUNTAS
@@ -1056,6 +1641,11 @@ Ejemplos:
     def run_flask():
         """Ejecutar Flask en thread separado"""
         try:
+            # Deshabilitar logging de peticiones HTTP
+            import logging
+            log = logging.getLogger('werkzeug')
+            log.setLevel(logging.ERROR)
+            
             app.run(host='0.0.0.0', port=args.port, debug=False, use_reloader=False)
         except Exception as e:
             print(f"✗ Error en Flask: {e}")
@@ -1081,10 +1671,32 @@ Ejemplos:
         print(f"✗ Error conectando a cámara: {e}")
     
     # ════════════════════════════════════════════════════════════
-    # PASO 1.6: Limpiar log de tiempos al iniciar servidor
+    # PASO 1.6: Inicializar MQTT Manager
     # ════════════════════════════════════════════════════════════
-    from src.vision.vision_manager import _limpiar_log_tiempos
-    _limpiar_log_tiempos()
+    print(f"\n📡 Inicializando MQTT Manager...")
+    try:
+        from mqtt_manager import get_mqtt_manager
+        
+        mqtt_manager = get_mqtt_manager()
+        config = mqtt_manager.get_config()
+        
+        if config.get('broker_ip') and config.get('connect_on_start', True):
+            print(f"🔌 Broker configurado: {config['broker_ip']}:{config['broker_port']}")
+            print(f"📋 Topics: {config['topics']}")
+            
+            # Iniciar conexión MQTT
+            print(f"🔌 Intentando conectar a MQTT...")
+            if mqtt_manager.start():
+                print(f"✅ MQTT Manager iniciado")
+                print(f"🔍 Estado MQTT después de iniciar: connected={mqtt_manager.connected}, state={mqtt_manager.state}")
+            else:
+                print(f"⚠️  MQTT Manager no pudo iniciar")
+                print(f"🔍 Estado MQTT después de fallo: connected={mqtt_manager.connected}, state={mqtt_manager.state}")
+        else:
+            print(f"ℹ️  MQTT no configurado o deshabilitado")
+            
+    except Exception as e:
+        print(f"✗ Error inicializando MQTT: {e}")
     
     # ════════════════════════════════════════════════════════════
     # PASO 1.7: Inicializar modelos YOLO (GLOBAL)

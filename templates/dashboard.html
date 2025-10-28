@@ -50,6 +50,22 @@
     </div>
   </div>
   
+  <!-- Indicadores de estado de detección -->
+  <div id="detectionIndicators" style="margin-top: var(--space-md); display: none; justify-content: space-between; align-items: center; width: 100%; max-width: 640px;">
+    <div class="detection-indicator" id="juntaIndicator">
+      <div class="indicator-circle"></div>
+      <span class="indicator-text">Junta</span>
+    </div>
+    <div class="detection-indicator" id="arucoBaseIndicator">
+      <div class="indicator-circle"></div>
+      <span class="indicator-text">ArUco Base</span>
+    </div>
+    <div class="detection-indicator" id="arucoToolIndicator">
+      <div class="indicator-circle"></div>
+      <span class="indicator-text">ArUco Tool</span>
+    </div>
+  </div>
+  
   <!-- Card de Análisis -->
   <div class="card" style="flex-shrink: 0; margin-top: 24px;">
     <h2 style="font-size: var(--font-size-xl); margin-bottom: var(--space-xl); font-weight: 600; color: var(--text-primary);">
@@ -57,18 +73,20 @@
     </h2>
        
     <div style="display: flex; gap: var(--space-md); align-items: center;">
-      <button id="btnAnalyzeNew" class="btn btn-primary">
+      <button id="btnSeryerTest" class="btn btn-primary">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
           <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
         </svg>
-        Analizar
+        PROBAR
       </button>
-      <div id="analysisTime" style="display: none; padding: var(--space-sm) var(--space-md); background: var(--bg-secondary); border-radius: var(--radius-sm); font-size: var(--font-size-sm); color: var(--text-secondary);">
-        <span style="color: var(--text-primary); font-weight: 500;">Tiempo:</span> <span id="timeValue">--</span>ms
-      </div>
     </div>
     
     <div id="message" style="margin-top: var(--space-lg);"></div>
+    
+    <!-- Contenedor de estado rojo/verde -->
+    <div id="statusContainer" style="margin-top: var(--space-lg); padding: 12px; border-radius: var(--radius-sm); display: none; transition: all 0.3s ease; background-color: transparent;">
+      <span id="statusText" style="font-weight: 500;">Procesando...</span>
+    </div>
     
     <div id="results" style="margin-top: var(--space-xl); display: none;">
       <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-md); font-weight: 600; color: var(--text-primary);">
@@ -84,20 +102,71 @@
     </div>
   </div>
   
+  <style>
+    /* Estilos para indicadores de detección */
+    .detection-indicator {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .indicator-circle {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 1px solid #ffc107;
+      background-color: #ffc107;
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+    }
+    
+    .indicator-text {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+    
+    /* Estados de los indicadores */
+    .indicator-circle.yellow {
+      border-color: #ffc107;
+      background-color: #ffc107;
+    }
+    
+    .indicator-circle.green {
+      border-color: #28a745;
+      background-color: #28a745;
+    }
+    
+    .indicator-circle.red {
+      border-color: #dc3545;
+      background-color: #dc3545;
+    }
+  </style>
+  
   <script>
     // Elementos del DOM
     const camStream = document.getElementById('camStream');
     const analyzedImage = document.getElementById('analyzedImage');
     const camError = document.getElementById('camError');
-    const btnAnalyzeNew = document.getElementById('btnAnalyzeNew');
+    const btnSeryerTest = document.getElementById('btnSeryerTest');
     const messageDiv = document.getElementById('message');
     const resultsDiv = document.getElementById('results');
     const pxPerMmSpan = document.getElementById('pxPerMm');
-    const analysisTimeDiv = document.getElementById('analysisTime');
-    const timeValueSpan = document.getElementById('timeValue');
+    const statusContainer = document.getElementById('statusContainer');
+    const statusText = document.getElementById('statusText');
+    const detectionIndicators = document.getElementById('detectionIndicators');
+    const juntaIndicator = document.getElementById('juntaIndicator');
+    const arucoBaseIndicator = document.getElementById('arucoBaseIndicator');
+    const arucoToolIndicator = document.getElementById('arucoToolIndicator');
     
     // Variable para controlar si hay junta seleccionada
     let juntaSeleccionada = false;
+    
+    // Variables para el cronómetro
+    let timerStartTime = null;
+    let timerInterval = null;
     
     // Verificar junta seleccionada al cargar
     async function verificarJuntaSeleccionada() {
@@ -107,18 +176,22 @@
         
         juntaSeleccionada = result.ok && result.junta;
         
-        if (!juntaSeleccionada) {
-          btnAnalyzeNew.disabled = true;
-          showMessage('⚠️ Selecciona una junta en el Panel de Control para poder analizar', 'error');
-          console.log('[dashboard] No hay junta seleccionada - solo análisis nuevo habilitado');
-        } else {
-          btnAnalyzeNew.disabled = false;
-          console.log('[dashboard] Junta seleccionada:', result.junta.nombre);
-        }
+        // Botón habilitado para server test
+        btnSeryerTest.disabled = false;
+        btnSeryerTest.textContent = 'PROBAR';
+        btnSeryerTest.style.backgroundColor = '';
+        btnSeryerTest.style.cursor = 'pointer';
+        
+        showMessage('✅ Botón PROBAR habilitado', 'success');
+        console.log('[dashboard] Botón PROBAR habilitado');
+        
       } catch (e) {
         console.error('[dashboard] Error verificando junta:', e);
-        btnAnalyze.disabled = true;
-        btnAnalyzeNew.disabled = false; // Mantener análisis nuevo habilitado
+        btnSeryerTest.disabled = false;
+        btnSeryerTest.textContent = 'PROBAR';
+        btnSeryerTest.style.backgroundColor = '';
+        btnSeryerTest.style.cursor = 'pointer';
+        showMessage('✅ Botón PROBAR habilitado', 'success');
       } finally { messageDiv.textContent = ''; }
     }
     
@@ -152,20 +225,115 @@
       }
     }
     
-    // Función para ejecutar análisis nuevo (con OverlayManager)
-    async function ejecutarAnalisisNuevo() {
-      console.log('[dashboard] 🔄 ejecutarAnalisisNuevo() iniciado');
-      showMessage('Analizando con nuevo sistema...', 'info');
+    // Función para mostrar estado en el contenedor rojo/verde
+    function showStatus(message, type = 'processing') {
+      statusContainer.style.display = 'block';
+      statusText.textContent = message;
       
-      // Ocultar tiempo anterior
-      analysisTimeDiv.style.display = 'none';
+      if (type === 'processing') {
+        statusContainer.style.border = '2px solid #ffc107';
+        statusContainer.style.color = '#856404';
+      } else if (type === 'success') {
+        statusContainer.style.border = '2px solid #28a745';
+        statusContainer.style.color = '#155724';
+      } else if (type === 'error') {
+        statusContainer.style.border = '2px solid #dc3545';
+        statusContainer.style.color = '#721c24';
+      }
+    }
+    
+    // Función para ocultar el contenedor de estado
+    function hideStatus() {
+      statusContainer.style.display = 'none';
+    }
+    
+    // Función para iniciar el cronómetro
+    function startTimer() {
+      timerStartTime = Date.now();
+      timerInterval = setInterval(() => {
+        const elapsed = Date.now() - timerStartTime;
+        const seconds = (elapsed / 1000).toFixed(1);
+        showStatus(`Capturando frame y procesando... (${seconds}s)`, 'processing');
+      }, 100);
+    }
+    
+    // Función para detener el cronómetro y mostrar tiempo final
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      
+      if (timerStartTime) {
+        const elapsed = Date.now() - timerStartTime;
+        const seconds = (elapsed / 1000).toFixed(1);
+        return seconds;
+      }
+      return '0.0';
+    }
+    
+    // Función para mostrar indicadores de detección
+    function showDetectionIndicators() {
+      detectionIndicators.style.display = 'flex';
+    }
+    
+    // Función para ocultar indicadores de detección
+    function hideDetectionIndicators() {
+      detectionIndicators.style.display = 'none';
+    }
+    
+    // Función para establecer estado de un indicador
+    function setIndicatorState(indicator, state) {
+      const circle = indicator.querySelector('.indicator-circle');
+      
+      // Remover clases previas
+      circle.classList.remove('yellow', 'green', 'red');
+      
+      if (state === 'yellow') {
+        circle.classList.add('yellow');
+      } else if (state === 'green') {
+        circle.classList.add('green');
+      } else if (state === 'red') {
+        circle.classList.add('red');
+      }
+    }
+    
+    // Función para actualizar indicadores con datos de respuesta
+    function updateDetectionIndicators(data) {
+      // Junta detectada
+      setIndicatorState(juntaIndicator, data.junta_detectada ? 'green' : 'red');
+      
+      // ArUco Base
+      setIndicatorState(arucoBaseIndicator, data.aruco_base_detectado ? 'green' : 'red');
+      
+      // ArUco Herramienta
+      setIndicatorState(arucoToolIndicator, data.aruco_tool_detectado ? 'green' : 'red');
+    }
+    
+    // Función para establecer todos los indicadores en amarillo (consultando)
+    function setIndicatorsConsulting() {
+      setIndicatorState(juntaIndicator, 'yellow');
+      setIndicatorState(arucoBaseIndicator, 'yellow');
+      setIndicatorState(arucoToolIndicator, 'yellow');
+    }
+    
+    
+    
+    // Función para ejecutar server test
+    async function ejecutarServerTest() {
+      console.log('[dashboard] 🧪 ejecutarServerTest() iniciado');
+      
+      // Iniciar cronómetro y mostrar estado de procesamiento
+      startTimer();
+      hideMessage();
+      
+      // Mostrar indicadores en estado de consulta (amarillo)
+      showDetectionIndicators();
+      setIndicatorsConsulting();
       
       try {
-        // ═══════════════════════════════════════════════════════════════
-        // Llamar al nuevo endpoint
-        // ═══════════════════════════════════════════════════════════════
-        console.log('[dashboard] 📤 Enviando petición a /api/analyze_new...');
-        const response = await fetch('/api/analyze_new', {
+        console.log('[dashboard] 📤 Enviando petición a /api/server_test...');
+        const response = await fetch('/api/server_test', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -174,90 +342,137 @@
         
         const result = await response.json();
         
-        if (!result.ok) {
-          // Error técnico (cámara no conectada, etc.)
-          showMessage('❌ Error técnico: ' + (result.error || 'Desconocido'), 'error');
-          return;
-        }
-        
-        // ═══════════════════════════════════════════════════════════════
-        // Enviar datos al control para actualizar tabla
-        // ═══════════════════════════════════════════════════════════════
-        console.log('[dashboard] 📤 Enviando datos al panel de control...');
-        console.log('[dashboard] 📊 Datos a enviar:', result.data);
-        
-        window.parent.postMessage({ 
-          type: 'ANALYSIS_READY',
-          data: result.data || {}
-        }, '*');
-        
-        if (result.analisis_exitoso) {
-          // ✅ Análisis exitoso - mostrar imagen y datos
-          showMessage('✅ Análisis completado exitosamente', 'success');
+        if (result.ok) {
+          const elapsedTime = stopTimer();
+          showStatus(`${result.mensaje} (${elapsedTime}s)`, 'success');
+          console.log('[dashboard] ✅ Server test completado:', result.mensaje);
           
-          // Mostrar tiempo de análisis del servidor
-          if (result.tiempo_total) {
-            timeValueSpan.textContent = Math.round(result.tiempo_total);
-            analysisTimeDiv.style.display = 'block';
+          // Actualizar indicadores de detección con los datos recibidos
+          if (result.data) {
+            console.log('[dashboard] 🔍 Actualizando indicadores de detección...');
+            updateDetectionIndicators(result.data);
           }
           
-          // Mostrar imagen si está disponible
-          if (result.imagen_base64) {
-            analyzedImage.src = `data:image/jpeg;base64,${result.imagen_base64}`;
-            analyzedImage.style.display = 'block';
-            camStream.style.display = 'none';
+          // Mostrar imagen de respuesta si está disponible
+          if (result.overlay_image) {
+            console.log('[dashboard] 🖼️ Mostrando imagen de respuesta...');
+            mostrarImagenRespuesta(result.overlay_image);
           }
           
-          // Enviar mensaje de éxito al control panel
-          window.parent.postMessage({ 
-            type: 'ANALYSIS_SUCCESS'
-          }, '*');
+          // Enviar datos de trayectoria al panel de control
+          if (result.trajectory_vectors && result.trajectory_vectors.length > 0) {
+            console.log('[dashboard] 📊 Enviando datos de trayectoria al panel de control...');
+            console.log('[dashboard] 📊 trajectory_vectors recibidos:', result.trajectory_vectors);
+            enviarDatosTrayectoria(result.trajectory_vectors, result.data);
         } else {
-          // ⚠️ Análisis falló - pero SIEMPRE enviar datos al control panel
-          const errorMsg = result.error || 'Validaciones fallaron';
-          
-          // Mostrar tiempo de análisis del servidor incluso si falló
-          if (result.tiempo_total) {
-            timeValueSpan.textContent = Math.round(result.tiempo_total);
-            analysisTimeDiv.style.display = 'block';
+            console.log('[dashboard] ⚠️ No hay trajectory_vectors para enviar');
+            console.log('[dashboard] 📊 result completo:', result);
           }
           
-          // Mensaje diferente según si hay imagen o no
-          if (result.data && (result.data.validaciones_geometricas || result.data.holes)) {
-            // Hay datos parciales → mostrar lo que se detectó
-            const detalle = result.data.validacion_temprana 
-              ? `Falló en validación temprana: ${result.data.validacion_temprana}` 
-              : 'Ver tabla de resultados';
-            showMessage(`⚠️ ${errorMsg}. ${detalle}`, 'error');
+          // Ocultar estado después de 3 segundos
+          setTimeout(() => {
+            hideStatus();
+          }, 3000);
+          
           } else {
-            showMessage(`❌ ${errorMsg}`, 'error');
-          }
+          const elapsedTime = stopTimer();
+          showStatus(`Error: ${result.error || 'Desconocido'} (${elapsedTime}s)`, 'error');
+          console.log('[dashboard] ❌ Error en server test:', result.error);
           
-          // ⚠️ IMPORTANTE: Enviar ANALYSIS_READY con datos incluso si falló
-          // Esto permite que el control panel muestre los datos parciales
-          window.parent.postMessage({ 
-            type: 'ANALYSIS_READY',
-            data: result.data || {}
-          }, '*');
+          // Ocultar estado después de 5 segundos en caso de error
+          setTimeout(() => {
+            hideStatus();
+          }, 5000);
         }
         
       } catch (e) {
-        console.error('[dashboard] Error en análisis nuevo:', e);
-        showMessage('❌ Error en análisis: ' + e.message, 'error');
+        console.error('[dashboard] Error en server test:', e);
+        const elapsedTime = stopTimer();
+        showStatus(`Error: ${e.message} (${elapsedTime}s)`, 'error');
+        
+        // Ocultar estado después de 5 segundos en caso de error
+        setTimeout(() => {
+          hideStatus();
+        }, 5000);
       }
     }
     
-    // Botón de análisis nuevo
-    btnAnalyzeNew.addEventListener('click', async () => {
-      // El análisis nuevo no requiere junta seleccionada
-      btnAnalyzeNew.disabled = true;
+    // Función para ocultar mensaje
+    function hideMessage() {
+      messageDiv.style.display = 'none';
+    }
+    
+    // Función para mostrar imagen de respuesta durante 3 segundos
+    function mostrarImagenRespuesta(imageBase64) {
+      // Ocultar streaming y mostrar imagen procesada
+      camStream.style.display = 'none';
+      analyzedImage.src = `data:image/png;base64,${imageBase64}`;
+      analyzedImage.style.display = 'block';
+      
+      console.log('[dashboard] 🖼️ Imagen mostrada, ocultando en 3 segundos...');
+      
+      // Restaurar streaming después de 3 segundos
+      setTimeout(() => {
+        analyzedImage.style.display = 'none';
+        camStream.style.display = 'block';
+        console.log('[dashboard] 🔄 Streaming restaurado');
+      }, 3000);
+    }
+    
+    // Función para enviar datos de trayectoria al panel de control
+    function enviarDatosTrayectoria(trajectoryVectors, detectionData = null) {
+      console.log('[dashboard] 🔄 Procesando trajectory_vectors:', trajectoryVectors);
+      console.log('[dashboard] 🔄 Datos de detección:', detectionData);
+      
+      // Convertir trajectory_vectors a formato de muescas con offsets
+      const centrosMuescas = trajectoryVectors.map((vector, index) => {
+        console.log(`[dashboard] 🔄 Procesando vector ${index}:`, vector);
+        
+        // Verificar que el vector tenga la estructura esperada
+        const vector_mm = vector.vector_mm || vector.centro_mm || [0, 0];
+        const offset_x = vector_mm[0] || 0.0;
+        const offset_y = vector_mm[1] || 0.0;
+        
+        return {
+          id: index + 1,
+          centro_mm: vector_mm,
+          offset_x: offset_x,
+          offset_y: offset_y
+        };
+      });
+      
+      console.log('[dashboard] 🔄 centrosMuescas procesados:', centrosMuescas);
+      
+      // Enviar datos al panel de control
+      const messageData = {
+        type: 'TRAJECTORY_DATA',
+        data: {
+          centros_muescas: centrosMuescas,
+          trajectory_vectors: trajectoryVectors,
+          // Agregar datos de detección si están disponibles
+          ...(detectionData && {
+            junta_segment_length_mm: detectionData.junta_segment_length_mm,
+            holes_detectados: detectionData.holes_detectados
+          })
+        }
+      };
+      
+      console.log('[dashboard] 📤 Enviando mensaje al panel de control:', messageData);
+      window.parent.postMessage(messageData, '*');
+      
+      console.log('[dashboard] 📤 Datos de trayectoria enviados al panel de control');
+    }
+    
+    // Event listener para el botón PROBAR
+    btnSeryerTest.addEventListener('click', async () => {
+      btnSeryerTest.disabled = true;
       
       try {
-        await ejecutarAnalisisNuevo();
+        await ejecutarServerTest();
       } finally {
         setTimeout(() => { 
-          btnAnalyzeNew.disabled = false; 
-        }, 2500);
+          btnSeryerTest.disabled = false; 
+        }, 1000);
       }
     });
     
@@ -287,25 +502,13 @@
         }
         
         // Verificar que el botón no esté deshabilitado
-        if (btnAnalyzeNew.disabled) {
-          console.log('[dashboard] ⚠️ Botón de análisis ya está deshabilitado');
+        if (btnSeryerTest.disabled) {
+          console.log('[dashboard] ⚠️ Botón PROBAR ya está deshabilitado');
           return;
         }
         
-        console.log('[dashboard] 🎯 Ejecutando análisis automático...');
-        console.log('[dashboard] 🔍 Llamando directamente a ejecutarAnalisisConReintentos()...');
-        showMessage('🤖 Análisis automático iniciado por rutina de prueba', 'info');
-        
-        // Llamar directamente a la función de análisis
-        
-        ejecutarAnalisisNuevo()
-          .then(() => {
-            console.log('[dashboard] ✅ Análisis automático completado exitosamente');
-          })
-          .catch((error) => {
-            console.log('[dashboard] ❌ Error en análisis automático:', error);
-            showMessage('❌ Error en análisis automático: ' + error.message, 'error');
-          });
+        console.log('[dashboard] 🎯 Ejecutando server_test...');
+        ejecutarServerTest();
       } else {
         console.log('[dashboard] 🔍 Mensaje no reconocido:', event.data.type);
       }

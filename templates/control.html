@@ -272,6 +272,8 @@
             <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">ID</th>
             <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">X</th>
             <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Y</th>
+            <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Offset_x</th>
+            <th style="text-align: center; padding: 6px 8px; color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 600;">Offset_y</th>
           </tr>
         </thead>
         <tbody id="bodyTablaMuescas">
@@ -398,11 +400,17 @@
 
         junta.centros_muescas.forEach(muesca => {
           const [x, y] = muesca.centro_mm;
+          // Obtener offsets si están disponibles, sino mostrar 0.0
+          const offset_x = muesca.offset_x !== undefined ? muesca.offset_x : 0.0;
+          const offset_y = muesca.offset_y !== undefined ? muesca.offset_y : 0.0;
+          
           const row = `
             <tr style="border-bottom: 1px solid var(--border);">
               <td style="text-align: center; padding: 6px 8px;">${muesca.id}</td>
               <td style="text-align: center; padding: 6px 8px;">${x.toFixed(1)}</td>
               <td style="text-align: center; padding: 6px 8px;">${y.toFixed(1)}</td>
+              <td style="text-align: center; padding: 6px 8px;">${offset_x.toFixed(1)}</td>
+              <td style="text-align: center; padding: 6px 8px;">${offset_y.toFixed(1)}</td>
             </tr>`;
           tablaBody.innerHTML += row;
         });
@@ -635,6 +643,16 @@
         }
       }
       
+      // Manejar datos de trayectoria del servidor de procesamiento
+      if (event.data.type === 'TRAJECTORY_DATA') {
+        console.log('[control] ✅ RECIBIÓ TRAJECTORY_DATA');
+        console.log('[control] 📥 Datos completos recibidos:', event.data);
+        console.log('[control] 📥 Datos de trayectoria:', event.data.data);
+        console.log('[control] 📥 centros_muescas:', event.data.data?.centros_muescas);
+        console.log('[control] 📥 trajectory_vectors:', event.data.data?.trajectory_vectors);
+        actualizarTablaConTrayectoria(event.data.data);
+      }
+      
       if (event.data.type === 'ANALYSIS_READY' && event.data.data) {
         const data = event.data.data;
         const intento = event.data.intento || 1;
@@ -821,6 +839,110 @@
         console.log(`[control] ========================================`);
       }
     });
+    
+    // Función para actualizar tabla con datos de trayectoria del servidor
+    function actualizarTablaConTrayectoria(data) {
+      console.log('[control] 🔄 Actualizando tabla con datos de trayectoria...');
+      
+      const centrosMuescas = data.centros_muescas || [];
+      const trajectoryVectors = data.trajectory_vectors || [];
+      const junta_segment_length_mm = data.junta_segment_length_mm;
+      const holes_detectados = data.holes_detectados;
+      
+      console.log('[control] 📊 Datos recibidos:', {
+        centrosMuescas: centrosMuescas.length,
+        trajectoryVectors: trajectoryVectors.length,
+        junta_segment_length_mm: junta_segment_length_mm,
+        holes_detectados: holes_detectados
+      });
+      
+      // Actualizar valores en la tabla de validación si están disponibles
+      if (junta_segment_length_mm !== undefined) {
+        console.log('[control] 📏 Actualizando distancia obtenida:', junta_segment_length_mm);
+        document.getElementById('obtenidoDistancia').textContent = junta_segment_length_mm.toFixed(1);
+        
+        // Calcular acierto de distancia
+        const esperadoDistancia = parseFloat(document.getElementById('esperadoDistancia').textContent) || 0;
+        if (esperadoDistancia > 0) {
+          const diferencia = Math.abs(esperadoDistancia - junta_segment_length_mm);
+          const tolerancia = esperadoDistancia * 0.02; // 2% de tolerancia
+          const aciertoDistancia = (diferencia <= tolerancia) ? 100 : Math.max(0, 100 - (diferencia / esperadoDistancia * 100));
+          
+          document.getElementById('aciertoDistancia').textContent = aciertoDistancia.toFixed(1) + '%';
+          
+          // Resultado visual
+          const resultDistanciaCell = document.getElementById('resultadoDistancia');
+          if (aciertoDistancia >= 98) {
+            resultDistanciaCell.innerHTML = '<span class="resultado-ok">✓</span>';
+          } else {
+            resultDistanciaCell.innerHTML = '<span class="resultado-error">✗</span>';
+          }
+          
+          console.log(`[control] ✓ Distancia actualizada: ${aciertoDistancia.toFixed(1)}% ${aciertoDistancia >= 98 ? '✓' : '✗'}`);
+        }
+      }
+      
+      if (holes_detectados !== undefined) {
+        console.log('[control] 🔘 Actualizando pistones obtenidos:', holes_detectados);
+        document.getElementById('obtenidoPistones').textContent = holes_detectados;
+        
+        // Calcular acierto de pistones
+        const esperadoPistones = parseInt(document.getElementById('esperadoPistones').textContent) || 0;
+        const aciertoPistones = (esperadoPistones === holes_detectados) ? 100 : 0;
+        
+        document.getElementById('aciertoPistones').textContent = aciertoPistones + '%';
+        
+        // Resultado visual
+        const resultPistonesCell = document.getElementById('resultadoPistones');
+        if (aciertoPistones === 100) {
+          resultPistonesCell.innerHTML = '<span class="resultado-ok">✓</span>';
+        } else {
+          resultPistonesCell.innerHTML = '<span class="resultado-error">✗</span>';
+        }
+        
+        console.log(`[control] ✓ Pistones actualizados: ${aciertoPistones}% ${aciertoPistones === 100 ? '✓' : '✗'}`);
+      }
+      
+      if (centrosMuescas.length > 0) {
+        // Actualizar cantidad de muescas
+        document.getElementById('infoCantidadMuescas').textContent = centrosMuescas.length;
+        
+        // Mostrar contenedor de muescas
+        const muescasContainer = document.getElementById('infoMuescasContainer');
+        const noMuescasMsg = document.getElementById('noMuescasAdicional');
+        const tablaBody = document.getElementById('bodyTablaMuescas');
+        
+        muescasContainer.style.display = 'block';
+        noMuescasMsg.style.display = 'none';
+        tablaBody.innerHTML = ''; // Limpiar tabla
+        
+        // Llenar tabla con datos de trayectoria
+        centrosMuescas.forEach(muesca => {
+          const [x, y] = muesca.centro_mm;
+          const offset_x = muesca.offset_x || 0.0;
+          const offset_y = muesca.offset_y || 0.0;
+          
+          const row = `
+            <tr style="border-bottom: 1px solid var(--border);">
+              <td style="text-align: center; padding: 6px 8px;">${muesca.id}</td>
+              <td style="text-align: center; padding: 6px 8px;">${x.toFixed(1)}</td>
+              <td style="text-align: center; padding: 6px 8px;">${y.toFixed(1)}</td>
+              <td style="text-align: center; padding: 6px 8px;">${offset_x.toFixed(1)}</td>
+              <td style="text-align: center; padding: 6px 8px;">${offset_y.toFixed(1)}</td>
+            </tr>`;
+          tablaBody.innerHTML += row;
+        });
+        
+        console.log(`[control] ✅ Tabla actualizada con ${centrosMuescas.length} muescas`);
+        console.log('[control] 📊 Datos de trayectoria:', trajectoryVectors);
+        
+      } else {
+        console.log('[control] ⚠️ No hay datos de muescas para mostrar');
+        document.getElementById('infoCantidadMuescas').textContent = '0';
+        document.getElementById('infoMuescasContainer').style.display = 'none';
+        document.getElementById('noMuescasAdicional').style.display = 'block';
+      }
+    }
   </script>
 </body>
 </html>

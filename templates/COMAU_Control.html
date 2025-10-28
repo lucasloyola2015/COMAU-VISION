@@ -430,7 +430,7 @@
     // Verificar estado de conexión MQTT al cargar la página
     async function checkMQTTStatus() {
       try {
-        const response = await fetch('/api/mqtt_status');
+        const response = await fetch('/api/mqtt_icon_status');
         const data = await response.json();
         
         if (data.ok && data.status.connected) {
