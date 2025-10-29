@@ -6,6 +6,7 @@
   <title>Junta</title>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/common.js"></script>
+  <script src="/static/js/parametros_manager.js"></script>
   <style>
     body {
       padding: 24px;
@@ -77,6 +78,26 @@
       box-shadow: 0 0 0 3px rgba(212, 20, 20, 0.1);
     }
     
+    /* Estilos para campos deshabilitados */
+    .form-group input:disabled,
+    .form-group select:disabled {
+      background-color: var(--bg-secondary) !important;
+      color: var(--text-secondary);
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .form-group input:disabled::placeholder {
+      color: var(--text-secondary);
+    }
+    
+    /* Estilos para botones deshabilitados */
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    
     .form-group input:disabled {
       background: var(--bg-secondary);
       cursor: not-allowed;
@@ -141,12 +162,20 @@
         </svg>
       </button>
       <h1 id="pageTitle" style="color: var(--text-primary); margin: 0; flex: 1;">Nueva Junta</h1>
-      <button id="btnEditar" class="btn btn-primary" onclick="irAEditar()" style="display: none;">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+      <div class="header-actions" style="display: flex; gap: 12px; align-items: center;">
+        <button id="btnGuardar" class="btn btn-primary" type="submit" form="juntaForm" style="display: none; padding: 8px 16px; font-size: 14px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z"/>
+          </svg>
+          <span>Guardar</span>
+        </button>
+        <button id="btnEditar" class="btn btn-primary" onclick="irAEditar()" style="display: none; padding: 8px 16px; font-size: 14px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
           <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
         </svg>
         <span>Editar</span>
       </button>
+      </div>
     </div>
 
     <div class="card">
@@ -178,8 +207,8 @@
               </svg>
             </button>
             
-            <div id="imagenPreview" style="display: none;">
-              <img id="imagenPreviewImg" src="" alt="Preview" style="max-width: 100%; max-height: 200px; border-radius: var(--radius-md); border: 1px solid var(--border); cursor: pointer;" title="Click para mostrar/ocultar overlay">
+            <div id="imagenPreview" style="display: none; position: relative; max-width: 100%; max-height: 200px;">
+              <canvas id="imagenCanvas" style="max-width: 100%; max-height: 200px; border-radius: var(--radius-md); border: 1px solid var(--border); cursor: pointer;" title="Click para alternar imagen original/visualización"></canvas>
             </div>
             <div id="imagenPlaceholder" style="width: 200px; height: 120px; border: 2px dashed var(--border); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); background: var(--bg-secondary);">
               <div style="text-align: center;">
@@ -213,11 +242,11 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
             <div>
               <label for="anchoJunta">Ancho de la Junta (mm)</label>
-              <input type="number" id="anchoJunta" name="anchoJunta" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary);">
+              <input type="number" id="anchoJunta" name="anchoJunta" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary); width: 100%;">
             </div>
             <div>
               <label for="altoJunta">Alto de la Junta (mm)</label>
-              <input type="number" id="altoJunta" name="altoJunta" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary);">
+              <input type="number" id="altoJunta" name="altoJunta" min="0" step="0.01" data-ajustable="true" style="background: var(--bg-primary); width: 100%;">
             </div>
           </div>
         </div>
@@ -315,24 +344,36 @@
           </table>
         </div>
 
-        <div class="form-actions">
-          <button type="button" class="btn btn-secondary" onclick="volver()">
-            Cancelar
-          </button>
-          <button type="button" class="btn btn-secondary" id="parametrizarBtn" style="background: #495057; color: white; border: 2px solid #dc3545; display: none;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M5.5 2A1.5 1.5 0 0 1 7 3.5v9A1.5 1.5 0 0 1 5.5 14h-3A1.5 1.5 0 0 1 1 12.5v-9A1.5 1.5 0 0 1 2.5 2zm6 0A1.5 1.5 0 0 1 13 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 7 12.5v-9A1.5 1.5 0 0 1 8.5 2z"/>
-            </svg>
-            Parametrizar
-          </button>
-          <button type="submit" class="btn btn-primary" id="submitBtn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-              <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.293l2.646-2.647a.5.5 0 0 1 .708.708l-3.5 3.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L7.5 9.293V2a2 2 0 0 1 2-2H14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h2.5a.5.5 0 0 1 0 1z"/>
-            </svg>
-            Guardar
-          </button>
+        <div class="form-actions" style="display: none;">
+          <!-- Los botones se movieron al header -->
         </div>
       </form>
+    </div>
+    
+    <!-- Sección de Parametrización -->
+    <div class="form-group" style="margin-top: 32px; padding: 24px; background: var(--bg-secondary); border-radius: 8px; border: 2px solid #dc3545;">
+      <h3 style="color: #dc3545; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+        </svg>
+        Parametrización Requerida
+      </h3>
+      
+      <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+        <p style="margin: 0; color: #856404; font-weight: 500;">
+          <strong>⚠️ Importante:</strong> No se puede guardar una junta si no ha sido parametrizada previamente. 
+          La parametrización es necesaria para establecer las medidas y coordenadas de referencia.
+        </p>
+      </div>
+      
+      <div style="display: flex; justify-content: center;">
+        <button type="button" class="btn btn-secondary" id="parametrizarBtn" style="background: #dc3545; color: white; border: 2px solid #dc3545; padding: 12px 24px; font-size: 16px; font-weight: 600; border-radius: 6px; display: flex; align-items: center; gap: 8px;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M5.5 2A1.5 1.5 0 0 1 7 3.5v9A1.5 1.5 0 0 1 5.5 14h-3A1.5 1.5 0 0 1 1 12.5v-9A1.5 1.5 0 0 1 2.5 2zm6 0A1.5 1.5 0 0 1 13 3.5v9a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 7 12.5v-9A1.5 1.5 0 0 1 8.5 2z"/>
+            </svg>
+          <span>Parametrizar Imagen</span>
+          </button>
+        </div>
     </div>
   </div>
 
@@ -342,6 +383,56 @@
     let mode = urlParams.get('mode'); // 'view' o 'edit'
     let currentJuntaId = juntaId; // Variable para tracking del ID actual
     
+    // Función para deshabilitar/habilitar campos según el modo
+    function toggleCamposEdicion() {
+      const campos = [
+        'nombre', 'modelo', 'version', 'cantidadCilindros', 'diametroCilindro', 
+        'distanciaCilindrosExtremos', 'anchoJunta', 'altoJunta', 'cantidadMuescas',
+        'muescaX', 'muescaY', 'illinoisX', 'illinoisY', 'codigoX', 'codigoY',
+        'loteX', 'loteY'
+      ];
+      
+      const checkboxes = [
+        'muescasVertical', 'illinoisVertical', 'codigoVertical', 'loteVertical'
+      ];
+      
+      const radios = [
+        'radioMuescas', 'radioIllinois', 'radioCodigo', 'radioLote'
+      ];
+      
+      const isDisabled = mode === 'view';
+      
+      // Deshabilitar/habilitar campos de texto y número
+      campos.forEach(id => {
+        const campo = document.getElementById(id);
+        if (campo) {
+          campo.disabled = isDisabled;
+        }
+      });
+      
+      // Deshabilitar/habilitar checkboxes
+      checkboxes.forEach(id => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+          checkbox.disabled = isDisabled;
+        }
+      });
+      
+      // Deshabilitar/habilitar radio buttons
+      radios.forEach(id => {
+        const radio = document.getElementById(id);
+        if (radio) {
+          radio.disabled = isDisabled;
+        }
+      });
+      
+      // Deshabilitar/habilitar botón de subir imagen
+      const imagenBtn = document.getElementById('imagen');
+      if (imagenBtn) {
+        imagenBtn.disabled = isDisabled;
+      }
+    }
+
     // Actualizar título con nombre compuesto
     function updateTitulo() {
       const nombre = document.getElementById('nombre').value.trim().toUpperCase();
@@ -357,10 +448,36 @@
         titulo.textContent = baseText;
       }
       
-      // Mostrar botón "Editar" solo en modo "view"
+      // Controlar estado de los campos según el modo
+      toggleCamposEdicion();
+      
+      // Mostrar botones según el modo
       const btnEditar = document.getElementById('btnEditar');
+      const btnGuardar = document.getElementById('btnGuardar');
+      const parametrizarBtn = document.getElementById('parametrizarBtn');
+      
       if (btnEditar) {
         btnEditar.style.display = mode === 'view' ? 'inline-flex' : 'none';
+      }
+      
+      if (parametrizarBtn) {
+        parametrizarBtn.style.display = mode === 'edit' ? 'flex' : 'none';
+      }
+      
+      if (btnGuardar) {
+        if (mode === 'edit') {
+          btnGuardar.style.display = 'inline-flex';
+          // Solo habilitar si está parametrizada
+          if (parametrosManager.estaParametrizada()) {
+            btnGuardar.disabled = false;
+            btnGuardar.style.opacity = '1';
+          } else {
+            btnGuardar.disabled = true;
+            btnGuardar.style.opacity = '0.5';
+          }
+        } else {
+          btnGuardar.style.display = 'none';
+        }
       }
     }
     
@@ -374,17 +491,13 @@
       document.getElementById('imagen').click();
     });
     
-    // Variables globales para las imágenes procesadas
-    let imagenFondoNegro = null;  // Para guardar
-    let imagenFondoBlanco = null; // Para análisis
+    // Variables globales para el sistema de overlay
     let datosAnalisis = null;     // Datos del análisis completo
-    let imagenVisualizacion = null; // Imagen con overlay
-    let overlayVisible = false;   // Estado del toggle
-    let imagenOriginalUrl = null; // URL de la imagen original desde servidor
-    let imagenConMuescas = null;  // Imagen original + muescas dibujadas
-    let muescasVisibles = false;  // Estado de visualización de muescas
-    let imagenVisualizacionUrl = null;  // URL de la imagen coloreada (_visualizacion.jpg)
-    let mostrandoVisualizacion = false; // Estado del toggle de visualización coloreada
+    let imagenOriginal = null;    // Imagen original {nombre}.jpg
+    let imagenVisualizacion = null; // Imagen de análisis {nombre}_visualizacion.jpg
+    let mostrandoVisualizacion = false; // true = visualización, false = original
+    let canvas = null;            // Referencia al canvas
+    let ctx = null;               // Contexto del canvas
     
     // Variables para calibración manual
     let valoresOriginales = {
@@ -401,22 +514,33 @@
       if (file) {
         const reader = new FileReader();
         reader.onload = function(e) {
-          document.getElementById('imagenPreviewImg').src = e.target.result;
-          document.getElementById('imagenPreview').style.display = 'block';
-          document.getElementById('imagenPlaceholder').style.display = 'none';
+          // Crear imagen temporal para el canvas
+          const img = new Image();
+          img.onload = function() {
+            imagenOriginal = img;
+            inicializarCanvas();
+            actualizarCanvas();
+            document.getElementById('imagenPreview').style.display = 'block';
+            document.getElementById('imagenPlaceholder').style.display = 'none';
+          };
+          img.src = e.target.result;
           
-          // Mostrar botón Parametrizar
-          document.getElementById('parametrizarBtn').style.display = 'flex';
+          // Mostrar botón Parametrizar solo en modo edición
+          const parametrizarBtn = document.getElementById('parametrizarBtn');
+          if (parametrizarBtn) {
+            parametrizarBtn.style.display = mode === 'edit' ? 'flex' : 'none';
+          }
           
-          // Resetear imágenes procesadas
-          imagenFondoNegro = null;
-          imagenFondoBlanco = null;
+          // Resetear imágenes procesadas (ya no necesario con el nuevo sistema)
         };
         reader.readAsDataURL(file);
       } else {
         document.getElementById('imagenPreview').style.display = 'none';
         document.getElementById('imagenPlaceholder').style.display = 'flex';
-        document.getElementById('parametrizarBtn').style.display = 'none';
+        const parametrizarBtn = document.getElementById('parametrizarBtn');
+        if (parametrizarBtn) {
+          parametrizarBtn.style.display = mode === 'edit' ? 'flex' : 'none';
+        }
       }
     });
     
@@ -478,10 +602,6 @@
         const result = await response.json();
         
         if (result.ok) {
-          // Guardar las imágenes procesadas
-          imagenFondoNegro = result.imagen_fondo_negro;
-          imagenFondoBlanco = result.imagen_fondo_blanco;
-          
           // Guardar datos del análisis
           if (result.analisis && result.analisis.ok) {
             datosAnalisis = result.analisis;
@@ -492,16 +612,35 @@
             
             // Guardar imagen de visualización si viene en la respuesta
             if (result.imagen_visualizacion) {
-              imagenVisualizacion = result.imagen_visualizacion;
-              console.log('[junta] ✓ Imagen de visualización recibida');
+              // Crear objeto Image desde los datos base64
+              const img = new Image();
+              img.onload = function() {
+                imagenVisualizacion = img;
+                console.log('[junta] ✓ Imagen de visualización cargada');
+              };
+              img.src = `data:image/jpeg;base64,${result.imagen_visualizacion}`;
               console.log('[junta] 💡 Haz click en la imagen para ver el overlay');
             } else {
               // Si no viene, solicitarla por separado (fallback)
               solicitarVisualizacion();
             }
             
-            // Actualizar parámetros del motor
+            // Inicializar manager de parámetros si no está inicializado
+            if (!parametrosManager.junta) {
+              parametrosManager.inicializar({
+                id: juntaId,
+                nombre: nombreCompuesto,
+                parametrizado: false,
+                px_mm: 1.0,
+                parametros_proporcionales: null
+              });
+            }
+            
+            // Actualizar parámetros del motor (esto habilitará los controles automáticamente)
             actualizarParametrosMotor(datosAnalisis);
+            
+            // Actualizar título para refrescar estado del botón Guardar
+            updateTitulo();
           } else {
             datosAnalisis = null;
             imagenVisualizacion = null;
@@ -509,8 +648,15 @@
             ocultarParametrosMotor();
           }
           
-          // Actualizar preview con imagen de fondo negro (la que se guardará)
-          document.getElementById('imagenPreviewImg').src = `data:image/jpeg;base64,${imagenFondoNegro}`;
+          // Actualizar canvas con imagen procesada si viene en la respuesta
+          if (result.imagen_fondo_negro) {
+            const img = new Image();
+            img.onload = function() {
+              imagenOriginal = img;
+              actualizarCanvas();
+            };
+            img.src = `data:image/jpeg;base64,${result.imagen_fondo_negro}`;
+          }
           
           alert('✓ Imagen procesada correctamente');
           console.log('[junta] Imagen procesada - Fondo detectado:', result.fondo_detectado);
@@ -561,8 +707,13 @@
         const result = await response.json();
         
         if (result.ok && result.imagen_visualizacion) {
-          imagenVisualizacion = result.imagen_visualizacion;
-          console.log('[junta] ✓ Imagen de visualización recibida');
+          // Crear objeto Image desde los datos base64
+          const img = new Image();
+          img.onload = function() {
+            imagenVisualizacion = img;
+            console.log('[junta] ✓ Imagen de visualización cargada');
+          };
+          img.src = `data:image/jpeg;base64,${result.imagen_visualizacion}`;
           console.log('[junta] 💡 Haz click en la imagen para ver el overlay');
         } else {
           console.log('[junta] ⚠️ No se pudo generar la visualización');
@@ -572,81 +723,227 @@
       }
     }
     
-    // Función para toggle del overlay
-    function toggleOverlay() {
-      if (!imagenVisualizacion) {
-        console.log('[junta] No hay visualización disponible. Ejecuta "Parametrizar" primero.');
+    // ============================================================
+    // SISTEMA DE OVERLAY CON CANVAS
+    // ============================================================
+    
+    // Inicializar canvas
+    function inicializarCanvas() {
+      canvas = document.getElementById('imagenCanvas');
+      ctx = canvas.getContext('2d');
+      console.log('[canvas] Canvas inicializado');
+    }
+    
+    // Cargar imagen en el canvas
+    function cargarImagenEnCanvas(imagen) {
+      if (!canvas || !ctx || !imagen) return;
+      
+      // Configurar dimensiones del canvas
+      canvas.width = imagen.naturalWidth;
+      canvas.height = imagen.naturalHeight;
+      
+      // Dibujar imagen
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(imagen, 0, 0);
+      
+      console.log('[canvas] Imagen cargada:', imagen.src);
+    }
+    
+    // Dibujar elementos del overlay (solo en imagen original)
+    function dibujarElementosOverlay() {
+      if (!canvas || !ctx || !datosAnalisis || !datosAnalisis.linea_referencia) {
+        console.log('[overlay] No se pueden dibujar elementos - datos faltantes');
         return;
       }
       
-      const imgPreview = document.getElementById('imagenPreviewImg');
-      overlayVisible = !overlayVisible;
+      // Solo dibujar si estamos mostrando la imagen original
+      if (mostrandoVisualizacion) {
+        console.log('[overlay] No dibujar elementos - mostrando visualización');
+        return;
+      }
       
-      if (overlayVisible) {
-        // Mostrar imagen con overlay
-        imgPreview.src = `data:image/jpeg;base64,${imagenVisualizacion}`;
-        console.log('[junta] ✓ Overlay VISIBLE');
+      console.log('[overlay] Dibujando elementos en imagen original...');
+      
+      // Obtener punto medio del segmento rojo (origen)
+      const puntoMedio = datosAnalisis.linea_referencia.punto_medio_px;
+      const origenX = puntoMedio[0];
+      const origenY = puntoMedio[1];
+      
+      // Obtener escala mm_por_pixel
+      let mm_por_pixel;
+      let px_mm; // También necesitamos px_mm para el tamaño del texto
+      if (parametrosManager.junta && parametrosManager.estaParametrizada() && parametrosManager.px_mm > 0) {
+        px_mm = parametrosManager.px_mm;
+        mm_por_pixel = 1.0 / px_mm;
       } else {
-        // Mostrar imagen original con elementos (muescas + textos)
-        if (imagenConMuescas) {
-          // Si tenemos imagen con elementos, mostrarla
-          imgPreview.src = `data:image/jpeg;base64,${imagenConMuescas}`;
-          muescasVisibles = true;
-          console.log('[junta] ✓ Overlay OCULTO - Mostrando imagen con elementos');
-        } else if (imagenFondoNegro) {
-          // Si tenemos la imagen en base64 (recién parametrizada)
-          imgPreview.src = `data:image/jpeg;base64,${imagenFondoNegro}`;
-          console.log('[junta] ✓ Overlay OCULTO (desde memoria)');
-        } else if (imagenOriginalUrl) {
-          // Si tenemos la URL de la imagen original guardada
-          imgPreview.src = imagenOriginalUrl;
-          console.log('[junta] ✓ Overlay OCULTO (desde servidor)');
-        } else {
-          console.log('[junta] ⚠️ No se pudo encontrar la imagen original');
+        mm_por_pixel = datosAnalisis.parametros.mm_por_pixel;
+        px_mm = 1.0 / mm_por_pixel;
+      }
+      
+      console.log('[overlay] Origen:', origenX, origenY, 'mm_por_pixel:', mm_por_pixel);
+      console.log('[overlay] parametrosManager.px_mm:', parametrosManager.px_mm);
+      console.log('[overlay] datosAnalisis.parametros.mm_por_pixel:', datosAnalisis.parametros.mm_por_pixel);
+      console.log('[overlay] px_mm usado:', px_mm);
+      
+      // Dibujar muescas
+      const cantidadMuescas = parseInt(document.getElementById('cantidadMuescas').value) || 0;
+      if (cantidadMuescas > 0) {
+        const muescaX = parseFloat(document.getElementById('muescaX').value) || 0;
+        const muescaY = parseFloat(document.getElementById('muescaY').value) || 0;
+        const vertical = document.getElementById('muescasVertical').checked;
+        
+        console.log('[overlay] Muesca datos:', { cantidadMuescas, muescaX, muescaY, vertical });
+        
+        ctx.fillStyle = 'red';
+        const radioMuesca = 2.0 / mm_por_pixel; // 2mm de radio
+        const separacion = 7.0 / mm_por_pixel; // 7mm de separación
+        
+        console.log('[overlay] Radio muesca:', radioMuesca, 'Separación:', separacion);
+        
+        for (let i = 0; i < cantidadMuescas; i++) {
+          let x, y;
+          if (vertical) {
+            x = origenX + (muescaX / mm_por_pixel);
+            y = origenY + (muescaY / mm_por_pixel) + (i * separacion);
+          } else {
+            x = origenX + (muescaX / mm_por_pixel) + (i * separacion);
+            y = origenY + (muescaY / mm_por_pixel);
+          }
+          
+          console.log(`[overlay] Muesca ${i}: (${x.toFixed(1)}, ${y.toFixed(1)}) radio: ${radioMuesca.toFixed(1)}`);
+          
+          ctx.beginPath();
+          ctx.arc(x, y, radioMuesca, 0, 2 * Math.PI);
+          ctx.fill();
         }
         
-        // Si hay análisis, recargar imagen con elementos por si se perdió
-        if (datosAnalisis && !imagenConMuescas && currentJuntaId) {
-          console.log('[junta] Recargando imagen con elementos...');
-          cargarImagenConMuescas(currentJuntaId);
+        console.log('[overlay] Muescas dibujadas:', cantidadMuescas);
+      }
+      
+      // Dibujar textos
+      const textos = [
+        { id: 'illinois', texto: 'ILLINOIS' },
+        { id: 'codigo', texto: '123456' },
+        { id: 'lote', texto: '23-45' }
+      ];
+      
+      console.log('[overlay] Dibujando textos...');
+      
+      ctx.fillStyle = 'red';
+      
+      // Calcular tamaño del texto: 6mm fijos
+      const alturaTextoMm = 6.0; // 6mm de altura fija
+      const tamañoTextoPx = alturaTextoMm * px_mm; // Convertir a píxeles: 6mm × px_mm
+      
+      ctx.font = `${tamañoTextoPx}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      
+      console.log('[overlay] Font size:', tamañoTextoPx.toFixed(2), 'px =', alturaTextoMm, 'mm ×', px_mm.toFixed(4), 'px/mm');
+      
+      textos.forEach(tipo => {
+        const x = parseFloat(document.getElementById(`${tipo.id}X`).value) || 0;
+        const y = parseFloat(document.getElementById(`${tipo.id}Y`).value) || 0;
+        const vertical = document.getElementById(`${tipo.id}Vertical`).checked;
+        
+        console.log(`[overlay] ${tipo.id}: (${x}, ${y}) vertical: ${vertical}`);
+        
+        if (x !== 0 || y !== 0) {
+          const textX = origenX + (x / mm_por_pixel);
+          const textY = origenY + (y / mm_por_pixel);
+          
+          console.log(`[overlay] ${tipo.id} posición: (${textX.toFixed(1)}, ${textY.toFixed(1)})`);
+          
+          if (vertical) {
+            ctx.save();
+            ctx.translate(textX, textY);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText(tipo.texto, 0, 0);
+            ctx.restore();
+          } else {
+            ctx.fillText(tipo.texto, textX, textY);
+          }
+        }
+      });
+      
+      console.log('[overlay] Elementos dibujados');
+    }
+    
+    // Actualizar canvas completo
+    function actualizarCanvas() {
+      if (!canvas || !ctx) return;
+      
+      // Cargar la imagen correspondiente
+      const imagenActual = mostrandoVisualizacion ? imagenVisualizacion : imagenOriginal;
+      if (imagenActual) {
+        cargarImagenEnCanvas(imagenActual);
+        
+        // Dibujar elementos solo si es imagen original
+        if (!mostrandoVisualizacion) {
+          dibujarElementosOverlay();
         }
       }
     }
+
+    // Toggle entre imagen original y visualización
+    function toggleImagen() {
+      console.log('[toggle] Alternando imagen...');
+      mostrandoVisualizacion = !mostrandoVisualizacion;
+      
+      console.log('[toggle] Mostrando visualización:', mostrandoVisualizacion);
+      
+      // Actualizar canvas con la imagen correspondiente
+      actualizarCanvas();
+      
+      if (mostrandoVisualizacion) {
+        console.log('[toggle] ✓ Mostrando imagen de visualización');
+      } else {
+        console.log('[toggle] ✓ Mostrando imagen original con elementos');
+      }
+    }
     
-    // Event listener para toggle con click en la imagen
-    document.getElementById('imagenPreviewImg').addEventListener('click', function() {
-      // Si estamos en modo VIEW, no permitir edición de rueda
-      if (mode === 'view' && !imagenVisualizacionUrl) {
-        console.log('[imagen] No hay visualización disponible para mostrar');
+    // Event listener para toggle con click en el canvas
+    document.getElementById('imagenCanvas').addEventListener('click', function(e) {
+      console.log('[debug] Click detectado en canvas - button:', e.button);
+      
+      // Si estamos en modo VIEW, no permitir edición
+      if (mode === 'view' && !imagenVisualizacion) {
+        console.log('[canvas] No hay visualización disponible para mostrar');
         return;
       }
       
-      // Si estamos en modo EDIT y no hay rueda presionada, alternar visualización
-      if (!event.button || event.button === 0) {
-        // Click izquierdo normal
-        if (imagenVisualizacionUrl) {
-          mostrandoVisualizacion = !mostrandoVisualizacion;
-          
-          if (mostrandoVisualizacion) {
-            document.getElementById('imagenPreviewImg').src = imagenVisualizacionUrl;
-            console.log('[imagen] ✓ Mostrando imagen coloreada');
-          } else {
-            document.getElementById('imagenPreviewImg').src = imagenOriginalUrl || '';
-            console.log('[imagen] ✓ Mostrando imagen original');
-          }
+      // Si estamos en modo EDIT y no hay rueda presionada, alternar imagen
+      if (!e.button || e.button === 0) {
+        // Click izquierdo normal - alternar entre original y visualización
+        console.log('[canvas] Procesando click izquierdo para toggle');
+        
+        if (imagenVisualizacion) {
+          toggleImagen();
         } else {
-          console.log('[imagen] ℹ️ No hay imagen coloreada disponible');
+          console.log('[canvas] ℹ️ No hay imagen de visualización disponible');
         }
+      } else {
+        console.log('[canvas] Click no es izquierdo, ignorando');
       }
     });
     
     // Event listener para click de rueda (middle mouse button) - mover muescas
-    document.getElementById('imagenPreviewImg').addEventListener('mousedown', function(e) {
-      console.log(`[debug] mousedown event detectado - button: ${e.button}`);
+    const imagenElement = document.getElementById('imagenCanvas');
+    if (imagenElement) {
+      console.log('[debug] ✓ Event listener registrado para imagenCanvas');
       
-      // Botón de rueda = button 1
-      if (e.button === 1) {
-        console.log('[debug] ✓ Es click de rueda (button 1)');
+      // Evento de prueba para todos los botones del mouse
+      imagenElement.addEventListener('mousedown', function(e) {
+        console.log(`[debug] mousedown event detectado - button: ${e.button}, which: ${e.which}, buttons: ${e.buttons}`);
+        console.log(`[debug] Tipo de evento: ${e.type}, target: ${e.target.id}`);
+      });
+      
+      imagenElement.addEventListener('mousedown', function(e) {
+        console.log(`[debug] mousedown event detectado - button: ${e.button}, which: ${e.which}, buttons: ${e.buttons}`);
+      
+      // Botón de rueda = button 1 (también verificar e.which para compatibilidad)
+      if (e.button === 1 || e.which === 2) {
+        console.log('[debug] ✓ Es click de rueda (button 1 o which 2)');
         e.preventDefault();
         
         // Deshabilitar en modo "view"
@@ -666,8 +963,8 @@
         const clickY = e.clientY - rect.top;
         
         // Obtener dimensiones reales de la imagen
-        const imgWidth = this.naturalWidth;
-        const imgHeight = this.naturalHeight;
+        const imgWidth = this.width;
+        const imgHeight = this.height;
         const displayWidth = rect.width;
         const displayHeight = rect.height;
         
@@ -690,10 +987,20 @@
         
         // Calcular coordenadas relativas al origen en píxeles
         const relX_px = imagenX - origenX;
-        const relY_px = origenY - imagenY;  // Invertir Y (arriba es positivo)
+        const relY_px = imagenY - origenY;  // Y positivo = arriba
         
-        // Convertir a milímetros
-        const mm_por_pixel = datosAnalisis.parametros.mm_por_pixel;
+        // Convertir a milímetros usando px_mm del manager si está disponible
+        let mm_por_pixel;
+        if (parametrosManager.junta && parametrosManager.estaParametrizada() && parametrosManager.px_mm > 0) {
+          // Usar px_mm del manager (píxeles por milímetro) y convertir a mm_por_pixel
+          mm_por_pixel = 1.0 / parametrosManager.px_mm;
+          console.log(`[elemento] Usando px_mm del manager: ${parametrosManager.px_mm} → ${mm_por_pixel.toFixed(6)} mm/px`);
+        } else {
+          // Fallback al mm_por_pixel del análisis
+          mm_por_pixel = datosAnalisis.parametros.mm_por_pixel;
+          console.log(`[elemento] Usando mm_por_pixel del análisis: ${mm_por_pixel}`);
+        }
+        
         const relX_mm = relX_px * mm_por_pixel;
         const relY_mm = relY_px * mm_por_pixel;
         
@@ -704,6 +1011,7 @@
         console.log(`[elemento]   Posición en imagen: (${imagenX.toFixed(0)}, ${imagenY.toFixed(0)}) px`);
         console.log(`[elemento]   Posición relativa: (${relX_px.toFixed(0)}, ${relY_px.toFixed(0)}) px`);
         console.log(`[elemento]   Posición en mm: (${relX_mm.toFixed(1)}, ${relY_mm.toFixed(1)}) mm`);
+        
         
         // Actualizar campos X e Y del elemento seleccionado
         switch(elementoActivo) {
@@ -741,10 +1049,165 @@
         }
       }
     });
+    } else {
+      console.log('[debug] ❌ No se encontró elemento imagenCanvas');
+    }
+    
+    // Event listener adicional para auxclick (botón del medio)
+    if (imagenElement) {
+      imagenElement.addEventListener('auxclick', function(e) {
+      console.log(`[debug] auxclick event detectado - button: ${e.button}`);
+      
+      if (e.button === 1) {
+        console.log('[debug] ✓ Es auxclick de rueda (button 1)');
+        e.preventDefault();
+        
+        // Deshabilitar en modo "view"
+        if (mode === 'view') {
+          console.log('[elemento] Click de rueda deshabilitado en modo VIEW');
+          return;
+        }
+        
+        if (!datosAnalisis || !datosAnalisis.linea_referencia) {
+          console.log('[muescas] No hay análisis disponible para calcular posición');
+          return;
+        }
+        
+        // Obtener coordenadas del click relativas a la imagen
+        const rect = this.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+        
+        // Obtener dimensiones reales de la imagen
+        const imgWidth = this.width;
+        const imgHeight = this.height;
+        const displayWidth = rect.width;
+        const displayHeight = rect.height;
+        
+        // Convertir coordenadas de display a coordenadas de imagen real
+        const scaleX = imgWidth / displayWidth;
+        const scaleY = imgHeight / displayHeight;
+        const imagenX = clickX * scaleX;
+        const imagenY = clickY * scaleY;
+        
+        // Obtener punto medio del segmento rojo (origen)
+        const puntoMedio = datosAnalisis.linea_referencia.punto_medio_px;
+        
+        if (!puntoMedio || !Array.isArray(puntoMedio) || puntoMedio.length < 2) {
+          console.log('[elemento] ❌ Punto medio no disponible o inválido:', puntoMedio);
+          return;
+        }
+        
+        const origenX = puntoMedio[0];
+        const origenY = puntoMedio[1];
+        
+        // Calcular coordenadas relativas al origen en píxeles
+        const relX_px = imagenX - origenX;
+        const relY_px = imagenY - origenY;  // Y positivo = arriba
+        
+        // Convertir a milímetros usando px_mm del manager si está disponible
+        let mm_por_pixel;
+        if (parametrosManager.junta && parametrosManager.estaParametrizada() && parametrosManager.px_mm > 0) {
+          // Usar px_mm del manager (píxeles por milímetro) y convertir a mm_por_pixel
+          mm_por_pixel = 1.0 / parametrosManager.px_mm;
+          console.log(`[elemento] Usando px_mm del manager: ${parametrosManager.px_mm} → ${mm_por_pixel.toFixed(6)} mm/px`);
+        } else {
+          // Fallback al mm_por_pixel del análisis
+          mm_por_pixel = datosAnalisis.parametros.mm_por_pixel;
+          console.log(`[elemento] Usando mm_por_pixel del análisis: ${mm_por_pixel}`);
+        }
+        
+        const relX_mm = relX_px * mm_por_pixel;
+        const relY_mm = relY_px * mm_por_pixel;
+        
+        // Detectar qué elemento está seleccionado
+        const elementoActivo = document.querySelector('input[name="elementoActivo"]:checked').value;
+        
+        console.log(`[elemento] ✓ Click de rueda detectado - Elemento: ${elementoActivo}`);
+        console.log(`[elemento]   Posición en imagen: (${imagenX.toFixed(0)}, ${imagenY.toFixed(0)}) px`);
+        console.log(`[elemento]   Posición relativa: (${relX_px.toFixed(0)}, ${relY_px.toFixed(0)}) px`);
+        console.log(`[elemento]   Posición en mm: (${relX_mm.toFixed(1)}, ${relY_mm.toFixed(1)}) mm`);
+        
+        
+        // Actualizar campos X e Y del elemento seleccionado
+        switch(elementoActivo) {
+          case 'muescas':
+            document.getElementById('muescaX').value = relX_mm.toFixed(1);
+            document.getElementById('muescaY').value = relY_mm.toFixed(1);
+            console.log('[muescas] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real (incluye todos los elementos)
+            actualizarMuescasEnTiempoReal();
+            break;
+            
+          case 'illinois':
+            document.getElementById('illinoisX').value = relX_mm.toFixed(1);
+            document.getElementById('illinoisY').value = relY_mm.toFixed(1);
+            console.log('[illinois] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real
+            actualizarMuescasEnTiempoReal();
+            break;
+            
+          case 'codigo':
+            document.getElementById('codigoX').value = relX_mm.toFixed(1);
+            document.getElementById('codigoY').value = relY_mm.toFixed(1);
+            console.log('[codigo] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real
+            actualizarMuescasEnTiempoReal();
+            break;
+            
+          case 'lote':
+            document.getElementById('loteX').value = relX_mm.toFixed(1);
+            document.getElementById('loteY').value = relY_mm.toFixed(1);
+            console.log('[lote] ✓ Posición actualizada');
+            // Disparar actualización en tiempo real
+            actualizarMuescasEnTiempoReal();
+            break;
+        }
+      }
+    });
+    } else {
+      console.log('[debug] ❌ No se encontró elemento imagenCanvas para auxclick');
+    }
+    
+    // Función para mostrar mensaje temporal
+    function mostrarMensajeTemporal(mensaje, tipo = 'info') {
+      // Crear elemento de mensaje
+      const mensajeDiv = document.createElement('div');
+      mensajeDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${tipo === 'success' ? '#d4edda' : '#d1ecf1'};
+        color: ${tipo === 'success' ? '#155724' : '#0c5460'};
+        border: 1px solid ${tipo === 'success' ? '#c3e6cb' : '#bee5eb'};
+        border-radius: 4px;
+        padding: 12px 16px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 9999;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        max-width: 300px;
+      `;
+      mensajeDiv.textContent = mensaje;
+      
+      // Agregar al DOM
+      document.body.appendChild(mensajeDiv);
+      
+      // Remover después de 3 segundos
+      setTimeout(() => {
+        if (mensajeDiv.parentNode) {
+          mensajeDiv.parentNode.removeChild(mensajeDiv);
+        }
+      }, 3000);
+    }
     
     // Función para actualizar parámetros del motor
     function actualizarParametrosMotor(analisis) {
       console.log('[junta] actualizarParametrosMotor llamada con:', analisis);
+      console.log('[junta] parametrosManager estado:', {
+        inicializado: !!parametrosManager.junta,
+        parametrizado: parametrosManager.estaParametrizada()
+      });
       
       if (!analisis || !analisis.ok) {
         console.log('[junta] Análisis inválido o no OK, ocultando parámetros');
@@ -758,70 +1221,31 @@
       console.log('[junta] Total agujeros:', agujeros.length);
       console.log('[junta] Agujeros grandes:', agujeros_grandes.length);
       
-      if (agujeros_grandes.length === 0) {
-        console.log('[junta] No hay agujeros grandes detectados, ocultando parámetros');
-        ocultarParametrosMotor();
-        return;
-      }
-      
-      // Calcular cantidad de cilindros
+      // Calcular cantidad de cilindros (puede ser 0 si no hay agujeros)
       const cantidadCilindros = agujeros_grandes.length;
       
-      // Calcular diámetro promedio de los agujeros grandes EN PÍXELES
-      // Diámetro_px = 2 × √(área_px / π)
-      let sumaDiametrosPx = 0;
-      for (const agujero of agujeros_grandes) {
-        const radio_px = Math.sqrt(agujero.area_px / Math.PI);
-        const diametro_px = 2 * radio_px;
-        sumaDiametrosPx += diametro_px;
-      }
-      const diametroPromedioPx = sumaDiametrosPx / agujeros_grandes.length;
+      // Mostrar parámetros incluso si no hay agujeros (para dimensiones básicas)
+      console.log('[junta] Mostrando parámetros con', cantidadCilindros, 'cilindros detectados');
       
-      // Convertir a mm usando la escala actual
-      const mm_por_pixel = analisis.parametros.mm_por_pixel;
-      const diametroPromedioMm = diametroPromedioPx * mm_por_pixel;
+      // Guardar parámetros proporcionales usando el manager
+      parametrosManager.guardarParametrosProporcionales(analisis);
       
-      // Obtener distancia entre cilindros extremos
-      const lineaReferencia = analisis.linea_referencia;
-      let distanciaExtremosPx = 0;
-      let distanciaExtremosMm = 0;
-      
-      if (lineaReferencia) {
-        distanciaExtremosPx = lineaReferencia.distancia_px || 0;
-        distanciaExtremosMm = lineaReferencia.distancia_mm || 0;
-      }
-      
-      // Obtener dimensiones de la junta (bounding box del contorno principal)
-      const contornoPrincipal = analisis.contorno_principal;
-      const anchoJuntaPx = contornoPrincipal.bbox_width_px || 0;
-      const altoJuntaPx = contornoPrincipal.bbox_height_px || 0;
-      const anchoJuntaMm = anchoJuntaPx * mm_por_pixel;
-      const altoJuntaMm = altoJuntaPx * mm_por_pixel;
-      
-      // Guardar valores originales en píxeles para recalibración
-      valoresOriginales.diametro_cilindro_px = diametroPromedioPx;
-      valoresOriginales.distancia_extremos_px = distanciaExtremosPx;
-      valoresOriginales.ancho_junta_px = anchoJuntaPx;
-      valoresOriginales.alto_junta_px = altoJuntaPx;
-      valoresOriginales.mm_por_pixel = mm_por_pixel;
-      
-      // Actualizar campos
+      // Actualizar campos usando el manager
       document.getElementById('cantidadCilindros').value = cantidadCilindros;
-      document.getElementById('diametroCilindro').value = diametroPromedioMm.toFixed(2);
-      document.getElementById('distanciaCilindrosExtremos').value = distanciaExtremosMm.toFixed(2);
-      document.getElementById('anchoJunta').value = anchoJuntaMm.toFixed(2);
-      document.getElementById('altoJunta').value = altoJuntaMm.toFixed(2);
+      
+      // El manager actualizará automáticamente todos los valores
+      parametrosManager.actualizarTodosLosValores();
       
       // Mostrar sección
-      document.getElementById('seccion-parametros').style.display = 'block';
+      const seccionParametros = document.getElementById('seccion-parametros');
+      if (seccionParametros) {
+        seccionParametros.style.display = 'block';
+        console.log('[junta] ✓ Sección de parámetros mostrada');
+      } else {
+        console.warn('[junta] ⚠️ Sección de parámetros no encontrada');
+      }
       
-      console.log('[junta] ✓ Parámetros del motor actualizados:');
-      console.log(`[junta]   Cantidad cilindros: ${cantidadCilindros}`);
-      console.log(`[junta]   Diámetro promedio: ${diametroPromedioMm.toFixed(2)} mm (${diametroPromedioPx.toFixed(2)} px)`);
-      console.log(`[junta]   Distancia extremos: ${distanciaExtremosMm.toFixed(2)} mm (${distanciaExtremosPx.toFixed(2)} px)`);
-      console.log(`[junta]   Ancho junta: ${anchoJuntaMm.toFixed(2)} mm (${anchoJuntaPx.toFixed(2)} px)`);
-      console.log(`[junta]   Alto junta: ${altoJuntaMm.toFixed(2)} mm (${altoJuntaPx.toFixed(2)} px)`);
-      console.log(`[junta]   Escala: ${mm_por_pixel.toFixed(4)} mm/px`);
+      console.log('[junta] ✓ Parámetros del motor actualizados usando ParametrosManager');
     }
     
     // Función para ocultar parámetros del motor
@@ -832,6 +1256,11 @@
       document.getElementById('distanciaCilindrosExtremos').value = '';
       document.getElementById('anchoJunta').value = '';
       document.getElementById('altoJunta').value = '';
+      
+      // Deshabilitar controles si no está parametrizada
+      if (!parametrosManager.estaParametrizada()) {
+        parametrosManager.deshabilitarControlesEdicion();
+      }
     }
     
     /**
@@ -972,14 +1401,44 @@
     document.getElementById('anchoJunta').addEventListener('change', function() {
       const nuevoValor = parseFloat(this.value);
       if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        if (parametrosManager.estaParametrizada()) {
+          parametrosManager.set_valor('ancho_junta', nuevoValor);
+        } else {
         recalibrarEscala('ancho_junta', nuevoValor);
+        }
       }
     });
     
     document.getElementById('altoJunta').addEventListener('change', function() {
       const nuevoValor = parseFloat(this.value);
       if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        if (parametrosManager.estaParametrizada()) {
+          parametrosManager.set_valor('alto_junta', nuevoValor);
+        } else {
         recalibrarEscala('alto_junta', nuevoValor);
+        }
+      }
+    });
+    
+    document.getElementById('diametroCilindro').addEventListener('change', function() {
+      const nuevoValor = parseFloat(this.value);
+      if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        if (parametrosManager.estaParametrizada()) {
+          parametrosManager.set_valor('diametro_cilindro', nuevoValor);
+        } else {
+          recalibrarEscala('diametro_cilindro', nuevoValor);
+        }
+      }
+    });
+    
+    document.getElementById('distanciaCilindrosExtremos').addEventListener('change', function() {
+      const nuevoValor = parseFloat(this.value);
+      if (!isNaN(nuevoValor) && nuevoValor > 0) {
+        if (parametrosManager.estaParametrizada()) {
+          parametrosManager.set_valor('distancia_extremos', nuevoValor);
+        } else {
+          recalibrarEscala('distancia_extremos', nuevoValor);
+        }
       }
     });
     
@@ -1018,16 +1477,19 @@
         
         console.log('[muescas] Respuesta del servidor:', result);
         
-        if (result.ok && result.imagen_con_muescas) {
-          imagenConMuescas = result.imagen_con_muescas;
+        if (result.ok) {
           
-          // Mostrar imagen con muescas (solo si no hay overlay activo)
-          if (!overlayVisible) {
-            document.getElementById('imagenPreviewImg').src = `data:image/jpeg;base64,${imagenConMuescas}`;
-            muescasVisibles = true;
-            console.log('[muescas] ✓ Imagen actualizada en preview');
+          console.log('[muescas] Estado del canvas:', {
+            mostrandoVisualizacion: mostrandoVisualizacion,
+            imagenVisualizacion: !!imagenVisualizacion
+          });
+          
+          // Actualizar canvas con elementos
+          if (!mostrandoVisualizacion) {
+            actualizarCanvas();
+            console.log('[muescas] ✓ Canvas actualizado con elementos');
           } else {
-            console.log('[muescas] ℹ️ Overlay activo, muescas guardadas pero no mostradas');
+            console.log('[muescas] ℹ️ Mostrando visualización, no actualizar elementos');
           }
           
           if (parametrosCustom) {
@@ -1047,56 +1509,24 @@
     let timeoutMuescas = null;
     
     function actualizarMuescasEnTiempoReal() {
-      if (!juntaId || !datosAnalisis) {
+      console.log('[muescas] actualizarMuescasEnTiempoReal llamada');
+      if (!datosAnalisis) {
+        console.log('[muescas] ❌ No se puede actualizar - datosAnalisis:', !!datosAnalisis);
         return;
       }
       
       // Debounce - esperar 500ms después del último cambio
       clearTimeout(timeoutMuescas);
       timeoutMuescas = setTimeout(() => {
-        // Helper para parsear valores (solo convertir si NO está vacío)
-        function parseValue(elementId) {
-          const value = document.getElementById(elementId).value;
-          if (value === '' || value === null || value === undefined) {
-            return null;  // No enviar si está vacío
-          }
-          return parseFloat(value);
+        console.log('[muescas] Ejecutando actualización en tiempo real...');
+        
+        // Actualizar canvas si estamos mostrando la imagen original
+        if (!mostrandoVisualizacion) {
+          actualizarCanvas();
+          console.log('[muescas] ✓ Canvas actualizado con elementos');
+        } else {
+          console.log('[muescas] Mostrando visualización, no actualizar elementos');
         }
-        
-        const cantidad = parseInt(document.getElementById('cantidadMuescas').value) || 0;
-        const x = parseValue('muescaX');
-        const y = parseValue('muescaY');
-        const vertical = document.getElementById('muescasVertical').checked;
-        
-        // Obtener datos de otros elementos
-        const illinoisX = parseValue('illinoisX');
-        const illinoisY = parseValue('illinoisY');
-        const illinoisVertical = document.getElementById('illinoisVertical').checked;
-        
-        const codigoX = parseValue('codigoX');
-        const codigoY = parseValue('codigoY');
-        const codigoVertical = document.getElementById('codigoVertical').checked;
-        
-        const loteX = parseValue('loteX');
-        const loteY = parseValue('loteY');
-        const loteVertical = document.getElementById('loteVertical').checked;
-        
-        // Siempre llamar, incluso si cantidad es 0 (para mostrar textos)
-        cargarImagenConMuescas(juntaId, {
-          cantidad_muescas: cantidad,
-          muesca_x: x,
-          muesca_y: y,
-          vertical: vertical,
-          illinois_x: illinoisX,
-          illinois_y: illinoisY,
-          illinois_vertical: illinoisVertical,
-          codigo_x: codigoX,
-          codigo_y: codigoY,
-          codigo_vertical: codigoVertical,
-          lote_x: loteX,
-          lote_y: loteY,
-          lote_vertical: loteVertical
-        });
       }, 500);
     }
     
@@ -1174,8 +1604,13 @@
         const result = await response.json();
         
         if (result.ok && result.imagen_visualizacion) {
-          imagenVisualizacion = result.imagen_visualizacion;
-          console.log('[junta] ✓ Visualización cargada desde archivo');
+          // Crear objeto Image desde los datos base64
+          const img = new Image();
+          img.onload = function() {
+            imagenVisualizacion = img;
+            console.log('[junta] ✓ Visualización cargada desde archivo');
+          };
+          img.src = `data:image/jpeg;base64,${result.imagen_visualizacion}`;
           console.log('[junta] 💡 Haz click en la imagen para ver el overlay');
         } else {
           console.log('[junta] ℹ️ No hay visualización guardada');
@@ -1214,15 +1649,45 @@
             document.getElementById('cantidadMuescas').value = junta.cantidad_muescas;
           }
           
-          // Extraer coordenadas de la primera muesca desde centros_muescas
-          if (junta.centros_muescas && junta.centros_muescas.length > 0) {
-            const primerCentro = junta.centros_muescas[0].centro_mm;
-            document.getElementById('muescaX').value = primerCentro[0];
-            document.getElementById('muescaY').value = primerCentro[1];
+          // Inicializar manager de parámetros
+          parametrosManager.inicializar(junta);
+          
+          // Controlar estado de los controles según parametrización
+          if (parametrosManager.estaParametrizada()) {
+            // Junta parametrizada - habilitar controles y cargar datos
+            parametrosManager.habilitarControlesEdicion();
+            
+            // Las coordenadas de muescas se cargan directamente desde junta.muesca_x/muesca_y
+            // (comentado para evitar conflictos con la carga directa)
+            /*
+            const coordenadas = parametrosManager.getCoordenadasMuescas();
+            if (coordenadas.length > 0) {
+              document.getElementById('muescaX').value = coordenadas[0][0].toFixed(2);
+              document.getElementById('muescaY').value = coordenadas[0][1].toFixed(2);
+            }
+            */
+          } else {
+            // Junta no parametrizada - deshabilitar controles
+            parametrosManager.deshabilitarControlesEdicion();
+            
+            // Solo permitir fallback para coordenadas si existen
+            if (junta.centros_muescas && junta.centros_muescas.length > 0) {
+              const primerCentro = junta.centros_muescas[0].centro_mm;
+              document.getElementById('muescaX').value = primerCentro[0];
+              document.getElementById('muescaY').value = primerCentro[1];
+            }
           }
           
           if (junta.muescas_vertical !== undefined) {
             document.getElementById('muescasVertical').checked = junta.muescas_vertical;
+          }
+          
+          // Cargar coordenadas de muescas directamente desde la junta (como los labels)
+          if (junta.muesca_x !== undefined && junta.muesca_x !== null) {
+            document.getElementById('muescaX').value = junta.muesca_x;
+          }
+          if (junta.muesca_y !== undefined && junta.muesca_y !== null) {
+            document.getElementById('muescaY').value = junta.muesca_y;
           }
           
           // Actualizar estado de campos de muescas
@@ -1261,37 +1726,43 @@
             document.getElementById('loteVertical').checked = junta.lote_vertical;
           }
           
-          // Mostrar imagen si existe
-          if (junta.imagen) {
-            // Guardar URL de la imagen original
-            imagenOriginalUrl = `/imagenes_juntas/${junta.imagen}`;
+          // Cargar imágenes para el sistema de canvas
+          if (junta.nombre) {
+            // Cargar imagen original
+            const imagenOriginalUrl = `/juntas_analisis/${junta.nombre}/${junta.nombre}.jpg`;
+            const imagenVisualizacionUrl = `/juntas_analisis/${junta.nombre}/${junta.nombre}_visualizacion.jpg`;
             
-            document.getElementById('imagenPreviewImg').src = imagenOriginalUrl;
-            document.getElementById('imagenPreview').style.display = 'block';
-            document.getElementById('imagenPlaceholder').style.display = 'none';
+            // Cargar imagen original
+            const imgOriginal = new Image();
+            imgOriginal.onload = function() {
+              imagenOriginal = imgOriginal;
+              console.log('[canvas] ✓ Imagen original cargada');
+              
+              // Inicializar canvas y mostrar imagen original
+              inicializarCanvas();
+              actualizarCanvas();
+              
+              document.getElementById('imagenPreview').style.display = 'block';
+              document.getElementById('imagenPlaceholder').style.display = 'none';
+            };
+            imgOriginal.src = imagenOriginalUrl;
             
-            // Construir URL de la imagen de visualización coloreada
-            const juntaNombre = junta.nombre;
-            imagenVisualizacionUrl = `/juntas_analisis/${juntaNombre}_visualizacion.jpg`;
-            
-            // Verificar si la imagen de visualización existe (hacer un HEAD request)
-            fetch(imagenVisualizacionUrl, { method: 'HEAD' })
-              .then(response => {
-                if (response.ok) {
-                  console.log('[junta] ✓ Imagen de visualización encontrada');
-                } else {
-                  console.log('[junta] ℹ️ Imagen de visualización no disponible aún');
-                  imagenVisualizacionUrl = null;
-                }
-              })
-              .catch(() => {
-                console.log('[junta] ℹ️ Imagen de visualización no disponible');
-                imagenVisualizacionUrl = null;
-              });
+            // Cargar imagen de visualización (opcional)
+            const imgVisualizacion = new Image();
+            imgVisualizacion.onload = function() {
+              imagenVisualizacion = imgVisualizacion;
+              console.log('[canvas] ✓ Imagen de visualización cargada');
+            };
+            imgVisualizacion.onerror = function() {
+              console.log('[canvas] ℹ️ Imagen de visualización no disponible');
+              imagenVisualizacion = null;
+            };
+            imgVisualizacion.src = imagenVisualizacionUrl;
             
             // Mostrar botón Parametrizar si hay imagen y estamos en modo edición
-            if (mode === 'edit') {
-              document.getElementById('parametrizarBtn').style.display = 'flex';
+            const parametrizarBtn = document.getElementById('parametrizarBtn');
+            if (parametrizarBtn) {
+              parametrizarBtn.style.display = mode === 'edit' ? 'flex' : 'none';
             }
             
             // Cargar visualización y análisis si existe
@@ -1367,9 +1838,21 @@
             
             // Ocultar botones de acción
             document.getElementById('selectImageBtn').style.display = 'none';
-            document.getElementById('parametrizarBtn').style.display = 'none';
-            document.getElementById('submitBtn').style.display = 'none';
+            const parametrizarBtn = document.getElementById('parametrizarBtn');
+            if (parametrizarBtn) {
+              parametrizarBtn.style.display = 'none';
+            }
+            const submitBtn = document.getElementById('submitBtn');
+            if (submitBtn) {
+              submitBtn.style.display = 'none';
+            }
           }
+        }
+        
+        // Controlar visibilidad del botón Parametrizar
+        const parametrizarBtn = document.getElementById('parametrizarBtn');
+        if (parametrizarBtn) {
+          parametrizarBtn.style.display = mode === 'edit' ? 'flex' : 'none';
         }
       } catch (e) {
         console.error('Error cargando junta:', e);
@@ -1392,9 +1875,35 @@
       
       const nombreCompuesto = `${nombre}-${modelo}-${version}`;
       
+      // Generar imagen de overlay desde el canvas (solo si estamos mostrando imagen original)
+      let imagenOverlayBase64 = null;
+      if (canvas && ctx && !mostrandoVisualizacion) {
+        // Asegurarse de que el canvas tenga la imagen original + elementos
+        actualizarCanvas();
+        
+        // Capturar el canvas como imagen
+        imagenOverlayBase64 = canvas.toDataURL('image/jpeg', 0.9);
+        console.log('[guardar] ✓ Imagen de overlay capturada desde canvas');
+      }
+      
       // Crear FormData para enviar archivo
       const formData = new FormData();
       formData.append('nombre', nombreCompuesto);
+      
+      // Agregar imagen de overlay si se generó
+      if (imagenOverlayBase64) {
+        // Convertir DataURL a Blob
+        const base64Data = imagenOverlayBase64.split(',')[1]; // Extraer solo la parte base64
+        const byteString = atob(base64Data);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: 'image/jpeg' });
+        formData.append('imagen_overlay', blob, `${nombreCompuesto}_overlay.jpg`);
+        console.log('[guardar] ✓ Imagen de overlay preparada para enviar');
+      }
       
       // Agregar datos adicionales (muescas y textos)
       const cantidadMuescas = document.getElementById('cantidadMuescas').value;
@@ -1434,28 +1943,26 @@
       formData.append('loteY', loteY || '0');
       formData.append('loteVertical', loteVertical ? 'true' : 'false');
       
-      // Si hay imagen procesada (fondo negro), usarla; si no, usar la original
-      if (imagenFondoNegro) {
-        // Convertir base64 a Blob
-        const byteString = atob(imagenFondoNegro);
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-          ia[i] = byteString.charCodeAt(i);
-        }
-        const blob = new Blob([ab], { type: 'image/jpeg' });
-        formData.append('imagen', blob, `${nombreCompuesto}.jpg`);
-      } else {
-        const imagenFile = document.getElementById('imagen').files[0];
-        if (imagenFile) {
-          formData.append('imagen', imagenFile);
-        }
+      // Usar la imagen original si hay archivo seleccionado, sino el servidor ya tiene la imagen
+      const imagenFile = document.getElementById('imagen').files[0];
+      if (imagenFile) {
+        formData.append('imagen', imagenFile);
       }
+      // Si no hay archivo nuevo, el servidor mantendrá la imagen existente
       
       // Si hay datos de análisis, incluirlos
       if (datosAnalisis) {
         formData.append('analisis', JSON.stringify(datosAnalisis));
         console.log('[junta] Incluyendo datos de análisis en la junta');
+      }
+      
+      // Agregar px_mm y parametros_proporcionales desde el manager
+      if (parametrosManager.junta && parametrosManager.estaParametrizada()) {
+        formData.append('px_mm', parametrosManager.px_mm.toString());
+        if (parametrosManager.parametros_proporcionales) {
+          formData.append('parametros_proporcionales', JSON.stringify(parametrosManager.parametros_proporcionales));
+        }
+        console.log('[junta] Incluyendo px_mm:', parametrosManager.px_mm);
       }
       
       try {

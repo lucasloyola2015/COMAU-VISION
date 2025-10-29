@@ -317,8 +317,8 @@ def _dibujar_linea_offset(frame, datos_aruco, primera_muesca, linea_referencia):
             config = json.load(f)
         
         aruco_config = config.get('aruco', {})
-        center_x_mm = aruco_config.get('center_x_mm', 0)
-        center_y_mm = aruco_config.get('center_y_mm', 0)
+        center_x_mm = aruco_config.get('troqueladora_center_x_mm', 0)
+        center_y_mm = aruco_config.get('troqueladora_center_y_mm', 0)
         
         # Calcular center_troquel en sistema del ArUco (sin rotación)
         center_troquel = np.array([

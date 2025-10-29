@@ -388,8 +388,8 @@ def save_aruco_configuration(overlay_manager, cv2_frame, aruco_config):
     
     # Crear centro del troquel si está habilitado
     if aruco_config.get('show_center', False):
-        center_x = aruco_config.get('base', {}).get('center_x_mm', 0.0)
-        center_y = aruco_config.get('base', {}).get('center_y_mm', 0.0)
+        center_x = aruco_config.get('base', {}).get('troqueladora_center_x_mm', 0.0)
+        center_y = aruco_config.get('base', {}).get('troqueladora_center_y_mm', 0.0)
         create_center_reference(overlay_manager, center_x, center_y, base_detected, base_detected)
         objects_to_save.append("center_circle")
         print(f"[ArUcoManager] ✓ Centro del troquel creado")

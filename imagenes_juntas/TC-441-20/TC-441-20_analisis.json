@@ -1,0 +1,665 @@
+{
+  "agujeros": [
+    {
+      "area_mm2": 6.175000000000002,
+      "area_px": 617.5,
+      "centroide_px": [
+        779.1908232118758,
+        323.68933873144397
+      ],
+      "circularity": 90.36025271085056,
+      "clasificacion": "Redondo Chico",
+      "id": 1,
+      "perimeter_mm": 9.266904652118683,
+      "perimeter_px": 92.66904652118683
+    },
+    {
+      "area_mm2": 6.145000000000001,
+      "area_px": 614.5,
+      "centroide_px": [
+        574.1673447247084,
+        323.7602386764307
+      ],
+      "circularity": 89.92125506899038,
+      "clasificacion": "Redondo Chico",
+      "id": 2,
+      "perimeter_mm": 9.266904675960541,
+      "perimeter_px": 92.66904675960541
+    },
+    {
+      "area_mm2": 6.130000000000001,
+      "area_px": 613,
+      "centroide_px": [
+        369.10277324632955,
+        323.6775421424687
+      ],
+      "circularity": 90.84665992536992,
+      "clasificacion": "Redondo Chico",
+      "id": 3,
+      "perimeter_mm": 9.208326017856598,
+      "perimeter_px": 92.08326017856598
+    },
+    {
+      "area_mm2": 6.175000000000002,
+      "area_px": 617.5,
+      "centroide_px": [
+        163.75006747638324,
+        323.75006747638326
+      ],
+      "circularity": 90.36025247837203,
+      "clasificacion": "Redondo Chico",
+      "id": 4,
+      "perimeter_mm": 9.266904664039613,
+      "perimeter_px": 92.66904664039612
+    },
+    {
+      "area_mm2": 9.445000000000002,
+      "area_px": 944.5,
+      "centroide_px": [
+        840.637727192518,
+        300.35433209811185
+      ],
+      "circularity": 90.04165068927368,
+      "clasificacion": "Redondo Chico",
+      "id": 5,
+      "perimeter_mm": 11.481118226051331,
+      "perimeter_px": 114.8111822605133
+    },
+    {
+      "area_mm2": 4.380000000000001,
+      "area_px": 438,
+      "centroide_px": [
+        744.769406392694,
+        294.6023592085236
+      ],
+      "circularity": 89.48687556967445,
+      "clasificacion": "Redondo Chico",
+      "id": 6,
+      "perimeter_mm": 7.842640626430512,
+      "perimeter_px": 78.42640626430511
+    },
+    {
+      "area_mm2": 4.370000000000001,
+      "area_px": 437,
+      "centroide_px": [
+        539.754004576659,
+        294.63806254767354
+      ],
+      "circularity": 89.28256763458387,
+      "clasificacion": "Redondo Chico",
+      "id": 7,
+      "perimeter_mm": 7.842640626430512,
+      "perimeter_px": 78.42640626430511
+    },
+    {
+      "area_mm2": 4.355,
+      "area_px": 435.5,
+      "centroide_px": [
+        334.608113279755,
+        294.62724837351703
+      ],
+      "circularity": 89.52923124300806,
+      "clasificacion": "Redondo Chico",
+      "id": 8,
+      "perimeter_mm": 7.818376564979554,
+      "perimeter_px": 78.18376564979553
+    },
+    {
+      "area_mm2": 4.375000000000001,
+      "area_px": 437.5,
+      "centroide_px": [
+        129.64533333333333,
+        294.66438095238095
+      ],
+      "circularity": 89.94038729923312,
+      "clasificacion": "Redondo Chico",
+      "id": 9,
+      "perimeter_mm": 7.818376564979554,
+      "perimeter_px": 78.18376564979553
+    },
+    {
+      "area_mm2": 4.370000000000001,
+      "area_px": 437,
+      "centroide_px": [
+        803.4439359267734,
+        288.14988558352405
+      ],
+      "circularity": 91.19908436178608,
+      "clasificacion": "Redondo Chico",
+      "id": 10,
+      "perimeter_mm": 7.75979791879654,
+      "perimeter_px": 77.5979791879654
+    },
+    {
+      "area_mm2": 11.800000000000002,
+      "area_px": 1180,
+      "centroide_px": [
+        672.7135593220339,
+        285
+      ],
+      "circularity": 90.18696570365675,
+      "clasificacion": "Redondo Chico",
+      "id": 11,
+      "perimeter_mm": 12.822539567947388,
+      "perimeter_px": 128.22539567947388
+    },
+    {
+      "area_mm2": 4.415000000000001,
+      "area_px": 441.5,
+      "centroide_px": [
+        618.8656096640241,
+        278.117402793507
+      ],
+      "circularity": 88.86942053338812,
+      "clasificacion": "Redondo Chico",
+      "id": 12,
+      "perimeter_mm": 7.90121922492981,
+      "perimeter_px": 79.0121922492981
+    },
+    {
+      "area_mm2": 11.810000000000002,
+      "area_px": 1181,
+      "centroide_px": [
+        467.5939881456393,
+        284.9796782387807
+      ],
+      "circularity": 90.26339550344214,
+      "clasificacion": "Redondo Chico",
+      "id": 13,
+      "perimeter_mm": 12.82253955602646,
+      "perimeter_px": 128.2253955602646
+    },
+    {
+      "area_mm2": 4.400000000000001,
+      "area_px": 440,
+      "centroide_px": [
+        413.84734848484845,
+        278.06363636363636
+      ],
+      "circularity": 89.89549307956524,
+      "clasificacion": "Redondo Chico",
+      "id": 14,
+      "perimeter_mm": 7.842640554904938,
+      "perimeter_px": 78.42640554904938
+    },
+    {
+      "area_mm2": 11.830000000000002,
+      "area_px": 1183,
+      "centroide_px": [
+        262.57945900253594,
+        284.99070160608625
+      ],
+      "circularity": 90.41625476763086,
+      "clasificacion": "Redondo Chico",
+      "id": 15,
+      "perimeter_mm": 12.82253955602646,
+      "perimeter_px": 128.2253955602646
+    },
+    {
+      "area_mm2": 4.370000000000001,
+      "area_px": 437,
+      "centroide_px": [
+        208.69412662090008,
+        278.0640732265446
+      ],
+      "circularity": 89.28256899169202,
+      "clasificacion": "Redondo Chico",
+      "id": 16,
+      "perimeter_mm": 7.842640566825867,
+      "perimeter_px": 78.42640566825867
+    },
+    {
+      "area_mm2": 6.445000000000001,
+      "area_px": 644.5,
+      "centroide_px": [
+        662.5559865528834,
+        237.12361003361778
+      ],
+      "circularity": 88.80737270528047,
+      "clasificacion": "Redondo Chico",
+      "id": 17,
+      "perimeter_mm": 9.549747347831726,
+      "perimeter_px": 95.49747347831726
+    },
+    {
+      "area_mm2": 6.480000000000001,
+      "area_px": 648,
+      "centroide_px": [
+        457.61188271604937,
+        237.13940329218104
+      ],
+      "circularity": 88.20422934013654,
+      "clasificacion": "Redondo Chico",
+      "id": 18,
+      "perimeter_mm": 9.60832600593567,
+      "perimeter_px": 96.08326005935669
+    },
+    {
+      "area_mm2": 6.480000000000001,
+      "area_px": 648,
+      "centroide_px": [
+        252.46296296296296,
+        237.14480452674894
+      ],
+      "circularity": 88.20422934013654,
+      "clasificacion": "Redondo Chico",
+      "id": 19,
+      "perimeter_mm": 9.60832600593567,
+      "perimeter_px": 96.08326005935669
+    },
+    {
+      "area_mm2": 9.525000000000002,
+      "area_px": 952.5,
+      "centroide_px": [
+        867.549956255468,
+        236.5357830271216
+      ],
+      "circularity": 90.80431006535927,
+      "clasificacion": "Redondo Chico",
+      "id": 20,
+      "perimeter_mm": 11.481118321418762,
+      "perimeter_px": 114.81118321418762
+    },
+    {
+      "area_mm2": 28.215000000000007,
+      "area_px": 2821.5,
+      "centroide_px": [
+        52.12144840215015,
+        253.87323527674403
+      ],
+      "circularity": 51.26867171232845,
+      "clasificacion": "Irregular",
+      "id": 21,
+      "perimeter_mm": 26.29777022600174,
+      "perimeter_px": 262.9777022600174
+    },
+    {
+      "area_mm2": 1.0050000000000001,
+      "area_px": 100.5,
+      "centroide_px": [
+        876.2023217247097,
+        205.60530679933663
+      ],
+      "circularity": 91.19726741177374,
+      "clasificacion": "Redondo Chico",
+      "id": 22,
+      "perimeter_mm": 3.7213202834129335,
+      "perimeter_px": 37.21320283412933
+    },
+    {
+      "area_mm2": 11.375000000000002,
+      "area_px": 1137.5,
+      "centroide_px": [
+        24.25054945054945,
+        156.57069597069597
+      ],
+      "circularity": 76.52810109125781,
+      "clasificacion": "Irregular",
+      "id": 23,
+      "perimeter_mm": 13.6669046998024,
+      "perimeter_px": 136.669046998024
+    },
+    {
+      "area_mm2": 0.9800000000000002,
+      "area_px": 98,
+      "centroide_px": [
+        662.5,
+        127.11224489795919
+      ],
+      "circularity": 91.79591789244597,
+      "clasificacion": "Redondo Chico",
+      "id": 24,
+      "perimeter_mm": 3.6627416372299195,
+      "perimeter_px": 36.627416372299194
+    },
+    {
+      "area_mm2": 1.0200000000000002,
+      "area_px": 102,
+      "centroide_px": [
+        457.54901960784315,
+        127.26143790849673
+      ],
+      "circularity": 89.71181866787063,
+      "clasificacion": "Redondo Chico",
+      "id": 25,
+      "perimeter_mm": 3.7798989295959475,
+      "perimeter_px": 37.79898929595947
+    },
+    {
+      "area_mm2": 1.0100000000000002,
+      "area_px": 101,
+      "centroide_px": [
+        252.5,
+        127.23432343234323
+      ],
+      "circularity": 88.8322910338719,
+      "clasificacion": "Redondo Chico",
+      "id": 26,
+      "perimeter_mm": 3.7798989295959475,
+      "perimeter_px": 37.79898929595947
+    },
+    {
+      "area_mm2": 6.435000000000001,
+      "area_px": 643.5,
+      "centroide_px": [
+        867.6236726236725,
+        100.92644392644392
+      ],
+      "circularity": 90.22822447632946,
+      "clasificacion": "Redondo Chico",
+      "id": 27,
+      "perimeter_mm": 9.466904628276826,
+      "perimeter_px": 94.66904628276825
+    },
+    {
+      "area_mm2": 6.455000000000001,
+      "area_px": 645.5,
+      "centroide_px": [
+        662.5411825458301,
+        100.79524916085721
+      ],
+      "circularity": 88.94516537045547,
+      "clasificacion": "Redondo Chico",
+      "id": 28,
+      "perimeter_mm": 9.549747347831726,
+      "perimeter_px": 95.49747347831726
+    },
+    {
+      "area_mm2": 6.450000000000001,
+      "area_px": 645,
+      "centroide_px": [
+        457.4899224806202,
+        100.73488372093023
+      ],
+      "circularity": 89.97672735697805,
+      "clasificacion": "Redondo Chico",
+      "id": 29,
+      "perimeter_mm": 9.491168701648713,
+      "perimeter_px": 94.91168701648712
+    },
+    {
+      "area_mm2": 6.480000000000001,
+      "area_px": 648,
+      "centroide_px": [
+        252.49614197530863,
+        100.56481481481481
+      ],
+      "circularity": 90.39522217377716,
+      "clasificacion": "Redondo Chico",
+      "id": 30,
+      "perimeter_mm": 9.491168785095216,
+      "perimeter_px": 94.91168785095215
+    },
+    {
+      "area_mm2": 10.280000000000001,
+      "area_px": 1028,
+      "centroide_px": [
+        27.104734111543447,
+        100.98492217898833
+      ],
+      "circularity": 90.6183972754293,
+      "clasificacion": "Redondo Chico",
+      "id": 31,
+      "perimeter_mm": 11.939696872234345,
+      "perimeter_px": 119.39696872234344
+    },
+    {
+      "area_mm2": 280.82000000000005,
+      "area_px": 28082,
+      "centroide_px": [
+        765.0203511145929,
+        172.56792607364147
+      ],
+      "circularity": 89.82605520042341,
+      "clasificacion": "Redondo Grande",
+      "id": 32,
+      "perimeter_mm": 62.67838326692581,
+      "perimeter_px": 626.7838326692581
+    },
+    {
+      "area_mm2": 280.78000000000003,
+      "area_px": 28078,
+      "centroide_px": [
+        560.0095804544483,
+        172.5558800484365
+      ],
+      "circularity": 89.81326047986717,
+      "clasificacion": "Redondo Grande",
+      "id": 33,
+      "perimeter_mm": 62.678383231163025,
+      "perimeter_px": 626.7838323116302
+    },
+    {
+      "area_mm2": 280.6600000000001,
+      "area_px": 28066,
+      "centroide_px": [
+        354.9680039905936,
+        172.55814864961164
+      ],
+      "circularity": 90.25139024146421,
+      "clasificacion": "Redondo Grande",
+      "id": 34,
+      "perimeter_mm": 62.5126978635788,
+      "perimeter_px": 625.126978635788
+    },
+    {
+      "area_mm2": 280.88000000000005,
+      "area_px": 28088,
+      "centroide_px": [
+        149.91330817430932,
+        172.57305610937055
+      ],
+      "circularity": 89.8452474349937,
+      "clasificacion": "Redondo Grande",
+      "id": 35,
+      "perimeter_mm": 62.67838326692581,
+      "perimeter_px": 626.7838326692581
+    },
+    {
+      "area_mm2": 1.0000000000000002,
+      "area_px": 100,
+      "centroide_px": [
+        840.625,
+        75.45
+      ],
+      "circularity": 91.93857199819351,
+      "clasificacion": "Redondo Chico",
+      "id": 36,
+      "perimeter_mm": 3.6970562219619754,
+      "perimeter_px": 36.97056221961975
+    },
+    {
+      "area_mm2": 11.855000000000002,
+      "area_px": 1185.5,
+      "centroide_px": [
+        640.2287361169689,
+        58.25362013215239
+      ],
+      "circularity": 90.26538649213892,
+      "clasificacion": "Redondo Chico",
+      "id": 37,
+      "perimeter_mm": 12.846803700923921,
+      "perimeter_px": 128.4680370092392
+    },
+    {
+      "area_mm2": 11.875000000000002,
+      "area_px": 1187.5,
+      "centroide_px": [
+        434.5859649122807,
+        58.31845614035087
+      ],
+      "circularity": 90.4176702242543,
+      "clasificacion": "Redondo Chico",
+      "id": 38,
+      "perimeter_mm": 12.846803605556488,
+      "perimeter_px": 128.46803605556488
+    },
+    {
+      "area_mm2": 11.795000000000002,
+      "area_px": 1179.5,
+      "centroide_px": [
+        230.09297725024726,
+        58.27907305355376
+      ],
+      "circularity": 89.80853948972374,
+      "clasificacion": "Redondo Chico",
+      "id": 39,
+      "perimeter_mm": 12.846803689002991,
+      "perimeter_px": 128.4680368900299
+    },
+    {
+      "area_mm2": 17.655000000000005,
+      "area_px": 1765.5,
+      "centroide_px": [
+        692.7436986689323,
+        50.8476352308128
+      ],
+      "circularity": 88.18922285935624,
+      "clasificacion": "Redondo Chico",
+      "id": 40,
+      "perimeter_mm": 15.861017167568207,
+      "perimeter_px": 158.61017167568207
+    },
+    {
+      "area_mm2": 17.735000000000003,
+      "area_px": 1773.5,
+      "centroide_px": [
+        487.6913823888732,
+        50.8325345362278
+      ],
+      "circularity": 87.67062806729321,
+      "clasificacion": "Redondo Chico",
+      "id": 41,
+      "perimeter_mm": 15.943859899044037,
+      "perimeter_px": 159.43859899044037
+    },
+    {
+      "area_mm2": 17.725000000000005,
+      "area_px": 1772.5,
+      "centroide_px": [
+        282.68048895157494,
+        50.819746121297605
+      ],
+      "circularity": 87.62119530639593,
+      "clasificacion": "Redondo Chico",
+      "id": 42,
+      "perimeter_mm": 15.943859815597534,
+      "perimeter_px": 159.43859815597534
+    },
+    {
+      "area_mm2": 17.685000000000002,
+      "area_px": 1768.5,
+      "centroide_px": [
+        77.64885496183206,
+        50.854679106587504
+      ],
+      "circularity": 88.33907763496292,
+      "clasificacion": "Redondo Chico",
+      "id": 43,
+      "perimeter_mm": 15.861017119884492,
+      "perimeter_px": 158.6101711988449
+    },
+    {
+      "area_mm2": 6.465000000000002,
+      "area_px": 646.5,
+      "centroide_px": [
+        736.666408868265,
+        39.97628254704821
+      ],
+      "circularity": 90.6488688794825,
+      "clasificacion": "Redondo Chico",
+      "id": 44,
+      "perimeter_mm": 9.466904628276826,
+      "perimeter_px": 94.66904628276825
+    },
+    {
+      "area_mm2": 6.460000000000001,
+      "area_px": 646,
+      "centroide_px": [
+        531.6068111455108,
+        39.976780185758514
+      ],
+      "circularity": 89.46812631946061,
+      "clasificacion": "Redondo Chico",
+      "id": 45,
+      "perimeter_mm": 9.525483298301697,
+      "perimeter_px": 95.25483298301697
+    },
+    {
+      "area_mm2": 6.4300000000000015,
+      "area_px": 643,
+      "centroide_px": [
+        326.58242612752724,
+        39.77993779160187
+      ],
+      "circularity": 89.69772907680708,
+      "clasificacion": "Redondo Chico",
+      "id": 46,
+      "perimeter_mm": 9.491168737411499,
+      "perimeter_px": 94.91168737411499
+    },
+    {
+      "area_mm2": 6.420000000000001,
+      "area_px": 642,
+      "centroide_px": [
+        121.47118380062305,
+        39.81464174454829
+      ],
+      "circularity": 89.5582302757545,
+      "clasificacion": "Redondo Chico",
+      "id": 47,
+      "perimeter_mm": 9.491168737411499,
+      "perimeter_px": 94.91168737411499
+    }
+  ],
+  "contorno_principal": {
+    "angulo_orientacion": 0.5855138245352245,
+    "area_mm2": 2966.1350000000007,
+    "area_px": 296613.5,
+    "bbox_height_mm": 35.2,
+    "bbox_height_px": 352,
+    "bbox_width_mm": 90.80000000000001,
+    "bbox_width_px": 908,
+    "centroide_mm": [
+      46.3598268808115,
+      16.74478377007608
+    ],
+    "centroide_px": [
+      463.59826880811494,
+      167.44783770076077
+    ],
+    "perimetro_mm": 250.1418387889862,
+    "perimetro_px": 2501.418387889862
+  },
+  "linea_referencia": {
+    "distancia_mm": 61.5107042961676,
+    "distancia_px": 615.107042961676,
+    "punto1_px": [
+      149.91330817430932,
+      172.57305610937055
+    ],
+    "punto2_px": [
+      765.0203511145929,
+      172.56792607364147
+    ],
+    "punto_medio_px": [
+      457.46682964445114,
+      172.57049109150603
+    ]
+  },
+  "momentos_hu": [
+    0.002338590453935257,
+    2.6132051592389205e-06,
+    8.746438823536115e-12,
+    3.3429014030737e-12,
+    1.7594728267530008e-23,
+    4.3168408628216466e-15,
+    4.14310051896346e-24
+  ],
+  "ok": true,
+  "parametros": {
+    "mm_por_pixel": 0.1,
+    "umbral_area_grande": 100,
+    "umbral_circularidad": 80
+  }
+}

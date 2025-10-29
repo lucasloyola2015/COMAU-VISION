@@ -164,6 +164,43 @@ curl -X PATCH "http://127.0.0.1:8000/config/" \
 }'
 ```
 
+**Ejemplo 3: Configurar coordenadas de la troqueladora y ArUcos**
+
+```bash
+curl -X PATCH "http://127.0.0.1:8000/config/" \
+-H "Content-Type: application/json" \
+-d '{
+    "aruco_config": {
+        "aruco_base_id": 23,
+        "aruco_base_size_mm": 70.0,
+        "aruco_tool_id": 4,
+        "aruco_tool_size_mm": 50.0
+    },
+    "troqueladora": {
+        "x_mm": -101,
+        "y_mm": -25,
+        "diametro_mm": 10
+    }
+}'
+```
+
+**Estructura de configuración para troqueladora:**
+
+| Clave | Tipo | Descripción |
+| :---- | :--- | :---------- |
+| `x_mm` | `number` | Coordenada X del centro de la troqueladora en milímetros (relativa al ArUco base) |
+| `y_mm` | `number` | Coordenada Y del centro de la troqueladora en milímetros (relativa al ArUco base) |
+| `diametro_mm` | `number` | Diámetro del círculo que representa el centro del troquel en milímetros |
+
+**Estructura de configuración para ArUcos:**
+
+| Clave | Tipo | Descripción |
+| :---- | :--- | :---------- |
+| `aruco_base_id` | `integer` | ID del marcador ArUco de la base |
+| `aruco_base_size_mm` | `number` | Tamaño del marcador ArUco base en milímetros |
+| `aruco_tool_id` | `integer` | ID del marcador ArUco de la herramienta |
+| `aruco_tool_size_mm` | `number` | Tamaño del marcador ArUco de la herramienta en milímetros |
+
 **Respuesta:**
 
 Si la actualización es exitosa, el servidor responderá con un código `200 OK` y el cuerpo de la respuesta será la **configuración completa y actualizada**.

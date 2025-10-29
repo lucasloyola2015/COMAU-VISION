@@ -378,8 +378,8 @@
           toolMarkerBitsSelect.value = config.aruco.tool?.marker_bits || 4;
           
           // Configuración general
-          centerXInput.value = config.aruco.base?.center_x_mm || 0;
-          centerYInput.value = config.aruco.base?.center_y_mm || 0;
+          centerXInput.value = config.aruco.base?.troqueladora_center_x_mm || 0;
+          centerYInput.value = config.aruco.base?.troqueladora_center_y_mm || 0;
           
           // Cargar checkboxes desde la estructura correcta
           chkShowFrame.checked = config.aruco.show_frame || config.aruco.base?.show_reference || false;
@@ -476,8 +476,8 @@
           tool_marker_bits: toolMarkerBits,
           
           // Configuración general
-          center_x_mm: centerX,
-          center_y_mm: centerY,
+          troqueladora_center_x_mm: centerX,
+          troqueladora_center_y_mm: centerY,
           show_frame: showFrame,
           show_tool: showTool,
           show_center: showCenter,
@@ -551,8 +551,8 @@
           tool_marker_bits: parseInt(toolMarkerBitsSelect.value),
           
           // Coordenadas del centro del troquel
-          center_x_mm: parseFloat(centerXInput.value),
-          center_y_mm: parseFloat(centerYInput.value),
+          troqueladora_center_x_mm: parseFloat(centerXInput.value),
+          troqueladora_center_y_mm: parseFloat(centerYInput.value),
           
           // Checkboxes de mostrar
           show_frame: chkShowFrame.checked,

@@ -6,6 +6,7 @@
   <title>Control</title>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/common.js"></script>
+  <script src="/static/js/parametros_manager.js"></script>
   <style>
     body {
       padding: 24px;
@@ -107,50 +108,78 @@
     </h2>
     
     <!-- Grid: Buscador + Miniatura -->
-    <div style="display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: start;">
-      <!-- Columna 1: Buscador -->
-      <div style="position: relative;">
-        <label for="selectorJunta" style="display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: var(--font-size-sm); font-weight: 500;">
-          Buscar Junta
-        </label>
-        <input 
-          type="text" 
-          id="selectorJunta" 
-          placeholder="🔍 Escribe para buscar..."
-          autocomplete="off"
-          style="
-            width: 100%;
-            padding: 10px 14px;
-            border: 1px solid var(--border);
-            border-radius: var(--radius-md);
+    <div style="display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: start;">
+      <!-- Columna 1: Buscador + Info -->
+      <div>
+        <div style="position: relative; margin-bottom: 16px;">
+          <label for="selectorJunta" style="display: block; margin-bottom: 6px; color: var(--text-secondary); font-size: var(--font-size-sm); font-weight: 500;">
+            Buscar Junta
+          </label>
+          <div style="position: relative;">
+            <input 
+              type="text" 
+              id="selectorJunta" 
+              placeholder="Escribe para buscar..."
+              autocomplete="off"
+              style="
+                width: 100%;
+                padding: 10px 14px 10px 40px;
+                border: 1px solid var(--border);
+                border-radius: var(--radius-md);
+                background: var(--surface);
+                color: var(--text-primary);
+                font-size: var(--font-size-md);
+                transition: all 0.2s ease;
+              "
+            >
+            <!-- Icono de lupa -->
+            <div style="
+              position: absolute;
+              left: 12px;
+              top: 50%;
+              transform: translateY(-50%);
+              color: var(--text-muted);
+              font-size: 16px;
+              pointer-events: none;
+            ">🔍</div>
+          </div>
+          <div id="sugerenciasJuntas" style="
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
             background: var(--surface);
-            color: var(--text-primary);
-            font-size: var(--font-size-md);
-            transition: all 0.2s ease;
-          "
-        >
-        <div id="sugerenciasJuntas" style="
-          position: absolute;
-          top: 100%;
-          left: 0;
-          right: 0;
-          background: var(--surface);
-          border: 1px solid var(--border);
-          border-top: none;
-          border-radius: 0 0 var(--radius-md) var(--radius-md);
-          max-height: 180px;
-          overflow-y: auto;
-          display: none;
-          z-index: 9999;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-          pointer-events: auto;
-        "></div>
+            border: 1px solid var(--border);
+            border-top: none;
+            border-radius: 0 0 var(--radius-md) var(--radius-md);
+            max-height: 180px;
+            overflow-y: auto;
+            display: none;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            pointer-events: auto;
+          "></div>
+        </div>
+        
+        <!-- Información de dimensiones y muescas -->
+        <div id="infoDimensionesMuescas" style="display: none; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-md);">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div>
+              <div style="color: var(--text-secondary); font-size: var(--font-size-sm); margin-bottom: 4px;">Dimensiones (mm)</div>
+              <div id="infoDimensiones" style="font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary);">-</div>
+            </div>
+            <div>
+              <div style="color: var(--text-secondary); font-size: var(--font-size-sm); margin-bottom: 4px;">Cantidad de Muescas</div>
+              <div id="infoCantidadMuescas" style="font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary);">-</div>
+            </div>
+          </div>
+        </div>
       </div>
       
-      <!-- Columna 2: Miniatura -->
-      <div id="miniaturaContainer" style="display: none;">
+      <!-- Columna 2: Solo Miniatura -->
+      <div id="miniaturaContainer" style="display: none; padding: 18px; background: var(--bg-secondary); border-radius: var(--radius-md);">
         <img id="miniaturaJunta" src="" alt="Junta" 
-             style="width: 240px; height: 180px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #000; cursor: pointer; transition: transform 0.2s ease;"
+             style="width: 360px; height: 270px; object-fit: contain; border: 1px solid var(--border); border-radius: var(--radius-sm); background: #000; cursor: pointer; transition: transform 0.2s ease;"
              onmouseover="this.style.transform='scale(1.05)'"
              onmouseout="this.style.transform='scale(1)'">
       </div>
@@ -185,27 +214,6 @@
           <td id="obtenidoDistancia" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
           <td id="aciertoDistancia" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
           <td id="resultadoDistancia" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-        </tr>
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 6px 8px; color: var(--text-primary);">Centros</td>
-          <td id="esperadoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="obtenidoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="aciertoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="resultadoCentros" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-        </tr>
-        <tr style="border-bottom: 1px solid var(--border);">
-          <td style="padding: 6px 8px; color: var(--text-primary);">Colinealidad</td>
-          <td id="esperadoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="obtenidoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="aciertoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="resultadoColinealidad" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-        </tr>
-        <tr>
-          <td style="padding: 6px 8px; color: var(--text-primary);">Espaciado</td>
-          <td id="esperadoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="obtenidoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="aciertoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
-          <td id="resultadoEspaciado" style="text-align: center; padding: 6px 8px; color: var(--text-primary);">-</td>
         </tr>
       </tbody>
     </table>
@@ -245,27 +253,14 @@
     
   </div>
   
-  <!-- Card de Información Adicional -->
+  <!-- Card de Información Muescas -->
   <div class="card" id="infoAdicionalCard" style="margin-top: 16px; display: none;">
     <h2 style="font-size: var(--font-size-xl); margin-bottom: 12px; font-weight: 600; color: var(--text-primary);">
-      Información Adicional
+      Información Muescas
     </h2>
-    
-    <!-- Dimensiones y Cantidad de Muescas -->
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-      <div>
-        <div style="color: var(--text-secondary); font-size: var(--font-size-sm);">Dimensiones (mm)</div>
-        <div id="infoDimensiones" style="font-size: var(--font-size-lg); font-weight: 600; color: var(--text-primary);">-</div>
-      </div>
-      <div>
-        <div style="color: var(--text-secondary); font-size: var(--font-size-sm);">Cantidad de Muescas</div>
-        <div id="infoCantidadMuescas" style="font-size: var(--font-size-lg); font-weight: 600; color: var(--text-primary);">-</div>
-      </div>
-    </div>
     
     <!-- Coordenadas de Muescas -->
     <div id="infoMuescasContainer" style="display: none;">
-      <h3 style="font-size: var(--font-size-md); margin-top: 16px; margin-bottom: 8px; color: var(--text-primary);">Coordenadas de Muescas (mm)</h3>
       <table id="tablaMuescas" style="width: 100%; border-collapse: collapse; font-size: var(--font-size-sm);">
         <thead>
           <tr style="border-bottom: 2px solid var(--border);">
@@ -295,6 +290,117 @@
     let todasLasJuntas = [];
     let sugerenciaSeleccionadaIndex = -1;
     
+    // ============================================================
+    // CONFIGURACIÓN DEL SERVIDOR DE VISIÓN
+    // ============================================================
+    
+    async function configurarServidorVision(junta) {
+      try {
+        console.log('[control] 🔧 Configurando servidor de visión para junta:', junta.nombre);
+        
+        // Inicializar el manager de parámetros
+        parametrosManager.inicializar(junta);
+        
+        // Preparar lista de muescas usando el manager
+        let listaMuescas = [];
+        if (parametrosManager.estaParametrizada()) {
+          const coordenadas = parametrosManager.getCoordenadasMuescas();
+          listaMuescas = coordenadas.map(coord => ({
+            x: Math.round(-coord[0]),  // Redondear a entero y cambiar signo
+            y: Math.round(-coord[1])   // Redondear a entero y cambiar signo
+          }));
+        }
+        
+        // Preparar ROI usando el manager
+        const dimensiones = parametrosManager.getDimensionesROI();
+        
+        console.log('[control] 🔍 DEBUG - Dimensiones calculadas:', dimensiones);
+        
+        // Cargar configuración de ROI desde el sistema de visión
+        let roiOffsetX = 0;
+        let roiOffsetY = 10; // Valor por defecto
+        let roiZoomX = 100;  // 100% por defecto
+        let roiZoomY = 100;  // 100% por defecto
+        
+        try {
+          const configResponse = await fetch('/api/vision/config');
+          const config = await configResponse.json();
+          
+          if (config.vision) {
+            roiOffsetX = config.vision.roi_offset_x_mm || 0;
+            roiOffsetY = config.vision.roi_offset_y_mm || 10;
+            roiZoomX = config.vision.roi_zoom_x_percent || 100;
+            roiZoomY = config.vision.roi_zoom_y_percent || 100;
+            
+            console.log('[control] 📐 Configuración ROI cargada:', {
+              offset_x: roiOffsetX,
+              offset_y: roiOffsetY,
+              zoom_x: roiZoomX,
+              zoom_y: roiZoomY
+            });
+          }
+        } catch (e) {
+          console.warn('[control] ⚠️ No se pudo cargar configuración ROI, usando valores por defecto');
+        }
+        
+        // Calcular dimensiones finales aplicando zoom
+        const widthFinal = Math.round((roiZoomX * dimensiones.width_mm) / 100);
+        const heightFinal = Math.round((roiZoomY * dimensiones.height_mm) / 100);
+        
+        const roiConfig = {
+          x_mm: roiOffsetX,
+          y_mm: roiOffsetY,
+          width_mm: widthFinal,
+          height_mm: heightFinal,
+          rotation: 0
+        };
+        
+        console.log('[control] 📍 Muescas a enviar:', listaMuescas.length);
+        console.log('[control] 📐 ROI a enviar:', roiConfig);
+        console.log('[control] 🔍 Dimensiones originales:', dimensiones);
+        console.log('[control] 🔍 Zoom aplicado:', { x: roiZoomX + '%', y: roiZoomY + '%' });
+        
+        // Enviar configuración al servidor de visión
+        const response = await fetch('/api/vision_server/configure', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lista_muescas_mm: listaMuescas,
+            roi_rectangulo: roiConfig
+          })
+        });
+        
+        const result = await response.json();
+        
+        if (result.ok) {
+          console.log('[control] ✅ Servidor de visión configurado exitosamente');
+        } else {
+          console.warn('[control] ⚠️ Error configurando servidor de visión:', result.error);
+        }
+        
+        // Configurar ROI en el servidor de visión usando la nueva función
+        try {
+          const roiResponse = await fetch('/api/vision_server/configure_roi', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          
+          const roiResult = await roiResponse.json();
+          
+          if (roiResult.ok) {
+            console.log('[control] ✅ Configuración de ROI aplicada en servidor de visión');
+          } else {
+            console.warn('[control] ⚠️ Error configurando ROI:', roiResult.mensaje);
+          }
+        } catch (e) {
+          console.warn('[control] ⚠️ Error configurando ROI:', e);
+        }
+        
+      } catch (e) {
+        console.error('[control] ❌ Error configurando servidor de visión:', e);
+      }
+    }
+
     // Cargar junta seleccionada
     async function cargarJuntaSeleccionada() {
       try {
@@ -323,7 +429,24 @@
       // Mostrar miniatura y actualizar buscador con nombre
       document.getElementById('sinJunta').style.display = 'none';
       document.getElementById('miniaturaContainer').style.display = 'block';
-      document.getElementById('miniaturaJunta').src = `/imagenes_juntas/${junta.imagen}`;
+      
+      // Cargar imagen con overlay para control.html
+      const overlayFilename = `${junta.nombre}_overlay.jpg`;
+      const overlayUrl = `/juntas_analisis/${junta.nombre}/${overlayFilename}`;
+      
+      // Intentar cargar imagen con overlay
+      const img = new Image();
+      img.onload = function() {
+        // Overlay existe, usarlo
+        document.getElementById('miniaturaJunta').src = overlayUrl;
+        console.log('[control] ✓ Imagen con overlay cargada:', overlayFilename);
+      };
+      img.onerror = function() {
+        // Overlay no existe, usar imagen original como fallback
+        document.getElementById('miniaturaJunta').src = `/juntas_analisis/${junta.nombre}/${junta.imagen}`;
+        console.log('[control] ⚠️ Overlay no encontrado, usando imagen original');
+      };
+      img.src = overlayUrl;
       
       // Mostrar nombre de la junta seleccionada en el buscador
       if (esSeleccionInicial) selectorJunta.value = junta.nombre;
@@ -353,6 +476,9 @@
       
       // Mostrar información de muescas
       mostrarInfoAdicional(junta);
+      
+      // Configurar servidor de visión con los datos de la junta
+      await configurarServidorVision(junta);
     }
     
     function mostrarMuescas(junta) {
@@ -378,11 +504,19 @@
       const infoCard = document.getElementById('infoAdicionalCard');
       infoCard.style.display = 'block';
 
-      // 1. Dimensiones de la junta
-      const contorno = junta.contorno_principal;
-      const ancho = contorno?.bbox_width_mm || 0;
-      const alto = contorno?.bbox_height_mm || 0;
-      document.getElementById('infoDimensiones').textContent = `${ancho.toFixed(1)} x ${alto.toFixed(1)} mm`;
+      // Mostrar información de dimensiones y muescas en la columna izquierda
+      const infoDimensionesMuescas = document.getElementById('infoDimensionesMuescas');
+      infoDimensionesMuescas.style.display = 'block';
+
+      // 1. Dimensiones de la junta (usando manager de parámetros)
+      parametrosManager.inicializar(junta);
+      if (parametrosManager.estaParametrizada()) {
+        const ancho = parametrosManager.get_valor('ancho_junta');
+        const alto = parametrosManager.get_valor('alto_junta');
+        document.getElementById('infoDimensiones').textContent = `${ancho.toFixed(1)} x ${alto.toFixed(1)} mm`;
+      } else {
+        document.getElementById('infoDimensiones').textContent = 'No parametrizada';
+      }
 
       // 2. Cantidad de muescas
       const cantidadMuescas = junta.cantidad_muescas || 0;
@@ -398,10 +532,13 @@
         muescasContainer.style.display = 'block';
         noMuescasMsg.style.display = 'none';
 
-        junta.centros_muescas.forEach(muesca => {
-          const [x, y] = muesca.centro_mm;
+        // Usar coordenadas calculadas dinámicamente
+        const coordenadasMuescas = parametrosManager.getCoordenadasMuescas();
+        coordenadasMuescas.forEach((coord, index) => {
+          const [x, y] = coord;
+          const muesca = junta.centros_muescas[index];
           // Obtener offsets si están disponibles, sino mostrar 0.0
-          const offset_x = muesca.offset_x !== undefined ? muesca.offset_x : 0.0;
+          const offset_x = muesca?.offset_x !== undefined ? muesca.offset_x : 0.0;
           const offset_y = muesca.offset_y !== undefined ? muesca.offset_y : 0.0;
           
           const row = `
@@ -438,17 +575,14 @@
         document.getElementById(`resultado${campo}`).textContent = '-';
       });
       
-      // Limpiar validaciones geométricas
-      document.getElementById('resultadosValidaciones').textContent = '-';
-      document.getElementById('resultadoValidacionesGlobal').textContent = '-';
-      
-      // Ocultar banner de estado
-      document.getElementById('bannerEstadoAnalisis').style.display = 'none';
       
       // Ocultar sección de muescas
       document.getElementById('muescasInfo').style.display = 'none';
       document.getElementById('sinMuescas').style.display = 'block';
       document.getElementById('sinMuescas').textContent = 'Selecciona una junta para ver sus muescas';
+
+      // Ocultar información de dimensiones y muescas
+      document.getElementById('infoDimensionesMuescas').style.display = 'none';
 
       // Ocultar card de información adicional
       document.getElementById('infoAdicionalCard').style.display = 'none';
@@ -745,68 +879,6 @@
           console.warn('[control] ⚠️ No hay junta seleccionada, no se actualiza tabla');
         }
         
-        // ═══════════════════════════════════════════════════════════════
-        // ACTUALIZAR VALIDACIONES GEOMÉTRICAS
-        // ═══════════════════════════════════════════════════════════════
-        if (data.validaciones_geometricas) {
-          const valGeo = data.validaciones_geometricas;
-          
-          console.log(`[control] → Actualizando Validaciones Geométricas`);
-          
-          // 1. CENTROS MÚLTIPLES
-          const centrosDivergencia = valGeo.centros_multiples.divergencia_mm;
-          const centrosUmbral = valGeo.centros_multiples.umbral_mm;
-          const centrosOk = valGeo.centros_multiples.ok;
-          
-          document.getElementById('esperadoCentros').textContent = `${centrosUmbral}mm`;
-          document.getElementById('obtenidoCentros').textContent = `${centrosDivergencia.toFixed(2)}mm`;
-          
-          const aciertoCentros = centrosOk ? 100 : 0;
-          document.getElementById('aciertoCentros').textContent = aciertoCentros + '%';
-          
-          const resultCentrosCell = document.getElementById('resultadoCentros');
-          resultCentrosCell.innerHTML = centrosOk ? '<span class="resultado-ok">✓</span>' : '<span class="resultado-error">✗</span>';
-          
-          // 2. COLINEALIDAD
-          const colinealidadDesviacion = valGeo.colinealidad.desviacion_maxima_mm;
-          const colinealidadUmbral = valGeo.colinealidad.umbral_mm;
-          const colinealidadOk = valGeo.colinealidad.ok;
-          
-          document.getElementById('esperadoColinealidad').textContent = `${colinealidadUmbral}mm`;
-          document.getElementById('obtenidoColinealidad').textContent = `${colinealidadDesviacion.toFixed(2)}mm`;
-          
-          const aciertoColinealidad = colinealidadOk ? 100 : 0;
-          document.getElementById('aciertoColinealidad').textContent = aciertoColinealidad + '%';
-          
-          const resultColinealidadCell = document.getElementById('resultadoColinealidad');
-          resultColinealidadCell.innerHTML = colinealidadOk ? '<span class="resultado-ok">✓</span>' : '<span class="resultado-error">✗</span>';
-          
-          // 3. ESPACIADO UNIFORME
-          const espaciadoCV = valGeo.espaciado_uniforme.coeficiente_variacion;
-          const espaciadoCVMax = valGeo.espaciado_uniforme.cv_maximo;
-          const espaciadoOk = valGeo.espaciado_uniforme.ok;
-          
-          document.getElementById('esperadoEspaciado').textContent = espaciadoCVMax.toFixed(3);
-          document.getElementById('obtenidoEspaciado').textContent = espaciadoCV.toFixed(3);
-          
-          const aciertoEspaciado = espaciadoOk ? 100 : 0;
-          document.getElementById('aciertoEspaciado').textContent = aciertoEspaciado + '%';
-          
-          const resultEspaciadoCell = document.getElementById('resultadoEspaciado');
-          resultEspaciadoCell.innerHTML = espaciadoOk ? '<span class="resultado-ok">✓</span>' : '<span class="resultado-error">✗</span>';
-          
-          console.log(`[control] ✓ Validaciones geométricas actualizadas`);
-        } else {
-          // Si no hay validaciones geométricas, mostrar "Pendiente" en las 3 filas
-          console.log(`[control] ⚠️ Validaciones geométricas pendientes (early return)`);
-          
-          ['Centros', 'Colinealidad', 'Espaciado'].forEach(campo => {
-            document.getElementById(`esperado${campo}`).textContent = '-';
-            document.getElementById(`obtenido${campo}`).textContent = 'Pendiente';
-            document.getElementById(`acierto${campo}`).textContent = '-';
-            document.getElementById(`resultado${campo}`).innerHTML = '<span style="color: var(--text-muted);">⏸</span>';
-          });
-        }
         
         // ═══════════════════════════════════════════════════════════════
         // ACTUALIZAR MUESCAS Y OFFSET VECTOR
@@ -916,9 +988,10 @@
         noMuescasMsg.style.display = 'none';
         tablaBody.innerHTML = ''; // Limpiar tabla
         
-        // Llenar tabla con datos de trayectoria
-        centrosMuescas.forEach(muesca => {
-          const [x, y] = muesca.centro_mm;
+        // Llenar tabla con datos de trayectoria (usando coordenadas calculadas)
+        const coordenadasMuescas = parametrosManager.getCoordenadasMuescas();
+        centrosMuescas.forEach((muesca, index) => {
+          const [x, y] = coordenadasMuescas[index] || [0, 0];
           const offset_x = muesca.offset_x || 0.0;
           const offset_y = muesca.offset_y || 0.0;
           

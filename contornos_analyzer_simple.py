@@ -1,15 +1,11 @@
 """
-Analizador de Contornos y Agujeros para Juntas
-==============================================
-
-Basado en detector_contornos.py
-Analiza formas, contornos y agujeros en imágenes de juntas.
+Analizador de contornos sin emojis para Windows
 """
 
 import cv2
 import numpy as np
 import math
-from typing import Dict, List, Tuple, Optional
+from typing import List, Dict, Tuple, Optional
 
 # ============================================================
 # PARÁMETROS FIJOS DE CLASIFICACIÓN
@@ -19,34 +15,17 @@ UMBRAL_AREA_GRANDE = 0.90  # Fracción del área máxima para clasificar como "G
 MM_POR_PIXEL_DEFAULT = 0.1 # Relación milímetros por píxel por defecto
 
 
-def calcular_angulo_orientacion(moments: Dict) -> float:
-    """Calcula el ángulo de orientación principal de la forma"""
-    try:
-        mu20 = moments['mu20']
-        mu02 = moments['mu02']
-        mu11 = moments['mu11']
-        
-        if mu20 == mu02:
-            angle = 0
-        else:
-            angle = 0.5 * math.atan2(2 * mu11, mu20 - mu02)
-        
-        return math.degrees(angle)
-    except:
-        return 0.0
-
-
 def pixeles_a_mm(pixeles: float, mm_por_pixel: float) -> float:
-    """Convierte una medida lineal de píxeles a milímetros (precisión 0.1mm)"""
-    return round(pixeles * mm_por_pixel, 1)
+    """Convierte píxeles a milímetros"""
+    return pixeles * mm_por_pixel
 
 
-def pixeles2_a_mm2(pixeles_cuadrados: float, mm_por_pixel: float) -> float:
-    """Convierte un área de píxeles² a milímetros² (precisión 0.1mm²)"""
-    return round(pixeles_cuadrados * (mm_por_pixel ** 2), 1)
+def pixeles2_a_mm2(pixeles2: float, mm_por_pixel: float) -> float:
+    """Convierte píxeles cuadrados a milímetros cuadrados"""
+    return pixeles2 * (mm_por_pixel ** 2)
 
 
-def calcular_centroide(contour) -> Optional[Tuple[int, int]]:
+def calcular_centroide(contour: np.ndarray) -> Optional[Tuple[float, float]]:
     """Calcula el centroide de un contorno"""
     M = cv2.moments(contour)
     if M['m00'] != 0:
@@ -76,27 +55,26 @@ def analizar_agujeros(holes: List, mm_por_pixel: float) -> List[Dict]:
                 ellipse = cv2.fitEllipse(hole)
                 (center, (MA, ma), angle_ellipse) = ellipse
                 
-                # Calcular relación de aspecto (aspect ratio)
-                # Círculo perfecto: MA ≈ ma → ratio ≈ 1
+                # Calcular circularidad basada en la elipse ajustada
                 if MA > 0 and ma > 0:
-                    aspect_ratio = min(MA, ma) / max(MA, ma)
-                    circularity_percentage = aspect_ratio * 100
+                    circularity = min(MA, ma) / max(MA, ma)
+                    circularity_percentage = circularity * 100
                 else:
                     circularity_percentage = 0
             except:
-                # Si falla fitEllipse, usar método tradicional
-                if perimeter == 0 or area == 0:
-                    circularity_percentage = 0
+                # Fallback al método simple si falla el ajuste de elipse
+                if perimeter > 0:
+                    circularity = 4 * math.pi * area / (perimeter * perimeter)
+                    circularity_percentage = circularity * 100
                 else:
-                    circularity = (4 * math.pi * area) / (perimeter * perimeter)
-                    circularity_percentage = min(circularity * 100, 100)
+                    circularity_percentage = 0
         else:
-            # Muy pocos puntos, usar método tradicional
-            if perimeter == 0 or area == 0:
-                circularity_percentage = 0
+            # Método simple para contornos con menos de 5 puntos
+            if perimeter > 0:
+                circularity = 4 * math.pi * area / (perimeter * perimeter)
+                circularity_percentage = circularity * 100
             else:
-                circularity = (4 * math.pi * area) / (perimeter * perimeter)
-                circularity_percentage = min(circularity * 100, 100)
+                circularity_percentage = 0
         
         # Calcular centroide
         centroide = calcular_centroide(hole)
@@ -160,23 +138,19 @@ def encontrar_agujeros_extremos(analisis_agujeros: List[Dict]) -> Tuple[Optional
     if len(centroides_con_datos) < 2:
         return None, None
     
-    # Encontrar los dos más extremos calculando todas las distancias
+    # Encontrar los dos puntos más extremos (mayor distancia entre ellos)
     max_distancia = 0
-    punto1 = None
-    punto2 = None
+    punto1, punto2 = None, None
     
     for i in range(len(centroides_con_datos)):
         for j in range(i + 1, len(centroides_con_datos)):
-            c1 = centroides_con_datos[i]['centroide']
-            c2 = centroides_con_datos[j]['centroide']
-            
-            # Calcular distancia euclidiana
-            distancia = np.sqrt((c2[0] - c1[0])**2 + (c2[1] - c1[1])**2)
+            p1 = centroides_con_datos[i]['centroide']
+            p2 = centroides_con_datos[j]['centroide']
+            distancia = math.sqrt((p2[0] - p1[0])**2 + (p2[1] - p1[1])**2)
             
             if distancia > max_distancia:
                 max_distancia = distancia
-                punto1 = c1
-                punto2 = c2
+                punto1, punto2 = p1, p2
     
     return punto1, punto2
 
@@ -196,99 +170,83 @@ def analizar_imagen_completa(img_fondo_blanco: np.ndarray, mm_por_pixel: float =
         if verbose:
             print("\n" + "=" * 80)
             if verbose:
-                print("ANÁLISIS DE CONTORNOS Y MOMENTOS DE HU")
+                print("ANALISIS DE CONTORNOS Y MOMENTOS DE HU")
             if verbose:
                 print("=" * 80)
         
         # === PASO 1: Convertir a binario ===
         if verbose:
-            print("\n[contornos] PASO 1: Binarización...")
+            print("\n[contornos] PASO 1: Binarizacion...")
         _, imagen_binaria = cv2.threshold(img_fondo_blanco, 127, 255, cv2.THRESH_BINARY_INV)
         if verbose:
-            print(f"[contornos] ✓ Imagen binarizada")
+            print(f"[contornos] OK Imagen binarizada")
         
-        # === PASO 2: Detectar contornos ===
+    # === PASO 2: Detectar contornos ===
+    if verbose:
+        print("\n[contornos] PASO 2: Deteccion de contornos...")
+    contours, hierarchy = cv2.findContours(imagen_binaria, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    
+    if not contours:
         if verbose:
-            print("\n[contornos] PASO 2: Detección de contornos...")
-        contours, _ = cv2.findContours(imagen_binaria, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        
-        if not contours:
+            print("[contornos] WARNING: No se detectaron contornos")
+        return {'ok': False, 'error': 'No se detectaron contornos'}
+    
+    if verbose:
+        print(f"[contornos] OK {len(contours)} contornos detectados")
+    
+    # === PASO 3: Identificar contorno principal (el de mayor área) ===
+    if verbose:
+        print("\n[contornos] PASO 3: Identificando contorno principal...")
+    
+    # Encontrar el contorno de mayor área (contorno principal)
+    main_contour_idx = 0
+    max_area = 0
+    for i, contour in enumerate(contours):
+        area = cv2.contourArea(contour)
+        if area > max_area:
+            max_area = area
+            main_contour_idx = i
+    
+    main_contour = contours[main_contour_idx]
+    main_area_px = cv2.contourArea(main_contour)
+    main_perimeter_px = cv2.arcLength(main_contour, True)
+    
+    # Calcular bounding box del contorno principal
+    x, y, w, h = cv2.boundingRect(main_contour)
+    bbox_width_px = w
+    bbox_height_px = h
+    
+    if verbose:
+        print(f"[contornos] OK Contorno principal: Area={main_area_px:.2f} px², Perimetro={main_perimeter_px:.2f} px")
+        print(f"[contornos]   Bounding Box: {bbox_width_px}x{bbox_height_px} px")
+    
+    # === PASO 4: Identificar agujeros (hijos del contorno principal) ===
+    if verbose:
+        print("\n[contornos] PASO 4: Identificando agujeros por jerarquia...")
+    
+    holes = []
+    
+    # Buscar agujeros como hijos del contorno principal
+    first_child = hierarchy[0][main_contour_idx][2]  # Primer hijo
+    
+    if verbose:
+        print(f"[contornos] Primer hijo del contorno principal: {first_child}")
+    
+    if first_child != -1:
+        child_idx = first_child
+        while child_idx != -1:
+            area = cv2.contourArea(contours[child_idx])
             if verbose:
-                print("[contornos] ⚠️ No se detectaron contornos")
-            return {'ok': False, 'error': 'No se detectaron contornos'}
-        
-        if verbose:
-            print(f"[contornos] ✓ {len(contours)} contornos detectados")
-        
-        # === PASO 3: Ordenar contornos por área (de mayor a menor) ===
-        if verbose:
-            print("\n[contornos] PASO 3: Ordenando contornos por área...")
-        
-        # Crear lista de (índice, área) y ordenar por área descendente
-        contour_areas = [(i, cv2.contourArea(contour)) for i, contour in enumerate(contours)]
-        contour_areas.sort(key=lambda x: x[1], reverse=True)
-        
-        if verbose:
-            print(f"[contornos] ✓ Contornos ordenados por área")
-            for i, (idx, area) in enumerate(contour_areas[:5]):  # Mostrar solo los 5 primeros
-                print(f"[contornos]   {i+1}. Contorno {idx}: {area:.1f} px²")
-        
-        # === PASO 4: Identificar contorno principal (el de mayor área) ===
-        if verbose:
-            print("\n[contornos] PASO 4: Identificando contorno principal...")
-        
-        main_contour_idx = contour_areas[0][0]
-        main_contour = contours[main_contour_idx]
-        main_area_px = cv2.contourArea(main_contour)
-        main_perimeter_px = cv2.arcLength(main_contour, True)
-        
-        # Calcular bounding box del contorno principal
-        x, y, w, h = cv2.boundingRect(main_contour)
-        bbox_width_px = w
-        bbox_height_px = h
-        
-        if verbose:
-            print(f"[contornos] ✓ Contorno principal: Área={main_area_px:.2f} px², Perímetro={main_perimeter_px:.2f} px")
-            if verbose:
-                print(f"[contornos]   Bounding Box: {bbox_width_px}x{bbox_height_px} px")
-        
-        # === PASO 5: Identificar agujeros (contornos siguientes por área) ===
-        if verbose:
-            print("\n[contornos] PASO 5: Identificando agujeros por área...")
-        
-        holes = []
-        
-        # Verificar que hay al menos 2 contornos
-        if len(contour_areas) < 2:
-            if verbose:
-                print("[contornos] ⚠️ Solo hay un contorno, no se pueden detectar agujeros")
-        else:
-            # El segundo contorno de mayor área define el umbral para agujeros grandes
-            segundo_area = contour_areas[1][1]  # Área del segundo contorno
-            umbral_area_agujero = segundo_area * 0.90  # 90% del segundo contorno
-            
-            if verbose:
-                print(f"[contornos] Área principal (1º): {main_area_px:.1f} px²")
-                print(f"[contornos] Área 2º contorno: {segundo_area:.1f} px²")
-                print(f"[contornos] Umbral para agujeros grandes: {umbral_area_agujero:.1f} px² (90% del 2º)")
-            
-            # Buscar contornos que sean agujeros (todos excepto el principal)
-            for i, (idx, area) in enumerate(contour_areas[1:], 1):  # Saltar el primero (ya es el principal)
-                if area >= umbral_area_agujero:
-                    holes.append(contours[idx])
-                    if verbose:
-                        print(f"[contornos]   Agujero {len(holes)}: contorno {idx}, área {area:.1f} px² (GRANDE)")
-                else:
-                    if verbose:
-                        print(f"[contornos]   Contorno {idx} muy pequeño ({area:.1f} px²), ignorando")
-                    break  # Los siguientes serán aún más pequeños
-        
-        if verbose:
-            print(f"[contornos] ✓ {len(holes)} agujeros detectados")
-        
-        # === PASO 6: Calcular momentos invariantes de Hu ===
-        if verbose:
-            print("\n[contornos] PASO 6: Calculando momentos de Hu...")
+                print(f"[contornos]   Agujero {len(holes)+1}: contorno {child_idx}, area {area:.1f} px²")
+            holes.append(contours[child_idx])
+            child_idx = hierarchy[0][child_idx][0]  # Siguiente hermano
+    
+    if verbose:
+        print(f"[contornos] OK {len(holes)} agujeros detectados")
+    
+    # === PASO 5: Calcular momentos invariantes de Hu ===
+    if verbose:
+        print("\n[contornos] PASO 5: Calculando momentos de Hu...")
         # Crear máscara de la forma (contorno principal - agujeros)
         mask = np.zeros(img_fondo_blanco.shape, dtype=np.uint8)
         cv2.fillPoly(mask, [main_contour], 255)
@@ -298,32 +256,24 @@ def analizar_imagen_completa(img_fondo_blanco: np.ndarray, mm_por_pixel: float =
         
         # Calcular momentos
         moments = cv2.moments(mask)
-        
-        if moments['m00'] == 0:
-            if verbose:
-                print("[contornos] ⚠️ No se pudieron calcular los momentos")
-            return {'ok': False, 'error': 'No se pudieron calcular los momentos'}
-        
-        # Calcular momentos de Hu
         hu_moments = cv2.HuMoments(moments).flatten()
         
+        # Calcular centroide y ángulo de orientación
+        cx_px = moments['m10'] / moments['m00'] if moments['m00'] != 0 else 0
+        cy_px = moments['m01'] / moments['m00'] if moments['m00'] != 0 else 0
+        
         # Calcular ángulo de orientación
-        angle = calcular_angulo_orientacion(moments)
-        
-        # Calcular centroide
-        cx_px = moments['m10'] / moments['m00']
-        cy_px = moments['m01'] / moments['m00']
+        angle = 0.5 * math.atan2(2 * moments['mu11'], moments['mu20'] - moments['mu02'])
+        angle_degrees = math.degrees(angle)
         
         if verbose:
-            print(f"[contornos] ✓ Momentos de Hu calculados")
-        if verbose:
+            print(f"[contornos] OK Momentos de Hu calculados")
             print(f"[contornos]   Centroide: ({cx_px:.2f}, {cy_px:.2f}) px")
-        if verbose:
-            print(f"[contornos]   Ángulo orientación: {angle:.2f}°")
+            print(f"[contornos]   Angulo orientacion: {angle_degrees:.2f}°")
         
-        # === PASO 7: Análisis de agujeros ===
+        # === PASO 6: Análisis de agujeros ===
         if verbose:
-            print("\n[contornos] PASO 7: Analizando agujeros...")
+            print("\n[contornos] PASO 6: Analizando agujeros...")
         analisis_agujeros = analizar_agujeros(holes, mm_por_pixel)
         
         # Estadísticas de clasificación
@@ -332,38 +282,30 @@ def analizar_imagen_completa(img_fondo_blanco: np.ndarray, mm_por_pixel: float =
         irregulares = sum(1 for item in analisis_agujeros if item['clasificacion'] == 'Irregular')
         
         if verbose:
-            print(f"[contornos] ✓ Clasificación de agujeros:")
-        if verbose:
+            print(f"[contornos] OK Clasificacion de agujeros:")
             print(f"[contornos]   • Redondos Grandes: {redondos_grandes}")
-        if verbose:
             print(f"[contornos]   • Redondos Chicos: {redondos_chicos}")
-        if verbose:
             print(f"[contornos]   • Irregulares: {irregulares}")
         
-        # Tabla detallada
-        if verbose:
-            print(f"\n[contornos] Análisis detallado:")
-        if verbose:
-            print(f"[contornos] {'ID':<4} {'Área (mm²)':>12} {'Perímetro (mm)':>15} {'Circular.':>11} {'Clasificación':>18}")
-        if verbose:
+        # Mostrar detalles de cada agujero
+        if verbose and analisis_agujeros:
+            print(f"\n[contornos] Analisis detallado:")
+            print(f"[contornos] {'ID':<4} {'Area (mm²)':>12} {'Perimetro (mm)':>15} {'Circular.':>11} {'Clasificacion':>18}")
             print(f"[contornos] {'-'*65}")
         for item in analisis_agujeros:
             if verbose:
                 print(f"[contornos] {item['id']:<4} {item['area_mm2']:>12.2f} {item['perimeter_mm']:>15.2f} {item['circularity']:>10.1f}% {item['clasificacion']:>18}")
         
-        # === PASO 8: Línea de referencia ===
+        # === PASO 7: Línea de referencia ===
         if verbose:
-            print("\n[contornos] PASO 8: Calculando línea de referencia...")
+            print("\n[contornos] PASO 7: Calculando linea de referencia...")
         punto1, punto2 = encontrar_agujeros_extremos(analisis_agujeros)
         
         linea_referencia = None
         if punto1 and punto2:
             distancia_px = np.sqrt((punto2[0] - punto1[0])**2 + (punto2[1] - punto1[1])**2)
             distancia_mm = pixeles_a_mm(distancia_px, mm_por_pixel)
-            punto_medio = (
-                (punto1[0] + punto2[0]) // 2,
-                (punto1[1] + punto2[1]) // 2
-            )
+            punto_medio = ((punto1[0] + punto2[0]) / 2, (punto1[1] + punto2[1]) / 2)
             
             linea_referencia = {
                 'punto1_px': punto1,
@@ -374,34 +316,30 @@ def analizar_imagen_completa(img_fondo_blanco: np.ndarray, mm_por_pixel: float =
             }
             
             if verbose:
-                print(f"[contornos] ✓ Línea de referencia calculada:")
-            if verbose:
+                print(f"[contornos] OK Linea de referencia calculada")
                 print(f"[contornos]   Punto 1: {punto1} px")
-            if verbose:
                 print(f"[contornos]   Punto 2: {punto2} px")
-            if verbose:
                 print(f"[contornos]   Distancia: {distancia_mm:.2f} mm ({distancia_px:.2f} px)")
-            if verbose:
                 print(f"[contornos]   Punto medio: {punto_medio} px")
         else:
             if verbose:
-                print(f"[contornos] ℹ️ No se pudo calcular línea de referencia (menos de 2 agujeros grandes)")
+                print(f"[contornos] INFO: No se pudo calcular linea de referencia (menos de 2 agujeros grandes)")
         
         # === RESULTADOS ===
         if verbose:
             print("\n" + "=" * 80)
-        if verbose:
-            print("RESUMEN DE ANÁLISIS")
+            print("RESULTADOS FINALES")
+            print("=" * 80)
         if verbose:
             print("=" * 80)
         if verbose:
-            print(f"✓ Contorno principal: {pixeles2_a_mm2(main_area_px, mm_por_pixel):.2f} mm²")
+            print(f"OK Contorno principal: {pixeles2_a_mm2(main_area_px, mm_por_pixel):.2f} mm²")
         if verbose:
-            print(f"✓ Total agujeros: {len(holes)}")
+            print(f"OK Total agujeros: {len(holes)}")
         if verbose:
-            print(f"✓ Momentos de Hu: {len(hu_moments)} valores")
+            print(f"OK Momentos de Hu: {len(hu_moments)} valores")
         if verbose:
-            print(f"✓ Factor conversión: {mm_por_pixel} mm/px")
+            print(f"OK Factor conversion: {mm_por_pixel} mm/px")
         if verbose:
             print("=" * 80 + "\n")
         
@@ -416,7 +354,7 @@ def analizar_imagen_completa(img_fondo_blanco: np.ndarray, mm_por_pixel: float =
                 'perimeter_mm': float(item['perimeter_mm']),
                 'circularity': float(item['circularity']),
                 'clasificacion': item['clasificacion'],
-                'centroide_px': item['centroide_px'] if item['centroide_px'] else None
+                'centroide_px': item['centroide_px']
             })
         
         return {
@@ -426,7 +364,7 @@ def analizar_imagen_completa(img_fondo_blanco: np.ndarray, mm_por_pixel: float =
                 'area_mm2': float(pixeles2_a_mm2(main_area_px, mm_por_pixel)),
                 'perimetro_px': float(main_perimeter_px),
                 'perimetro_mm': float(pixeles_a_mm(main_perimeter_px, mm_por_pixel)),
-                'angulo_orientacion': float(angle),
+                'angulo_orientacion': float(angle_degrees),
                 'centroide_px': (float(cx_px), float(cy_px)),
                 'centroide_mm': (float(pixeles_a_mm(cx_px, mm_por_pixel)), float(pixeles_a_mm(cy_px, mm_por_pixel))),
                 'bbox_width_px': float(bbox_width_px),
@@ -450,7 +388,7 @@ def analizar_imagen_completa(img_fondo_blanco: np.ndarray, mm_por_pixel: float =
         }
     
     except Exception as e:
-        print(f"[contornos] ❌ Error en análisis: {e}")
+        print(f"[contornos] ERROR: Error en analisis: {e}")
         import traceback
         traceback.print_exc()
         return {'ok': False, 'error': str(e)}
@@ -479,14 +417,13 @@ def crear_visualizacion(img_fondo_blanco: np.ndarray, datos_analisis: Dict) -> O
         # Crear imagen con fondo gris claro
         vis_img = np.full((img_fondo_blanco.shape[0], img_fondo_blanco.shape[1], 3), (240, 240, 240), dtype=np.uint8)
         
-        # Superponer imagen original
-        img_color = cv2.cvtColor(img_fondo_blanco, cv2.COLOR_GRAY2BGR)
-        mask = img_fondo_blanco < 250
-        vis_img[mask] = img_color[mask]
+        # Convertir imagen original a BGR para el fondo
+        if len(img_fondo_blanco.shape) == 2:
+            vis_img = cv2.cvtColor(img_fondo_blanco, cv2.COLOR_GRAY2BGR)
         
         # Dibujar contorno principal en VERDE
         if main_contour is not None:
-            cv2.drawContours(vis_img, [main_contour], -1, (0, 255, 0), 1)
+            cv2.drawContours(vis_img, [main_contour], -1, (0, 255, 0), 2)
         
         # Rellenar agujeros con colores según clasificación
         if analisis_agujeros:
@@ -494,37 +431,31 @@ def crear_visualizacion(img_fondo_blanco: np.ndarray, datos_analisis: Dict) -> O
                 clasificacion = item['clasificacion']
                 hole = item['contour']
                 
-                # Definir color según clasificación (BGR)
-                if clasificacion == "Redondo Grande":
-                    hole_color = (255, 150, 0)     # Azul oscuro
-                elif clasificacion == "Redondo Chico":
-                    hole_color = (255, 230, 150)   # Celeste claro
+                # Asignar colores según clasificación
+                if clasificacion == 'Redondo Grande':
+                    color = (0, 0, 255)  # ROJO para agujeros grandes
+                elif clasificacion == 'Redondo Chico':
+                    color = (255, 0, 255)  # MAGENTA para agujeros chicos
                 else:  # Irregular
-                    hole_color = (150, 150, 255)   # Rosa/rojo claro
+                    color = (0, 165, 255)  # NARANJA para irregulares
                 
                 # Rellenar agujero
-                cv2.fillPoly(vis_img, [hole], hole_color)
-                
-                # Borde más oscuro
-                border_color = tuple(int(c * 0.7) for c in hole_color)
-                cv2.drawContours(vis_img, [hole], -1, border_color, 1)
+                cv2.fillPoly(vis_img, [hole], color)
+                # Dibujar borde
+                cv2.drawContours(vis_img, [hole], -1, (0, 0, 0), 1)
         
-        # Dibujar línea de referencia
-        if linea_ref:
-            punto1 = linea_ref['punto1_px']
-            punto2 = linea_ref['punto2_px']
-            punto_medio = linea_ref['punto_medio_px']
+        # Dibujar línea de referencia si existe
+        if linea_ref and 'punto1_px' in linea_ref and 'punto2_px' in linea_ref:
+            p1 = (int(linea_ref['punto1_px'][0]), int(linea_ref['punto1_px'][1]))
+            p2 = (int(linea_ref['punto2_px'][0]), int(linea_ref['punto2_px'][1]))
+            cv2.line(vis_img, p1, p2, (255, 0, 0), 3)  # AZUL para línea de referencia
             
-            # Dibujar línea ROJA entre los dos puntos
-            cv2.line(vis_img, punto1, punto2, (0, 0, 255), 1)
-            
-            # Dibujar punto AMARILLO en el centro del segmento (más fino)
-            cv2.circle(vis_img, punto_medio, 6, (0, 255, 255), -1)  # Relleno
-            cv2.circle(vis_img, punto_medio, 6, (0, 180, 180), 1)   # Borde más oscuro
+            # Dibujar puntos extremos
+            cv2.circle(vis_img, p1, 5, (255, 0, 0), -1)
+            cv2.circle(vis_img, p2, 5, (255, 0, 0), -1)
         
         return vis_img
-    
+        
     except Exception as e:
-        print(f"[contornos] ❌ Error creando visualización: {e}")
+        print(f"[visualizacion] ERROR: {e}")
         return None
-

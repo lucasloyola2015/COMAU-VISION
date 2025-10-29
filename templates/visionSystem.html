@@ -114,6 +114,9 @@
       <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-xs);">Servidor Python</div>
       <input type="text" id="visionServerPathInput" placeholder="C:\ruta\completa\a\tu\servidor.py" 
              style="flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-family: 'Consolas', monospace;">
+      <div class="model-label" style="flex: 0 0 60px; font-size: var(--font-size-xs); margin-left: var(--space-xs);">Puerto</div>
+      <input type="number" id="visionServerPortInput" placeholder="8000" min="1000" max="65535"
+             style="flex: 0 0 80px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-family: 'Consolas', monospace;">
       <div class="model-status status-not-loaded" id="visionServerStatus" style="font-size: var(--font-size-xs); padding: 1px 6px;">Offline</div>
       <button class="btn btn-secondary btn-sm" id="btnSelectVisionServer" style="padding: 2px 8px; font-size: var(--font-size-xs);">
         Buscar
@@ -152,8 +155,16 @@
     </h2>
     
     
-    <!-- Controles ROI en grid 3 columnas compacto -->
-    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-xs) var(--space-sm);">
+    <!-- Controles ROI en grid 4 columnas compacto -->
+    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-xs) var(--space-sm);">
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <label for="inputOffsetX" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
+          Offset X (mm)
+        </label>
+        <input type="number" id="inputOffsetX" step="0.1" min="0" max="100" value="0.0" 
+               style="padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs);">
+      </div>
+      
       <div style="display: flex; flex-direction: column; gap: 2px;">
         <label for="inputOffsetY" style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 500;">
           Offset Y (mm)
@@ -346,6 +357,7 @@
     // Vision Server elements
     const btnSelectVisionServer = document.getElementById('btnSelectVisionServer');
     const visionServerPathInput = document.getElementById('visionServerPathInput');
+    const visionServerPortInput = document.getElementById('visionServerPortInput');
     const visionServerStatus = document.getElementById('visionServerStatus');
     const statusIndicator = document.getElementById('statusIndicator');
     const statusText = document.getElementById('statusText');
@@ -373,6 +385,7 @@
     const chkUseBoundingBox = document.getElementById('chkUseBoundingBox');
     
     // Elementos ROI
+    const inputOffsetX = document.getElementById('inputOffsetX');
     const inputOffsetY = document.getElementById('inputOffsetY');
     const inputZoomX = document.getElementById('inputZoomX');
     const inputZoomY = document.getElementById('inputZoomY');
@@ -388,6 +401,7 @@
     const chkShowSegmentoJunta = document.getElementById('chkShowSegmentoJunta');
     
     let currentVisionServerPath = null;
+    let currentVisionServerPort = 8000;
     let visionServerProcess = null;
     let visionServerCheckInterval = null;
     
@@ -482,6 +496,15 @@
       }
     });
     
+    // Actualizar el puerto cuando el usuario escriba en el input
+    visionServerPortInput.addEventListener('input', (e) => {
+      const port = parseInt(e.target.value);
+      if (port && port >= 1000 && port <= 65535) {
+        currentVisionServerPort = port;
+        console.log('[visionSystem] 📝 Puerto actualizado:', currentVisionServerPort);
+      }
+    });
+    
     // ============================================================
     // FUNCIONES DEL VISION SERVER
     // ============================================================
@@ -525,7 +548,10 @@
         const response = await fetch('/api/vision_server/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ path: currentVisionServerPath })
+          body: JSON.stringify({ 
+            path: currentVisionServerPath,
+            port: currentVisionServerPort
+          })
         });
         
         const data = await response.json();
@@ -612,6 +638,7 @@
           
           // Vision Server
           vision_server_path: visionServerPathInput.value.trim(),
+          vision_server_port: parseInt(visionServerPortInput.value) || 8000,
           
           // Umbrales de validación
           umbral_distancia_tolerancia: parseFloat(inputDistanciaTol.value),
@@ -625,6 +652,7 @@
           resolution_scale_opencv: parseInt(resolutionOpencv.value),
 
           // Configuración ROI
+          roi_offset_x_mm: parseFloat(inputOffsetX.value),
           roi_offset_y_mm: parseFloat(inputOffsetY.value),
           roi_zoom_x_percent: parseFloat(inputZoomX.value),
           roi_zoom_y_percent: parseFloat(inputZoomY.value),
@@ -653,6 +681,7 @@
             
             // Vision Server
             vision_server_path: currentVisionServerPath,
+            vision_server_port: currentVisionServerPort,
             
             // Umbrales de validación
             umbral_distancia_tolerancia: parseFloat(inputDistanciaTol.value),
@@ -683,6 +712,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             roi_enabled: chkUseROI.checked,
+            roi_offset_x_mm: parseFloat(inputOffsetX.value),
             roi_offset_y_mm: parseFloat(inputOffsetY.value),
             roi_zoom_x_percent: parseFloat(inputZoomX.value),
             roi_zoom_y_percent: parseFloat(inputZoomY.value)
@@ -698,6 +728,24 @@
         if (data1.ok && data2.ok) {
           showMessage('✓ Toda la configuración guardada correctamente', 'success');
           console.log('[visionSystem] ✅ Configuración completa guardada exitosamente');
+          
+          // Configurar ROI en el servidor de visión después de guardar
+          try {
+            const roiResponse = await fetch('/api/vision_server/configure_roi', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' }
+            });
+            
+            const roiResult = await roiResponse.json();
+            
+            if (roiResult.ok) {
+              console.log('[visionSystem] ✅ Configuración de ROI aplicada en servidor de visión');
+            } else {
+              console.warn('[visionSystem] ⚠️ Error configurando ROI en servidor de visión:', roiResult.mensaje);
+            }
+          } catch (e) {
+            console.warn('[visionSystem] ⚠️ Error configurando ROI en servidor de visión:', e);
+          }
         } else {
           const errors = [];
           if (!data1.ok) errors.push('Modelos/Umbrales: ' + (data1.error || 'Error'));
@@ -751,6 +799,12 @@
             console.log('[visionSystem] ✓ Servidor de visión cargado:', currentVisionServerPath);
           }
           
+          if (config.vision.vision_server_port) {
+            currentVisionServerPort = config.vision.vision_server_port;
+            visionServerPortInput.value = currentVisionServerPort;
+            console.log('[visionSystem] ✓ Puerto del servidor cargado:', currentVisionServerPort);
+          }
+          
           
           // ============================================================
           // CARGAR UMBRALES DE VALIDACIÓN
@@ -783,11 +837,13 @@
           // ============================================================
           // CARGAR CONFIGURACIÓN ROI
           // ============================================================
+          inputOffsetX.value = config.vision.roi_offset_x_mm || 0.0;
           inputOffsetY.value = config.vision.roi_offset_y_mm || 0.0;
           inputZoomX.value = config.vision.roi_zoom_x_percent || 150;
           inputZoomY.value = config.vision.roi_zoom_y_percent || 150;
           
           console.log('[visionSystem] ✓ Configuración ROI cargada:', {
+            offset_x: inputOffsetX.value,
             offset_y: inputOffsetY.value,
             zoom_x: inputZoomX.value,
             zoom_y: inputZoomY.value
