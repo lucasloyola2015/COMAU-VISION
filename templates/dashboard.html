@@ -6,6 +6,7 @@
   <title>Dashboard</title>
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/common.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
   <style>
     body {
       margin: 0;
@@ -419,6 +420,26 @@
       }, 3000);
     }
     
+    // Función para mostrar imagen de rutina de prueba con duración configurable
+    function mostrarImagenRespuestaRutina(imageBase64, durationSeconds = 5) {
+      // Ocultar streaming y mostrar imagen procesada
+      camStream.style.display = 'none';
+      analyzedImage.src = `data:image/png;base64,${imageBase64}`;
+      analyzedImage.style.display = 'block';
+      
+      console.log(`[dashboard] 🖼️ Imagen de rutina mostrada, ocultando en ${durationSeconds} segundos...`);
+      
+      // Mostrar indicadores de detección
+      showDetectionIndicators();
+      
+      // Restaurar streaming después del tiempo especificado
+      setTimeout(() => {
+        analyzedImage.style.display = 'none';
+        camStream.style.display = 'block';
+        console.log('[dashboard] 🔄 Streaming restaurado después de rutina');
+      }, durationSeconds * 1000);
+    }
+    
     // Función para enviar datos de trayectoria al panel de control
     function enviarDatosTrayectoria(trajectoryVectors, detectionData = null) {
       console.log('[dashboard] 🔄 Procesando trajectory_vectors:', trajectoryVectors);
@@ -463,17 +484,31 @@
       console.log('[dashboard] 📤 Datos de trayectoria enviados al panel de control');
     }
     
-    // Event listener para el botón PROBAR
-    btnSeryerTest.addEventListener('click', async () => {
-      btnSeryerTest.disabled = true;
-      
-      try {
-        await ejecutarServerTest();
-      } finally {
-        setTimeout(() => { 
-          btnSeryerTest.disabled = false; 
-        }, 1000);
+    // ================= SOCKET.IO CONFIG ======================
+    const socket = io();
+
+    socket.on('connect', () => {
+      console.log('[dashboard] 🟢 Conectado via Socket.IO');
+    });
+    socket.on('SERVER_TEST_RESULT', (data) => {
+      const { overlay_image, ...cleanData } = data;
+      console.log('[dashboard] ⚡ SERVER_TEST_RESULT recibido:', cleanData);
+      if (data.ok) {
+        // Actualizar UI solo si ok
+        if (data.data) updateDetectionIndicators(data.data);
+        if (data.overlay_image) mostrarImagenRespuesta(data.overlay_image);
+        if (data.trajectory_vectors && data.trajectory_vectors.length > 0) {
+          enviarDatosTrayectoria(data.trajectory_vectors, data.data);
+        }
+      } else {
+        console.log('[dashboard] ❌ Error recibido:', data.error);
       }
+    });
+
+    // ================ BOTÓN PROBAR =========================
+    btnSeryerTest.addEventListener('click', () => {
+      console.log('[dashboard] 🚀 Emitiendo evento AUTO_ANALYZE a backend via Socket.IO');
+      socket.emit('AUTO_ANALYZE');
     });
     
     // Verificar junta al cargar
@@ -509,6 +544,26 @@
         
         console.log('[dashboard] 🎯 Ejecutando server_test...');
         ejecutarServerTest();
+      } else if (event.data.type === 'SHOW_ROUTINE_IMAGE') {
+        console.log('[dashboard] 🖼️ Mostrando imagen de rutina de prueba...');
+        const data = event.data.data;
+        
+        if (data.overlay_image) {
+          // Mostrar imagen procesada
+          mostrarImagenRespuestaRutina(data.overlay_image, data.duration_seconds || 5);
+          
+          // Actualizar indicadores de detección si hay datos
+          if (data.detection_data) {
+            updateDetectionIndicators(data.detection_data);
+          }
+          
+          // Enviar datos de trayectoria al panel de control si hay vectores
+          if (data.trajectory_vectors && data.trajectory_vectors.length > 0) {
+            enviarDatosTrayectoria(data.trajectory_vectors, data.detection_data);
+          }
+        } else {
+          console.log('[dashboard] ⚠️ No hay imagen para mostrar en rutina de prueba');
+        }
       } else {
         console.log('[dashboard] 🔍 Mensaje no reconocido:', event.data.type);
       }

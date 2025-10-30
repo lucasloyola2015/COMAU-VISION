@@ -10,7 +10,9 @@ import json
 import base64
 import requests
 from datetime import datetime
- 
+from flask_socketio import SocketIO, emit
+import sockets
+
 from src.vision import camera_manager
 from src.vision import yolo_detector
 from src.vision.aruco_manager import detect_arucos_in_image, is_frame_detected, is_tool_detected
@@ -50,6 +52,8 @@ app = Flask(__name__,
             static_folder='static',
             static_url_path='/static',
             template_folder='templates')
+sockets.init_socketio(app, cors_allowed_origins="*", async_mode="threading")
+socketio = sockets.socketio
 
 # Variable global para el proceso del servidor de visión
 vision_server_process = None
@@ -619,17 +623,20 @@ def api_vision_icon_status():
     try:
         import requests
         
-        # Leer el puerto desde la configuración
+        # Leer IP y puerto desde la configuración
+        vision_server_ip = '127.0.0.1'
         vision_server_port = 8000  # Puerto por defecto
         try:
             with open('config.json', 'r', encoding='utf-8') as f:
                 config = json.load(f)
-                vision_server_port = config.get('vision', {}).get('vision_server_port', 8000)
+                vision_section = config.get('vision', {})
+                vision_server_ip = vision_section.get('vision_server_ip', vision_server_ip)
+                vision_server_port = vision_section.get('vision_server_port', vision_server_port)
         except:
-            pass  # Usar puerto por defecto si no se puede leer la configuración
+            pass  # Usar valores por defecto si no se puede leer la configuración
         
         # Verificar si el servidor de visión está respondiendo
-        vision_server_url = f"http://127.0.0.1:{vision_server_port}"
+        vision_server_url = f"http://{vision_server_ip}:{vision_server_port}"
         
         try:
             # Hacer una petición simple al servidor de visión con timeout de 2 segundos
@@ -784,6 +791,71 @@ def api_robot_hello():
             })
             
     except Exception as e:
+        return jsonify({
+            'ok': False,
+            'error': str(e),
+            'status': 'error',
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+@app.route('/api/robot_move_to_home', methods=['POST'])
+def api_robot_move_to_home():
+    """Endpoint para enviar comando MOVE TO HOME al robot COMAU via MQTT"""
+    try:
+        # Agregar directorio COMAU al path para importaciones
+        comau_path = os.path.join(os.path.dirname(__file__), 'COMAU')
+        if comau_path not in sys.path:
+            sys.path.insert(0, comau_path)
+        from comandos.cmd_move_to_home import move_to_home
+        
+        print(f"[illinois-server] 🤖 Recibida solicitud MOVE TO HOME")
+        
+        # Ejecutar comando MOVE TO HOME
+        result = move_to_home()
+        
+        print(f"[illinois-server] 📥 Resultado MOVE TO HOME: {result}")
+        
+        # Retornar resultado
+        if result.get('ok', False):
+            return jsonify(result)
+        else:
+            return jsonify(result), 500
+            
+    except Exception as e:
+        print(f"[illinois-server] ❌ Error en MOVE TO HOME: {str(e)}")
+        return jsonify({
+            'ok': False,
+            'error': str(e),
+            'status': 'error',
+            'message': f'Error interno: {str(e)}'
+        }), 500
+
+
+@app.route('/api/robot_test_routine', methods=['POST'])
+def api_robot_test_routine():
+    """Endpoint para enviar comando RUTINA DE PRUEBA al robot COMAU via MQTT"""
+    try:
+        # Agregar directorio COMAU al path para importaciones
+        comau_path = os.path.join(os.path.dirname(__file__), 'COMAU')
+        if comau_path not in sys.path:
+            sys.path.insert(0, comau_path)
+        from comandos.testRoutine import testRoutine
+        
+        print(f"[illinois-server] 🤖 Recibida solicitud RUTINA DE PRUEBA")
+        
+        # Ejecutar comando RUTINA DE PRUEBA
+        result = testRoutine()
+        
+        # Log detallado del resultado eliminado para mantener consola limpia
+        
+        # Retornar resultado
+        if result.get('ok', False):
+            return jsonify(result)
+        else:
+            return jsonify(result), 500
+            
+    except Exception as e:
+        print(f"[illinois-server] ❌ Error en RUTINA DE PRUEBA: {str(e)}")
         return jsonify({
             'ok': False,
             'error': str(e),
@@ -2574,7 +2646,7 @@ Ejemplos:
             log = logging.getLogger('werkzeug')
             log.setLevel(logging.ERROR)
             
-            app.run(host='0.0.0.0', port=args.port, debug=False, use_reloader=False)
+            socketio.run(app, host='0.0.0.0', port=args.port, debug=False, use_reloader=False)
         except Exception as e:
             print(f"✗ Error en Flask: {e}")
     
@@ -2751,10 +2823,8 @@ Ejemplos:
                 traceback.print_exc()
                 time.sleep(5)
     
-    # Iniciar el thread de gestión del servidor de visión
-    vision_thread = threading.Thread(target=vision_server_manager, daemon=True, name="VisionServerManager")
-    vision_thread.start()
-    print(f"✅ Gestión automática del servidor de visión iniciada")
+    # Gestión automática del servidor de visión deshabilitada
+    # (Se utiliza IP y puerto configurados para comunicarse con un servidor ya en ejecución)
     
     # ════════════════════════════════════════════════════════════
     # PASO 1.7: Inicializar modelos YOLO (GLOBAL)
@@ -2818,6 +2888,20 @@ Ejemplos:
             print(f"✗ Error: {e}")
             close_chrome()
             sys.exit(1)
+
+@socketio.on('AUTO_ANALYZE')
+def handle_auto_analyze():
+    print('[socketio] 📩 Evento AUTO_ANALYZE recibido desde frontend. Ejecutando server_test()...')
+    result = server_test()
+    if isinstance(result, dict):
+        result_to_log = dict(result)
+        result_to_log.pop('overlay_image', None)
+        print('[socketio] 📤 Respuesta de análisis para emitir (sin imagen):', result_to_log)
+        # Enviar full payload con imagen sólo al frontend
+        emit('SERVER_TEST_RESULT', result)
+    else:
+        print('[socketio] ❌ Respuesta inesperada:', result)
+        emit('SERVER_TEST_RESULT', { 'ok': False, 'error': 'Respuesta inesperada', 'data': str(result) })
 
 if __name__ == '__main__':
     main()

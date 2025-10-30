@@ -1,0 +1,47 @@
+{
+  "timestamp": "2025-10-30T12:40:44",
+  "rounded_trajectory_vectors": [
+    {
+      "segmento": "Muesca 1 -> Troqueladora",
+      "vector_mm": [
+        -72.22,
+        16.51
+      ]
+    },
+    {
+      "segmento": "Muesca 2 -> Muesca 1",
+      "vector_mm": [
+        -5.91,
+        0.21
+      ]
+    },
+    {
+      "segmento": "Muesca 3 -> Muesca 2",
+      "vector_mm": [
+        -5.91,
+        0.21
+      ]
+    },
+    {
+      "segmento": "Muesca 4 -> Muesca 3",
+      "vector_mm": [
+        -5.89,
+        -0.09
+      ]
+    },
+    {
+      "segmento": "Muesca 5 -> Muesca 4",
+      "vector_mm": [
+        -5.91,
+        0.21
+      ]
+    },
+    {
+      "segmento": "Muesca 6 -> Muesca 5",
+      "vector_mm": [
+        -5.91,
+        0.21
+      ]
+    }
+  ]
+}

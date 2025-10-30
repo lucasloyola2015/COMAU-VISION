@@ -111,42 +111,25 @@
     </h2>
     
     <div class="model-item" style="padding: var(--space-xs) var(--space-sm);">
-      <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-xs);">Servidor Python</div>
-      <input type="text" id="visionServerPathInput" placeholder="C:\ruta\completa\a\tu\servidor.py" 
-             style="flex: 1; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-family: 'Consolas', monospace;">
+      <div class="model-label" style="flex: 0 0 120px; font-size: var(--font-size-xs);">IP Servidor</div>
+      <input type="text" id="visionServerIpInput" placeholder="127.0.0.1"
+             style="flex: 0 0 160px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-family: 'Consolas', monospace;">
       <div class="model-label" style="flex: 0 0 60px; font-size: var(--font-size-xs); margin-left: var(--space-xs);">Puerto</div>
       <input type="number" id="visionServerPortInput" placeholder="8000" min="1000" max="65535"
              style="flex: 0 0 80px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: var(--font-size-xs); font-family: 'Consolas', monospace;">
       <div class="model-status status-not-loaded" id="visionServerStatus" style="font-size: var(--font-size-xs); padding: 1px 6px;">Offline</div>
-      <button class="btn btn-secondary btn-sm" id="btnSelectVisionServer" style="padding: 2px 8px; font-size: var(--font-size-xs);">
-        Buscar
-      </button>
     </div>
     
     <div style="margin-top: var(--space-sm); padding: var(--space-sm); background: var(--bg-secondary); border-radius: var(--radius-sm); border: 1px solid var(--border);">
-      <div style="display: flex; align-items: center; gap: var(--space-sm); margin-bottom: var(--space-xs);">
-        <div style="width: 12px; height: 12px; border-radius: 50%; background: #dc3545;" id="statusIndicator"></div>
-        <span style="font-size: var(--font-size-xs); color: var(--text-primary); font-weight: 600;" id="statusText">Servidor Offline</span>
-      </div>
-      <div style="font-size: var(--font-size-xs); color: var(--text-secondary); margin-bottom: var(--space-sm);" id="statusDescription">
-        El servidor de visión no está ejecutándose. Se iniciará automáticamente cuando sea necesario.
-      </div>
       <div style="display: flex; gap: var(--space-xs);">
-        <button class="btn btn-primary btn-sm" id="btnStartServer" style="padding: 4px 12px; font-size: var(--font-size-xs);">
-          Iniciar Ahora
-        </button>
-        <button class="btn btn-secondary btn-sm" id="btnStopServer" style="padding: 4px 12px; font-size: var(--font-size-xs);" disabled>
-          Detener
-        </button>
-        <button class="btn btn-outline btn-sm" id="btnRestartServer" style="padding: 4px 12px; font-size: var(--font-size-xs);">
-          Reiniciar
+        <button class="btn btn-primary btn-sm" id="btnTestServer" style="padding: 4px 12px; font-size: var(--font-size-xs);">
+          Probar conexión
         </button>
       </div>
     </div>
     
     <input type="file" id="fileInputVisionServer" accept=".py" style="display: none;">
   </div>
-  
   
   <!-- Card de Region de Interés (ROI) -->
   <div class="card" style="margin-top: var(--space-sm);">
@@ -355,16 +338,10 @@
 
   <script>
     // Vision Server elements
-    const btnSelectVisionServer = document.getElementById('btnSelectVisionServer');
-    const visionServerPathInput = document.getElementById('visionServerPathInput');
+    const visionServerIpInput = document.getElementById('visionServerIpInput');
     const visionServerPortInput = document.getElementById('visionServerPortInput');
     const visionServerStatus = document.getElementById('visionServerStatus');
-    const statusIndicator = document.getElementById('statusIndicator');
-    const statusText = document.getElementById('statusText');
-    const statusDescription = document.getElementById('statusDescription');
-    const btnStartServer = document.getElementById('btnStartServer');
-    const btnStopServer = document.getElementById('btnStopServer');
-    const btnRestartServer = document.getElementById('btnRestartServer');
+    const btnTestServer = document.getElementById('btnTestServer');
     
     const btnSaveAll = document.getElementById('btnSaveAll');
     const messageDiv = document.getElementById('message');
@@ -400,7 +377,7 @@
     const chkShowElipses = document.getElementById('chkShowElipses');
     const chkShowSegmentoJunta = document.getElementById('chkShowSegmentoJunta');
     
-    let currentVisionServerPath = null;
+    let currentVisionServerIp = '127.0.0.1';
     let currentVisionServerPort = 8000;
     let visionServerProcess = null;
     let visionServerCheckInterval = null;
@@ -429,71 +406,16 @@
       }
     }
     
-    function updateVisionServerStatus(status, path = null) {
-      if (path) {
-        visionServerPathInput.value = path;
-        currentVisionServerPath = path;
-      }
-      
-      if (status === 'online') {
-        visionServerStatus.textContent = 'Online';
-        visionServerStatus.className = 'model-status status-loaded';
-        statusIndicator.style.background = '#28a745';
-        statusText.textContent = 'Servidor Online';
-        statusDescription.textContent = 'El servidor de visión está ejecutándose correctamente.';
-        btnStartServer.disabled = true;
-        btnStopServer.disabled = false;
-      } else if (status === 'starting') {
-        visionServerStatus.textContent = 'Iniciando';
-        visionServerStatus.className = 'model-status status-not-loaded';
-        statusIndicator.style.background = '#ffc107';
-        statusText.textContent = 'Iniciando Servidor';
-        statusDescription.textContent = 'El servidor de visión se está iniciando, por favor espere...';
-        btnStartServer.disabled = true;
-        btnStopServer.disabled = true;
-      } else {
-        visionServerStatus.textContent = 'Offline';
-        visionServerStatus.className = 'model-status status-not-loaded';
-        statusIndicator.style.background = '#dc3545';
-        statusText.textContent = 'Servidor Offline';
-        statusDescription.textContent = 'El servidor de visión no está ejecutándose. Se iniciará automáticamente cuando sea necesario.';
-        btnStartServer.disabled = false;
-        btnStopServer.disabled = true;
-      }
+    function updateVisionServerStatus(status) {
+      visionServerStatus.textContent = status === 'online' ? 'Online' : 'Offline';
+      visionServerStatus.className = status === 'online' ? 'model-status status-loaded' : 'model-status status-not-loaded';
     }
     
-    // ============================================================
-    // CONFIGURACIÓN DE RUTA VISION SERVER
-    // ============================================================
-    btnSelectVisionServer.addEventListener('click', () => {
-      // Abrir diálogo para seleccionar archivo
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.py';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          // Solo mostrar el nombre del archivo, el usuario debe escribir la ruta completa
-          const fileName = file.name;
-          showMessage(`Archivo seleccionado: ${fileName}. Ahora escribe la ruta completa en el campo de texto.`, 'info');
-          
-          // Sugerir una ruta común (el usuario puede editarla)
-          const suggestedPath = `C:\\ruta\\completa\\a\\${fileName}`;
-          visionServerPathInput.value = suggestedPath;
-          visionServerPathInput.focus();
-          visionServerPathInput.select(); // Seleccionar el texto para que sea fácil de reemplazar
-        }
-      };
-      input.click();
-    });
-    
-    // Actualizar la ruta cuando el usuario escriba en el input
-    visionServerPathInput.addEventListener('input', (e) => {
-      currentVisionServerPath = e.target.value.trim();
-      if (currentVisionServerPath) {
-        updateVisionServerStatus('offline', currentVisionServerPath);
-        console.log('[visionSystem] 📝 Ruta actualizada:', currentVisionServerPath);
-      }
+    // Actualizar la IP cuando el usuario escriba en el input
+    visionServerIpInput.addEventListener('input', (e) => {
+      const ip = e.target.value.trim();
+      currentVisionServerIp = ip || '127.0.0.1';
+      console.log('[visionSystem] 📝 IP actualizada:', currentVisionServerIp);
     });
     
     // Actualizar el puerto cuando el usuario escriba en el input
@@ -523,102 +445,7 @@
       }
     }
     
-    function isValidPath(path) {
-      // Verificar que la ruta sea absoluta (Windows o Unix)
-      return path && (path.includes(':\\') || path.startsWith('/') || path.startsWith('C:\\'));
-    }
-    
-    async function startVisionServer() {
-      if (!currentVisionServerPath) {
-        showMessage('Primero escribe la ruta completa del servidor de visión', 'error');
-        return;
-      }
-      
-      if (!isValidPath(currentVisionServerPath)) {
-        showMessage('La ruta debe ser completa (ej: C:\\ruta\\completa\\servidor.py)', 'error');
-        return;
-      }
-      
-      try {
-        updateVisionServerStatus('starting');
-        showMessage('Iniciando servidor de visión...', 'info');
-        
-        console.log('[visionSystem] 🚀 Iniciando servidor con ruta:', currentVisionServerPath);
-        
-        const response = await fetch('/api/vision_server/start', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            path: currentVisionServerPath,
-            port: currentVisionServerPort
-          })
-        });
-        
-        const data = await response.json();
-        
-        if (data.ok) {
-          showMessage('Servidor de visión iniciado correctamente', 'success');
-          // Esperar 5 segundos y verificar estado
-          setTimeout(() => {
-            checkVisionServerStatus();
-            startVisionServerMonitoring();
-          }, 5000);
-        } else {
-          updateVisionServerStatus('offline');
-          showMessage('Error iniciando servidor: ' + (data.error || 'Error desconocido'), 'error');
-        }
-      } catch (e) {
-        updateVisionServerStatus('offline');
-        showMessage('Error de conexión al iniciar servidor', 'error');
-      }
-    }
-    
-    async function stopVisionServer() {
-      try {
-        showMessage('Deteniendo servidor de visión...', 'info');
-        
-        const response = await fetch('/api/vision_server/stop', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        const data = await response.json();
-        
-        if (data.ok) {
-          updateVisionServerStatus('offline');
-          showMessage('Servidor de visión detenido', 'success');
-          stopVisionServerMonitoring();
-        } else {
-          showMessage('Error deteniendo servidor: ' + (data.error || 'Error desconocido'), 'error');
-        }
-      } catch (e) {
-        showMessage('Error de conexión al detener servidor', 'error');
-      }
-    }
-    
-    async function restartVisionServer() {
-      await stopVisionServer();
-      setTimeout(() => {
-        startVisionServer();
-      }, 2000);
-    }
-    
-    function startVisionServerMonitoring() {
-      if (visionServerCheckInterval) {
-        clearInterval(visionServerCheckInterval);
-      }
-      
-      visionServerCheckInterval = setInterval(() => {
-        checkVisionServerStatus();
-      }, 3000); // Verificar cada 3 segundos
-    }
-    
-    function stopVisionServerMonitoring() {
-      if (visionServerCheckInterval) {
-        clearInterval(visionServerCheckInterval);
-        visionServerCheckInterval = null;
-      }
-    }
+    // No hay controles de inicio/detención/reinicio; sólo prueba de conexión
     
     // ============================================================
     // GUARDAR CONFIGURACIÓN COMPLETA
@@ -637,7 +464,7 @@
           use_boundingbox: chkUseBoundingBox.checked,
           
           // Vision Server
-          vision_server_path: visionServerPathInput.value.trim(),
+          vision_server_ip: visionServerIpInput.value.trim() || '127.0.0.1',
           vision_server_port: parseInt(visionServerPortInput.value) || 8000,
           
           // Umbrales de validación
@@ -680,7 +507,7 @@
             use_boundingbox: chkUseBoundingBox.checked,
             
             // Vision Server
-            vision_server_path: currentVisionServerPath,
+            vision_server_ip: currentVisionServerIp,
             vision_server_port: currentVisionServerPort,
             
             // Umbrales de validación
@@ -792,13 +619,11 @@
           // ============================================================
           // CARGAR VISION SERVER
           // ============================================================
-          if (config.vision.vision_server_path) {
-            currentVisionServerPath = config.vision.vision_server_path;
-            visionServerPathInput.value = currentVisionServerPath;
-            updateVisionServerStatus('offline', currentVisionServerPath);
-            console.log('[visionSystem] ✓ Servidor de visión cargado:', currentVisionServerPath);
+          if (config.vision.vision_server_ip) {
+            currentVisionServerIp = config.vision.vision_server_ip;
+            visionServerIpInput.value = currentVisionServerIp;
+            console.log('[visionSystem] ✓ IP del servidor cargada:', currentVisionServerIp);
           }
-          
           if (config.vision.vision_server_port) {
             currentVisionServerPort = config.vision.vision_server_port;
             visionServerPortInput.value = currentVisionServerPort;
@@ -903,17 +728,20 @@
     // EVENT LISTENERS
     // ============================================================
     btnSaveAll.addEventListener('click', saveAllConfig);
-    btnStartServer.addEventListener('click', startVisionServer);
-    btnStopServer.addEventListener('click', stopVisionServer);
-    btnRestartServer.addEventListener('click', restartVisionServer);
+    btnTestServer.addEventListener('click', async () => {
+      const result = await checkVisionServerStatus();
+      if (result) {
+        showMessage('Conexión exitosa con el servidor de visión', 'success');
+      } else {
+        showMessage('No se pudo conectar con el servidor de visión', 'error');
+      }
+    });
     
     // ============================================================
     // INICIALIZACIÓN
     // ============================================================
     (async function init() {
       await loadConfig();
-      await checkVisionServerStatus();
-      startVisionServerMonitoring();
     })();
   </script>
 </body>

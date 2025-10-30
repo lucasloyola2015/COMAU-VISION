@@ -12,8 +12,8 @@
     "base": {
       "reference_id": 23,
       "marker_size_mm": 70,
-      "troqueladora_center_x_mm": -95,
-      "troqueladora_center_y_mm": -8,
+      "troqueladora_center_x_mm": -55,
+      "troqueladora_center_y_mm": -58,
       "show_reference": true,
       "dictionary_id": 50,
       "marker_bits": 6,
@@ -198,7 +198,7 @@
     },
     "use_baseframe": false,
     "use_toolframe": false,
-    "vision_server_path": "C:\\Users\\loyol\\Documents\\Illinois Automation\\Proyecto Final\\ROBOT\\vision_service.py",
+    "vision_server_ip": "127.0.0.1",
     "vision_server_port": 8000
   },
   "mqtt": {

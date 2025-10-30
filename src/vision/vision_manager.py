@@ -67,7 +67,10 @@ def server_test():
         
         # Enviar imagen al servidor de procesamiento
         print("[vision_manager] 📤 Enviando imagen al servidor de procesamiento...")
-        url = "http://127.0.0.1:8000/process/"
+        cfg = _load_config().get('vision', {})
+        vision_ip = cfg.get('vision_server_ip', '127.0.0.1')
+        vision_port = cfg.get('vision_server_port', 8000)
+        url = f"http://{vision_ip}:{vision_port}/process/"
         
         files = {"file": ("capture.jpg", image_bytes, "image/jpeg")}
         
@@ -164,7 +167,10 @@ def configure_vision_server(lista_muescas_mm=None, roi_rectangulo=None, vision_s
             }
         
         # Enviar configuración al servidor
-        url = f"http://127.0.0.1:{vision_server_port}/config/"
+        cfg = _load_config().get('vision', {})
+        vision_ip = cfg.get('vision_server_ip', '127.0.0.1')
+        vision_port = cfg.get('vision_server_port', vision_server_port)
+        url = f"http://{vision_ip}:{vision_port}/config/"
         
         try:
             response = requests.patch(
@@ -226,7 +232,10 @@ def get_vision_server_config(vision_server_port=8000):
         
         import requests
         
-        url = f"http://127.0.0.1:{vision_server_port}/config/"
+        cfg = _load_config().get('vision', {})
+        vision_ip = cfg.get('vision_server_ip', '127.0.0.1')
+        vision_port = cfg.get('vision_server_port', vision_server_port)
+        url = f"http://{vision_ip}:{vision_port}/config/"
         
         try:
             response = requests.get(url, timeout=5)
@@ -329,7 +338,10 @@ def configure_aruco_vision_server(config_path='config.json', vision_server_port=
         print(f"  - Diámetro Troqueladora: {payload['troqueladora']['diametro_mm']}mm")
         
         # Enviar configuración al servidor
-        url = f"http://127.0.0.1:{vision_server_port}/config/"
+        cfg = _load_config().get('vision', {})
+        vision_ip = cfg.get('vision_server_ip', '127.0.0.1')
+        vision_port = cfg.get('vision_server_port', vision_server_port)
+        url = f"http://{vision_ip}:{vision_port}/config/"
         
         try:
             response = requests.patch(

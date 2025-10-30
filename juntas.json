@@ -155,7 +155,7 @@
         "redondos_chicos": 33,
         "irregulares": 1
       },
-      "cantidad_muescas": 2,
+      "cantidad_muescas": 6,
       "muescas_vertical": false,
       "centros_muescas": [
         {
@@ -169,6 +169,34 @@
           "id": 2,
           "centro_mm": [
             166.7,
+            -63.7
+          ]
+        },
+        {
+          "id": 3,
+          "centro_mm": [
+            173.7,
+            -63.7
+          ]
+        },
+        {
+          "id": 4,
+          "centro_mm": [
+            180.7,
+            -63.7
+          ]
+        },
+        {
+          "id": 5,
+          "centro_mm": [
+            187.7,
+            -63.7
+          ]
+        },
+        {
+          "id": 6,
+          "centro_mm": [
+            194.7,
             -63.7
           ]
         }
@@ -198,7 +226,7 @@
           823
         ]
       },
-      "fecha_modificacion": "2025-10-29T12:23:39.934705",
+      "fecha_modificacion": "2025-10-30T11:27:18.404565",
       "muesca_x": 159.7,
       "muesca_y": -63.7,
       "px_mm": 11.825641025641026,

@@ -387,9 +387,9 @@ class MQTTManager:
             elif status == 'waiting':
                 self.logger.info("Icono MQTT actualizado a NARANJA (parpadeante)")
                 print("[MQTT] Icono MQTT: NARANJA (esperando respuesta)")
-            else:
-                self.logger.info("Icono MQTT actualizado a GRIS")
-                print("[MQTT] Icono MQTT: GRIS (estado por defecto)")
+            # else:
+            #     self.logger.info("Icono MQTT actualizado a GRIS")
+            #     print("[MQTT] Icono MQTT: GRIS (estado por defecto)")
                 
         except Exception as e:
             self.logger.error(f"Error actualizando icono MQTT: {e}")
